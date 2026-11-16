@@ -4,6 +4,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { MockBackend } from './backend';
+import { TITLE_ANSWERS } from './fixtures/titles';
 import {
   MOCK_ROOT, audioBackends, audioDevices, builtinModels, notificationSettings, ollamaModels,
   parakeetModels, recordingPreferences, templates, whisperModels,
@@ -128,6 +129,34 @@ export const handlers: Record<string, Handler> = {
     const m = be.find(a?.meetingId);
     if (m) m.title = a?.title;
     return null;
+  },
+  // ---------- названия встреч (summary/title.rs) ----------
+  api_get_title_origin: (a, be) => be.titleOrigin.get(a?.meetingId) ?? null,
+  api_mark_title_manual: (a, be) => {
+    be.titleOrigin.set(a?.meetingId, 'manual');
+    return true;
+  },
+  api_set_auto_title: (a, be) => {
+    const m = be.find(a?.meetingId);
+    if (!m) return 'missing';
+    const title = String(a?.newTitle ?? '').trim();
+    if (!title || title.includes('\n') || title.length > 120) return 'rejected';
+    if (be.titleOrigin.get(m.id) === 'manual' && !a?.overrideManual) return 'manual';
+    if (m.title !== a?.expectedTitle) return 'changed';
+    m.title = title;
+    be.titleOrigin.set(m.id, 'auto');
+    return 'set';
+  },
+  // «Ответ модели»: встреча узнаётся по тексту, который интерфейс положил в запрос
+  api_generate_title_text: async (a, be) => {
+    await new Promise((r) => setTimeout(r, 700));
+    const prompt = String(a?.userPrompt ?? '');
+    const found = be.meetings.find((m) => {
+      const line = m.transcripts[1]?.text ?? '';
+      const body = line.includes(': ') ? line.slice(line.indexOf(': ') + 2) : line;
+      return body.length > 10 && prompt.includes(body);
+    });
+    return (found && TITLE_ANSWERS[found.id]) || '';
   },
   get_meeting_folder_path: ok(`${MOCK_ROOT}/recordings/current`),
   open_meeting_folder: warnNative('Открытие папки встречи'),

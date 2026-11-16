@@ -16,6 +16,8 @@ export class MockBackend {
   meetings: MockMeeting[];
   modelsReady: boolean;
   onboardingCompleted: boolean;
+  /** Кто задал название встречи (title.json в папке встречи): manual или auto. */
+  readonly titleOrigin = new Map<string, 'manual' | 'auto'>();
   /** Имена событий, которые «ядро» отправило (для отчёта о покрытии). */
   readonly emittedEvents = new Set<string>();
 
