@@ -40,6 +40,7 @@ pub mod api;
 pub mod audio;
 pub mod config;
 pub mod console_utils;
+pub mod crash_recovery;
 pub mod database;
 pub mod notifications;
 pub mod ollama;
@@ -708,6 +709,8 @@ pub fn run() {
             audio::incremental_saver::recover_audio_from_checkpoints,
             audio::incremental_saver::cleanup_checkpoints,
             audio::incremental_saver::has_audio_checkpoints,
+            // Shade: restore meetings whose recording was cut off by a crash (docs/ui/recording-outcome.md)
+            crash_recovery::recover_interrupted_meetings,
             console_utils::show_console,
             console_utils::hide_console,
             console_utils::toggle_console,

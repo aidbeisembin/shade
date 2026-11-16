@@ -39,6 +39,7 @@
 
 ## Проверки
 - После правок во `frontend`: `npx tsc --noEmit`, `pnpm check:contrast`, `pnpm check:i18n`, `pnpm test`, `pnpm build` (первые четыре подряд: `pnpm check`). Те же шаги на каждый PR в `shade` запускает `.github/workflows/shade-check.yml`.
+- Ядро записи и восстановления после сбоя: `CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p meetily --lib crash_recovery` (нужен `ffmpeg`; настоящий `kill -9` дочернего процесса в `kill9_*`, на настоящей копии папки: `SHADE_REAL_ROOT=… SHADE_REAL_FOLDER=… cargo test -p meetily --lib crash_recovery::tests::real_copy -- --ignored --nocapture`). В CI это не идёт: Tauri-ядро там не собирается, проверка локальная, хвост вывода в PR. Нагрузка записи (память, процессор) на заглушке звука: `scripts/measure-recording-load.sh [секунды] [файл.csv]`.
 - Скрипт переноса данных `scripts/migrate-from-aid.sh`: тест `bash scripts/test-migrate-from-aid.sh` (подставной `HOME`, вымышленные данные), в CI отдельной задачей той же проверки.
 
 ## Git и отчёты

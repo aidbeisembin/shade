@@ -28,6 +28,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { markDiscarded, purgeDiscarded } from './recording-marks';
 import { purgeExpiredTrash, restoreMeeting, trashMeeting } from './meeting-trash';
 import { shadeToast } from './toasts';
+import { runCrashRecovery } from './crash-recovery';
 import { displayTitle } from './format';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
@@ -159,9 +160,11 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
   // Свой экземпляр оригинального хука: сохраняет встречу при остановке из трея и по «Вернуть»
   const { handleRecordingStop } = useRecordingStop(noop, noop);
   // id сохранённой встречи: useRecordingStop кладёт его в currentMeeting сайдбара
-  const { currentMeeting } = useSidebar();
+  const { currentMeeting, refetchMeetings } = useSidebar();
   const meetingRef = useRef(currentMeeting);
   meetingRef.current = currentMeeting;
+  const refetchRef = useRef(refetchMeetings);
+  refetchRef.current = refetchMeetings;
   const recordingNow = useRef(recording.isRecording);
   recordingNow.current = recording.isRecording;
 
@@ -310,6 +313,8 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void purgeDiscarded();
     void purgeExpiredTrash();
+    // Прерванные сбоем записи: ядро создаёт встречи, здесь тихое уведомление и перечитанный список
+    void runCrashRecovery(() => void refetchRef.current?.());
     // Приложение живёт в трее неделями: срок корзины проверяется и раз в 6 часов
     const id = setInterval(() => void purgeExpiredTrash(), TRASH_PURGE_EVERY_MS);
     return () => clearInterval(id);

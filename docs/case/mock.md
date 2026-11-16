@@ -89,7 +89,7 @@ pnpm dev            # http://localhost:3118
 
 ## Что мокается
 
-**Команды.** Замокано 149 из 149 команд, которые вызывает интерфейс. Это все строковые имена в `invoke(...)` и `invokeTauri(...)` в `src`. Разбор в `docs/recon.md` насчитал 145: grep не видел вызовы, где имя команды стоит на следующей строке. Пропущены были `api_detect_transcript_summary_language`, `api_get_meeting_detected_summary_language`, `api_save_meeting_detected_summary_language` и `recover_audio_from_checkpoints`.
+**Команды.** Замокано 149 из 150 команд, которые вызывает интерфейс (150-я, `recover_interrupted_meetings`, не замокана: ответ `null`, интерфейс его тихо пропускает; уведомление о ней в разработке даёт `?recovery=…`, см. `docs/ui/recording-outcome.md`). Это все строковые имена в `invoke(...)` и `invokeTauri(...)` в `src`. Разбор в `docs/recon.md` насчитал 145: grep не видел вызовы, где имя команды стоит на следующей строке. Пропущены были `api_detect_transcript_summary_language`, `api_get_meeting_detected_summary_language`, `api_save_meeting_detected_summary_language` и `recover_audio_from_checkpoints`.
 
 Плюс команды плагинов: `plugin:store|*` (хранилище в памяти), `plugin:app|version`, `plugin:path|resolve_directory`, `plugin:updater|check` (обновлений нет), `plugin:process|*`, `plugin:notification|*`, `plugin:resources|close`. `plugin-os` читает данные синхронно из `window.__TAURI_OS_PLUGIN_INTERNALS__`. Заглушка подкладывает этот объект с `platform: 'macos'`, поэтому в онбординге есть шаг с разрешениями.
 

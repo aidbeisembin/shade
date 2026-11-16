@@ -14,11 +14,16 @@ struct AudioData {
     // sample_rate: u32,
 }
 
-/// Incremental audio saver that writes checkpoints every 30 seconds
+/// Length of one checkpoint in seconds. A crash loses at most the audio still in memory,
+/// that is up to this many seconds (was 30 s; 10 s cuts the loss threefold, the final
+/// file is the same: chunks are concatenated without re-encoding)
+pub const CHECKPOINT_SECONDS: usize = 10;
+
+/// Incremental audio saver that writes checkpoints every `CHECKPOINT_SECONDS`
 /// to minimize memory usage and enable crash recovery
 pub struct IncrementalAudioSaver {
     checkpoint_buffer: Vec<AudioData>,
-    checkpoint_interval_samples: usize,  // 30s at 48kHz = 1,440,000 samples
+    checkpoint_interval_samples: usize,  // CHECKPOINT_SECONDS at 48kHz
     checkpoint_count: u32,
     checkpoints_dir: PathBuf,
     meeting_folder: PathBuf,
@@ -41,7 +46,7 @@ impl IncrementalAudioSaver {
 
         Ok(Self {
             checkpoint_buffer: Vec::new(),
-            checkpoint_interval_samples: sample_rate as usize * 30, // 30 seconds
+            checkpoint_interval_samples: sample_rate as usize * CHECKPOINT_SECONDS,
             checkpoint_count: 0,
             checkpoints_dir,
             meeting_folder,
@@ -50,7 +55,7 @@ impl IncrementalAudioSaver {
     }
 
     /// Add an audio chunk to the buffer
-    /// Automatically saves a checkpoint when buffer reaches 30 seconds
+    /// Automatically saves a checkpoint when buffer reaches CHECKPOINT_SECONDS
     pub fn add_chunk(&mut self, chunk: AudioChunk) -> Result<()> {
         let audio_data = AudioData {
             data: chunk.data,
@@ -65,7 +70,7 @@ impl IncrementalAudioSaver {
             .map(|c| c.data.len())
             .sum();
 
-        // Save checkpoint when buffer reaches threshold (30 seconds)
+        // Save checkpoint when buffer reaches threshold (CHECKPOINT_SECONDS)
         if total_samples >= self.checkpoint_interval_samples {
             self.save_checkpoint()?;
             self.checkpoint_buffer.clear();
@@ -92,13 +97,22 @@ impl IncrementalAudioSaver {
         let checkpoint_path = self.checkpoints_dir
             .join(format!("audio_chunk_{:03}.mp4", self.checkpoint_count));
 
-        // Encode and save checkpoint
-        encode_single_audio(
+        // Encode into `<name>.part`, flush to disk, then rename: a chunk under its final
+        // name is always complete and readable even after a hard power-off. An interrupted
+        // encode leaves only `*.part`, which recovery ignores (crash_recovery::media).
+        let part_path = checkpoint_path.with_extension("mp4.part");
+        let encoded = encode_single_audio(
             bytemuck::cast_slice(&audio_data),
             self.sample_rate,
             1,  // mono
-            &checkpoint_path
-        )?;
+            &part_path
+        );
+        if let Err(e) = encoded {
+            let _ = std::fs::remove_file(&part_path);
+            return Err(e);
+        }
+        crate::crash_recovery::fsio::sync_file(&part_path)?;
+        crate::crash_recovery::fsio::rename_durable(&part_path, &checkpoint_path)?;
 
         let duration_seconds = audio_data.len() as f32 / self.sample_rate as f32;
         self.checkpoint_count += 1;
@@ -432,7 +446,7 @@ mod tests {
             48000
         ).unwrap();
 
-        // Add 60 seconds worth of audio (should create 2 checkpoints)
+        // Add 60 seconds worth of audio (should create 6 checkpoints of CHECKPOINT_SECONDS = 10)
         for i in 0..120 {  // 120 chunks of 0.5s each
             let chunk = AudioChunk {
                 data: vec![0.5f32; 24000],  // 0.5s at 48kHz
@@ -444,8 +458,9 @@ mod tests {
             saver.add_chunk(chunk).unwrap();
         }
 
-        // Verify 2 checkpoints created
-        assert_eq!(saver.checkpoint_count, 2);
+        // Verify 6 checkpoints created, none left half-written
+        assert_eq!(saver.checkpoint_count, 6);
+        assert!(!meeting_folder.join(".checkpoints").read_dir().unwrap().any(|e| e.unwrap().path().extension().map_or(false, |x| x == "part")));
 
         // Finalize and verify merge
         let final_path = saver.finalize().await.unwrap();

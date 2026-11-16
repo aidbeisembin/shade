@@ -33,7 +33,7 @@ const SUPPRESSED = new Set(['Recording saved successfully!', '🔴 Recording Sta
 /** Действия, которые повторяют уже сделанный переход. */
 const REDUNDANT_ACTIONS = new Set(['View Meeting']);
 
-// Знак по смыслу из того же набора, что во всём Shade (fill, 20 px; Check bold:
+// Знак по умолчанию по смыслу (свой знак тост может передать в `icon`) из того же набора, что во всём Shade (fill, 20 px; Check bold:
 // залитый нарисован квадратом), ожидание тем же Spinner. Сам знак без подложки,
 // круг даёт Notice.
 const ICON: Record<Kind, React.ReactNode> = {
@@ -89,7 +89,7 @@ function ShadeToast({ id, kind, title, data }: { id: string | number; kind: Kind
     <Notice
       role={kind === 'error' ? 'alert' : 'status'}
       className="w-full"
-      icon={ICON[kind]}
+      icon={(data?.icon as React.ReactNode) ?? ICON[kind]}
       tone={TONE[kind]}
       title={title}
       hint={render(data?.description) || undefined}
