@@ -41,6 +41,10 @@ import { t } from '@/shade/strings';
 import { useConfig } from '@/contexts/ConfigContext';
 import { LANGUAGES } from '@/constants/languages';
 import { useLang } from '@/shade/lib/lang';
+import { FeedbackCard } from '@/shade/components/feedback/FeedbackCard';
+import { clearOffer, flushFeedbackOnLaunch, useOfferedMeeting } from '@/shade/lib/feedback/store';
+import { previewFeedback, previewMotion } from '@/shade/lib/feedback/preview';
+import type { Flow } from '@/shade/lib/feedback/flow';
 
 /** Через сколько секунд без единой осмысленной реплики показать «Не слышу речи». */
 export const NO_SPEECH_HINT_SEC = 20;
@@ -328,6 +332,22 @@ export function RecordDock() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, cardKey]);
 
+  // Обратная связь: «Как вам Shade?», когда страница встречи предложила (lib/feedback/store.ts).
+  // Только в покое: во время записи и пока видна карточка итога её нет. Запись началась: предложение
+  // снимается (это не закрытие человеком, в счёт не идёт). При запуске уходит очередь прошлых отзывов
+  const offeredMeeting = useOfferedMeeting();
+  const [feedbackPreview, setFeedbackPreview] = useState<Flow | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setFeedbackPreview(previewFeedback(params));
+    previewMotion(params);
+  }, [pathname]);
+  useEffect(() => flushFeedbackOnLaunch(), []);
+  useEffect(() => {
+    if (c.isRecording) clearOffer();
+  }, [c.isRecording]);
+  const showFeedback = state === 'idle' && micBlocker === null && (offeredMeeting !== null || feedbackPreview !== null);
+
   // Тосты встают над тем, что сейчас в доке (lib/notice-stack.ts)
   const sectionRef = useRef<HTMLElement>(null);
   useNoticeStackAnchor(sectionRef);
@@ -354,6 +374,20 @@ export function RecordDock() {
               onRecheck={c.recheckMicrophone}
               onSystemOnly={() => void c.startAnywhere({ systemOnly: true })}
               onClose={c.dismissBlocker}
+            />
+          </div>
+        )}
+      </DockLeave>
+
+      <DockLeave show={showFeedback}>
+        {showFeedback && (
+          <div key={`feedback-${offeredMeeting ?? 'preview'}`} className="shade-dock-in pointer-events-auto flex w-full justify-center">
+            <FeedbackCard
+              initial={feedbackPreview ?? undefined}
+              onDone={() => {
+                clearOffer();
+                setFeedbackPreview(null);
+              }}
             />
           </div>
         )}

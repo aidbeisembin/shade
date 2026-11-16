@@ -29,7 +29,7 @@ Shade, основан на Meetily (MIT), Tauri 2. Свой слой: `frontend/
 `pnpm dev`, `localhost:3118/?mock=full`; подробно `docs/dev.md`. Тексты интерфейса только в `strings.ts` (ru и en), проверка `pnpm check:i18n`; английские снимки `?mock=demo-en`.
 
 ## Что читать (`docs/ui/`)
-Вид: `foundations.md`. Каркас: `frame.md`. Запись: `recording.md`. Итог, корзина: `recording-outcome.md`. Главная, встреча, настройки, первый запуск: `meetings-list.md`, `meeting.md`, `settings.md`, `onboarding.md`.
+Вид: `foundations.md`. Каркас: `frame.md`. Запись: `recording.md`. Итог, корзина: `recording-outcome.md`. Главная, встреча, настройки, первый запуск: `meetings-list.md`, `meeting.md`, `settings.md`, `onboarding.md`. Оценка и отзыв: `feedback.md`.
 
 ## Стиль
 По-русски, без длинных тире, «ёлочки»; термин поясняй при первом упоминании.

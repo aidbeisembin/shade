@@ -63,6 +63,7 @@ import { RerecognizeDialog } from '@/shade/components/RerecognizeDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shade/components/ui/dropdown-menu';
 import { useLang } from '@/shade/lib/lang';
 import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
+import { useFeedbackOffer } from '@/shade/lib/feedback/store';
 
 // Колонка текста: строки реплик не длиннее 760 px, дальше читать тяжело
 const MEASURE = 'max-w-[760px]';
@@ -548,6 +549,11 @@ function MeetingDetailsContent() {
   // Пока ИИ готовит итоги: свечение «думает»; готово или ошибка: уходит за 0,4 с
   const glow = useGlowPresence(m.summary.kind === 'processing' ? 'think' : null);
 
+  // «Как вам Shade?»: человек открыл итоги успешно завершённой встречи (lib/feedback). Карточку
+  // ставит док, правила в policy.ts; восстановленная после сбоя и встреча в корзине не в счёт
+  const recordingNow = useRecordingControls().isRecording;
+  useFeedbackOffer({ meetingId: meta?.id ?? null, summaryReady: m.summary.kind === 'ready', recovered: Boolean(recovered), recording: recordingNow, trashed });
+
   if (m.meeting.kind === 'loading') return <LoadingState />;
 
   if (m.meeting.kind === 'not-found') {
@@ -603,7 +609,8 @@ function MeetingDetailsContent() {
   // кнопки нет) и в тексте не меньше MIN_SUMMARY_WORDS слов (speech.ts). Иначе модель
   // заполнила бы разделы заглушками «Ничего не отмечено». Итоги, сделанные раньше, видны
   // при любой длине, но «Сделать заново» у короткой встречи нет
-  const { isRecording } = useRecordingControls();
+  // Хук вызван выше, до ранних return (иначе порядок хуков меняется между загрузкой и готовой встречей)
+  const isRecording = recordingNow;
   const enoughText = m.hasMore || countWords(m.segments.map((x) => x.text).join(' ')) >= MIN_SUMMARY_WORDS;
   const canSummarize = !empty && enoughText && !isRecording;
   const showSummary = !empty && (m.summary.kind === 'ready' || m.summary.kind === 'processing' || (m.summary.kind === 'failed' && canSummarize));
