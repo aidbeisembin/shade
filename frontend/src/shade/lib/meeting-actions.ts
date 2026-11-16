@@ -6,10 +6,14 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { restoreMeeting, trashMeeting } from './meeting-trash';
+import { markTitleManual } from './title-service';
 import { shadeToast } from './toasts';
 import { t, tDays } from '@/shade/strings';
 
 export async function renameMeeting(meetingId: string, title: string) {
+  // Пометка «название задал человек» до записи: после неё автоматика встречу не трогает
+  // (title-service.ts, ядро summary/title.rs). Не записалась: название всё равно сохраняется
+  await markTitleManual(meetingId);
   await invoke('api_save_meeting_title', { meetingId, title });
 }
 

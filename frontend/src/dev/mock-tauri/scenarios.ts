@@ -6,6 +6,7 @@ import { createFullMeetings } from './fixtures/meetings';
 import { createLongMeetings } from './fixtures/long';
 import { createEdgeMeetings } from './fixtures/edge';
 import { createDemoEnMeetings } from './fixtures/demo-en';
+import { createTitlesEnMeetings, createTitlesMeetings } from './fixtures/titles';
 import type { MockMeeting } from './fixtures/types';
 
 export type ScenarioId =
@@ -16,7 +17,7 @@ export type ScenarioId =
   | 'long-empty' | 'sparse' | 'no-model' | 'no-permission'
   | 'mic-denied' | 'mic-missing' | 'mic-prompt' | 'mic-core-refuses' | 'mic-silent' | 'mic-lost' | 'model-downloading'
   | 'mic-prompt-deny' | 'mic-unknown-zeros' | 'mic-unknown-ok' | 'mic-unknown-blind' | 'onboarding-mac' | 'onboarding-mac-unknown'
-  | 'demo-en';
+  | 'demo-en' | 'titles' | 'titles-en';
 
 /**
  * Что «ядро» присылает во время записи. Речевой сегмент после VAD приходит
@@ -304,6 +305,17 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
       'Mostly on the team invite step, about a quarter never invite anyone.',
       'Then let us move the invite after the first summary and test it for two weeks.',
     ],
+  },
+  titles: {
+    id: 'titles', label: 'titles',
+    description: 'Встречи с названиями по умолчанию («Meeting 16_11_26_15_02_11»): список из одних дат. «Настройки → Общие → Придумать названия для старых встреч» даёт им названия по теме (ответы модели в fixtures/titles.ts)',
+    meetings: createTitlesMeetings, onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
+  },
+  'titles-en': {
+    id: 'titles-en', label: 'titles-en',
+    description: 'То же на английском: 8 вымышленных встреч с названиями по умолчанию, английский интерфейс',
+    meetings: createTitlesEnMeetings, onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
+    lang: 'en',
   },
 };
 
