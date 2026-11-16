@@ -1,12 +1,11 @@
 name: "Shade check"
 
 # Проверки интерфейса Shade на каждый PR в рабочую ветку.
-# aid: прежнее имя ветки; убрать после переименования aid → shade на GitHub.
 # Что и почему: CLAUDE.md, раздел «Готово значит».
 
 on:
   pull_request:
-    branches: [shade, aid]
+    branches: [shade]
 
 concurrency:
   group: shade-check-${{ github.event.pull_request.number }}
