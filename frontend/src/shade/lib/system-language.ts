@@ -1,4 +1,4 @@
-// Язык распознавания по умолчанию: язык системы, а не «Определять автоматически».
+// Язык встреч по умолчанию: язык интерфейса (русский), а не «Определять автоматически».
 //
 // Выбор хранит оригинальный ConfigContext в localStorage под ключом `primaryLanguage`
 // (код ISO 639-1, 'auto' или 'auto-translate') и при монтировании сам отправляет его
@@ -12,6 +12,8 @@
 // гонки с синхронизацией оригинала. Сохранённый выбор, в том числе 'auto', не трогаем.
 
 import { LANGUAGES } from '@/constants/languages';
+import { defaultChoice } from '@/shade/lib/speech-settings';
+import { DEFAULT_LANG, LANG_KEY } from '@/shade/lib/lang';
 
 /** Ключ оригинала (contexts/ConfigContext.tsx), формат не меняем. */
 const STORAGE_KEY = 'primaryLanguage';
@@ -44,17 +46,18 @@ export function systemLanguageCode(): string | null {
 }
 
 /**
- * Если язык распознавания ещё не выбран, ставит язык системы.
+ * Если язык встреч ещё не выбран, ставит язык интерфейса (русский по умолчанию).
  * Вызывать до монтирования ConfigProvider. Возвращает записанный код или null.
  */
 export function applySystemLanguageDefault(): string | null {
   if (typeof window === 'undefined') return null;
   try {
     if (window.localStorage.getItem(STORAGE_KEY) !== null) return null;
-    const code = systemLanguageCode();
-    if (!code) return null;
+    // Язык встреч по умолчанию: язык интерфейса (русскому интерфейсу «Русский с английскими
+    // словами»); интерфейс по умолчанию русский, поэтому без выбора это тоже русский (speech-settings.ts)
+    const code = defaultChoice(window.localStorage.getItem(LANG_KEY) ?? DEFAULT_LANG, systemLanguageCode());
     window.localStorage.setItem(STORAGE_KEY, code);
-    console.info('[shade] Язык распознавания по умолчанию из системы:', code);
+    console.info('[shade] Язык встреч по умолчанию:', code);
     return code;
   } catch {
     // localStorage недоступен: оригинал останется на 'auto'

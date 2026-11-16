@@ -122,9 +122,12 @@ mod onnx_runtime_tests {
     }
 }
 
-// Global language preference storage (default to "auto-translate" for automatic translation to English)
-static LANGUAGE_PREFERENCE: std::sync::LazyLock<StdMutex<String>> =
-    std::sync::LazyLock::new(|| StdMutex::new("auto-translate".to_string()));
+// Язык встреч и «Частые слова» (Shade): действующие значения и отложенные на следующую
+// запись (audio::transcript_quality::RecognitionPrefs). Источник правды интерфейс
+// (localStorage `primaryLanguage` и `shade.speech.words`), он присылает значения при
+// запуске и при правке. До первой синхронизации язык «auto-translate», как у оригинала.
+static RECOGNITION_PREFS: std::sync::LazyLock<StdMutex<audio::transcript_quality::RecognitionPrefs>> =
+    std::sync::LazyLock::new(|| StdMutex::new(audio::transcript_quality::RecognitionPrefs::new()));
 
 #[derive(Debug, Deserialize)]
 struct RecordingArgs {
@@ -432,17 +435,58 @@ async fn start_recording_with_devices_and_meeting<R: Runtime>(
 
 #[tauri::command]
 async fn set_language_preference(language: String) -> Result<(), String> {
-    let mut lang_pref = LANGUAGE_PREFERENCE
+    let recording = audio::recording_commands::is_recording_sync();
+    if recording {
+        log_info!("Language preference changed during recording, applies from the next meeting: {}", language);
+    } else {
+        log_info!("Setting language preference to: {}", language);
+    }
+    RECOGNITION_PREFS
         .lock()
-        .map_err(|e| format!("Failed to set language preference: {}", e))?;
-    log_info!("Setting language preference to: {}", language);
-    *lang_pref = language;
+        .map_err(|e| format!("Failed to set language preference: {}", e))?
+        .set_language(language, recording);
     Ok(())
 }
 
-// Internal helper function to get language preference (for use within Rust code)
+// Internal helper function to get language preference (for use within Rust code):
+// действующее значение, то есть то, с чем началась идущая запись
 pub fn get_language_preference_internal() -> Option<String> {
-    LANGUAGE_PREFERENCE.lock().ok().map(|lang| lang.clone())
+    RECOGNITION_PREFS.lock().ok().map(|p| p.language_live())
+}
+
+/// Язык по настройке на сейчас, включая отложенное изменение: для «Распознать заново»
+/// и других пакетных задач, которые идут не от записи.
+pub fn get_language_setting_now() -> Option<String> {
+    RECOGNITION_PREFS.lock().ok().map(|p| p.language_now())
+}
+
+#[tauri::command]
+async fn set_vocabulary_hint(words: String) -> Result<(), String> {
+    let parsed = audio::transcript_quality::parse_dictionary(&words);
+    // В журнал только число слов: список принадлежит человеку
+    log_info!("Setting vocabulary hint: {} terms", parsed.len());
+    RECOGNITION_PREFS
+        .lock()
+        .map_err(|e| format!("Failed to set vocabulary hint: {}", e))?
+        .set_vocabulary(parsed, audio::recording_commands::is_recording_sync());
+    Ok(())
+}
+
+/// Слова из «Частые слова» (может быть пусто): действующие для идущей записи.
+pub fn get_vocabulary_internal() -> Vec<String> {
+    RECOGNITION_PREFS.lock().map(|p| p.vocabulary_live()).unwrap_or_default()
+}
+
+/// Слова на сейчас, включая отложенную правку (пакетные задачи).
+pub fn get_vocabulary_setting_now() -> Vec<String> {
+    RECOGNITION_PREFS.lock().map(|p| p.vocabulary_now()).unwrap_or_default()
+}
+
+/// Начало новой записи: отложенные язык и слова становятся действующими.
+pub fn apply_pending_recognition_prefs() {
+    if let Ok(mut p) = RECOGNITION_PREFS.lock() {
+        p.begin_recording();
+    }
 }
 
 pub fn run() {
@@ -783,6 +827,7 @@ pub fn run() {
             audio::recording_preferences::get_audio_backend_info,
             // Language preference commands
             set_language_preference,
+            set_vocabulary_hint,
             // Notification system commands
             notifications::commands::get_notification_settings,
             notifications::commands::set_notification_settings,

@@ -45,6 +45,11 @@ static IS_RECORDING: AtomicBool = AtomicBool::new(false);
 /// and surfaces a spurious "Microphone fallback failed" toast.
 static IS_RECORDING_STOPPING: AtomicBool = AtomicBool::new(false);
 
+/// Идёт ли запись (синхронно, для настроек распознавания: язык и словарь во время записи не меняются).
+pub fn is_recording_sync() -> bool {
+    IS_RECORDING.load(Ordering::SeqCst)
+}
+
 /// Recording is live and not being torn down — the only state in which the
 /// mic-disconnect fallback should run or report.
 fn recording_live() -> bool {
@@ -93,6 +98,8 @@ impl Drop for StoppingGuard {
 /// start path can't silently ship with a per-session flag left unreset (e.g.
 /// the mic-recovery budget already exhausted).
 fn finalize_recording_start() {
+    // Язык и словарь, изменённые во время прошлой записи, начинают действовать с этой
+    crate::apply_pending_recognition_prefs();
     info!("🔍 Setting IS_RECORDING to true and resetting SPEECH_DETECTED_EMITTED");
     IS_RECORDING.store(true, Ordering::SeqCst);
     MIC_FALLBACK_FAILED_ATTEMPTS.store(0, Ordering::SeqCst); // fresh mic-recovery budget per session

@@ -13,6 +13,7 @@ import {
   readMeetingSummaryLanguage,
 } from '@/lib/summary-language-preferences';
 import { formatOffset } from './format';
+import { stripSpecialTokens } from './speech';
 import { pickDuration, recordedSeconds } from './recording-duration';
 import { t } from '@/shade/strings';
 
@@ -33,7 +34,8 @@ export interface Segment {
 const SPEAKER_PREFIX = /^([A-ZА-ЯЁ][^:\n]{0,39}):\s+([\s\S]+)$/;
 
 export function toSegment(t: Transcript): Segment {
-  const raw = (t.text ?? '').trim();
+  // Метки `<unk>` в старых репликах не показываем (speech.ts)
+  const raw = stripSpecialTokens(t.text ?? '').trim();
   const match = raw.match(SPEAKER_PREFIX);
   // Имя: до 4 слов, каждое с заглавной буквы или число («Глеб Сомов», «Спикер 2»).
   // «Давайте договоримся: …» и «Предлагаю так: …» остаются текстом реплики.
