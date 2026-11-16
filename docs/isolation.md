@@ -162,3 +162,14 @@
 | `src-tauri/src/lib.rs` | Команда `set_vocabulary_hint`; язык и слова лежат в `RECOGNITION_PREFS` (чистая логика `RecognitionPrefs` в `transcript_quality.rs`, с тестом): изменённые во время записи откладываются до следующей (`apply_pending_recognition_prefs`); `get_language_setting_now`, `get_vocabulary_setting_now` | Смена языка во время записи применяется со следующей встречи |
 | `src-tauri/src/audio/recording_commands.rs` | `is_recording_sync`; `finalize_recording_start` применяет отложенные язык и слова | То же |
 
+
+## 7. Правки ядра: иконка в строке меню macOS
+
+Разрешение владельца 2026-11-16: только иконка трея. Команды и события Tauri, форматы данных не менялись. Коммит `fix(core): иконка трея macOS однотонная`.
+
+| Файл | Что | Зачем |
+|---|---|---|
+| `src-tauri/src/tray.rs` | На macOS иконка трея: `Image::new` из `icons/tray-template.rgba` и `icon_as_template(true)`. На других ОС прежняя иконка приложения | Лаймовый квадрат выбивался среди однотонных иконок строки меню. Template image система красит сама под светлую и тёмную строку меню |
+| `src-tauri/icons/tray-template.rgba` (новый) | 64x64, сырые байты RGBA: чёрный силуэт логотипа, глаза и искра прозрачные, фона нет. Сырой формат, потому что `Image::from_bytes` требует feature `image-png`, а `Cargo.toml` не менялся | Источник иконки трея |
+| `src-tauri/icons/tray-template.png` (новый) | То же для просмотра, в сборку не входит | Посмотреть, что получилось |
+| `scripts/make-tray-icon.swift` (новый) | Пересборка обоих файлов из `frontend/public/brand/shade.svg`: `swift scripts/make-tray-icon.swift` | Смена логотипа не требует ручной работы |

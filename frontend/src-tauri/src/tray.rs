@@ -1,4 +1,5 @@
 use tauri::{
+    image::Image,
     Emitter,
     menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -16,15 +17,32 @@ pub enum RecordingState {
     Stopping,
 }
 
+/// Силуэт логотипа для строки меню macOS: сырые байты RGBA 64x64, чёрный цвет, форма в альфа-канале.
+/// Пересборка из `frontend/public/brand/shade.svg`: `swift scripts/make-tray-icon.swift`.
+#[cfg(target_os = "macos")]
+const TRAY_TEMPLATE_RGBA: &[u8] = include_bytes!("../icons/tray-template.rgba");
+#[cfg(target_os = "macos")]
+const TRAY_TEMPLATE_SIZE: u32 = 64;
+
 pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     // Start with default menu, will update with actual state after initialization
     // Pass can_record=true initially, will be updated by update_tray_menu immediately
     let menu = build_menu(app, RecordingState::Stopped, true)?;
 
-    TrayIconBuilder::with_id("main-tray")
+    let builder = TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
-        .tooltip(crate::config::APP_DISPLAY_NAME)
-        .icon(app.default_window_icon().unwrap().clone())
+        .tooltip(crate::config::APP_DISPLAY_NAME);
+
+    // macOS: однотонный силуэт без фона (template image), система сама красит его под
+    // светлую и тёмную строку меню, как соседние иконки. Остальные ОС: иконка приложения.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .icon(Image::new(TRAY_TEMPLATE_RGBA, TRAY_TEMPLATE_SIZE, TRAY_TEMPLATE_SIZE))
+        .icon_as_template(true);
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.icon(app.default_window_icon().unwrap().clone());
+
+    builder
         .on_menu_event(|app, event| handle_menu_event(app, event.id.as_ref()))
         .build(app)?;
 
