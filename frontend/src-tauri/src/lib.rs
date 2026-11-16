@@ -802,6 +802,11 @@ pub fn run() {
             summary::commands::api_save_meeting_detected_summary_language,
             summary::commands::api_detect_transcript_summary_language,
             summary::commands::api_cancel_summary,
+            // Название встречи (Shade): короткий запрос к модели итогов, пометка «задал человек»
+            summary::title::api_generate_title_text,
+            summary::title::api_set_auto_title,
+            summary::title::api_mark_title_manual,
+            summary::title::api_get_title_origin,
             // Template commands
             summary::template_commands::api_list_templates,
             summary::template_commands::api_get_template_details,
