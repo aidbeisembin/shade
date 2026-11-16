@@ -18,6 +18,7 @@ import { shadeToast } from './toasts';
 import { useRecordingOutcome } from './recording-outcome';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { noteMeetingCompleted } from '@/shade/lib/feedback/store';
 
 /**
  * Сочетание работает только в окне Shade: глобальному нужен плагин в ядре
@@ -109,6 +110,8 @@ export function ShadeRecordingControls({ children }: { children: ReactNode }) {
     if (!completedId || completedId === handled.current) return;
     handled.current = completedId;
     setFinished({ id: completedId, title: titleRef.current });
+    // Успешно завершённая встреча: в счёт для «Как вам Shade?» (lib/feedback/policy.ts)
+    noteMeetingCompleted(completedId);
   }, [completedId]);
   const dismissFinish = useCallback(() => setFinished(null), []);
 

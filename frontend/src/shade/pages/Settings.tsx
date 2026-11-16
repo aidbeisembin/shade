@@ -39,6 +39,9 @@ import { SpeechWords } from '@/shade/components/SpeechWords';
 import { SpeechEngineNotice } from '@/shade/components/SpeechEngineNotice';
 import { providerLabel, usePrivacy } from '@/shade/lib/privacy';
 import { startBackfill, stopBackfill, titler } from '@/shade/lib/title-service';
+import { FeedbackMorph } from '@/shade/components/feedback/FeedbackMorph';
+import { GithubButton } from '@/shade/components/feedback/FeedbackFields';
+import { setAskEnabled, useAskEnabled } from '@/shade/lib/feedback/store';
 
 const TABS = [
   { value: 'general', label: 'settingsGeneral', icon: SlidersHorizontal },
@@ -287,7 +290,33 @@ function GeneralTab() {
           <AnalyticsConsentSwitch />
         </Legacy>
       </Section>
+      <Section title={t('feedbackSection')}>
+        <FeedbackRows />
+      </Section>
     </div>
+  );
+}
+
+/**
+ * «Обратная связь»: та же форма, что у карточки «Как вам Shade?» (звёзды и текст, уходит только по
+ * «Отправить»), звезда на GitHub и переключатель «Иногда спрашивать оценку» (lib/feedback).
+ */
+function FeedbackRows() {
+  useLang();
+  const ask = useAskEnabled();
+  return (
+    <>
+      {/* wide: «Поставить звезду на GitHub» не помещается в 200 px */}
+      <Row title={t('feedbackRowTitle')} hint={t('feedbackRowHint')} wide>
+        <div className="flex w-full flex-col gap-2">
+          <FeedbackMorph />
+          <GithubButton variant="secondary" className="w-full" />
+        </div>
+      </Row>
+      <Row title={t('feedbackAskRow')} hint={t('feedbackAskHint')}>
+        <Switch checked={ask} onCheckedChange={setAskEnabled} aria-label={t('feedbackAskRow')} />
+      </Row>
+    </>
   );
 }
 

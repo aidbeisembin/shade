@@ -183,3 +183,11 @@
 | `src-tauri/src/summary/title.rs` (новый) | `api_generate_title_text`: один короткий запрос к провайдеру итогов (облако только с `allow_cloud`, иначе отказ `cloud-not-allowed` до сети; таймаут 90 с); `api_set_auto_title(ожидаемое, новое, override_manual)`: запись с проверкой (пометка `manual`, название изменилось за время запроса); `api_mark_title_manual`, `api_get_title_origin`; файл `title.json` `{origin: manual или auto, at}` атомарной записью рядом с `recovered.json`. Тесты: `cargo test -p meetily --lib summary::title` | Ручное название главнее; облако только по нажатию |
 | `src-tauri/src/summary/mod.rs`, `lib.rs` | Подключение модуля, регистрация четырёх команд | |
 | `src-tauri/src/summary/service.rs` | Убрано переименование встречи по заголовку `# …` из текста итогов после «Подвести итоги» | Оно писало поверх названия, заданного человеком; название теперь придумывает отдельный запрос |
+
+## 9. Правки ядра: домен отзывов в CSP
+
+Разрешение владельца 2026-11-16 (задача «обратная связь»): только один домен в правах окна на сеть. Команды, события, плагины, `Cargo.toml` и capabilities не менялись. Коммит `chore(fork): домен отзывов в CSP connect-src`.
+
+| Файл | Что | Зачем |
+|---|---|---|
+| `src-tauri/tauri.conf.json` | В `app.security.csp.connect-src` добавлен `https://meetily-tau.vercel.app` | Окно отправляет отзыв обычным `fetch` в функцию `api/feedback` проекта Vercel «shade» (продакшен-домен проекта). Плагина `http` в ядре нет, поэтому запрос идёт из окна, и без строки CSP его блокирует WebView. Если домен проекта сменится, менять здесь и `FEEDBACK_ORIGIN` в `src/shade/lib/feedback/send.ts` (`docs/ui/feedback.md`) |

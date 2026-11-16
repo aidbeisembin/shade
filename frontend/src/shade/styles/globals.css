@@ -2102,3 +2102,9 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
     filter: none;
   }
 }
+
+/* Заливка звезды оценки слева направо (components/feedback/StarRating.tsx): --shade-star-fill 0..1
+   ведёт пружина движка, без перехода CSS. */
+.shade-star-fill {
+  clip-path: inset(0 calc((1 - var(--shade-star-fill, 0)) * 100%) 0 0);
+}

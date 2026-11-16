@@ -33,6 +33,7 @@ import { stillBusy, titleMany, titler } from './title-service';
 import { displayTitle } from './format';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { noteMeetingCompleted, noteMeetingUncounted } from '@/shade/lib/feedback/store';
 
 /** Идёт новая запись: название ждёт её конца, проверяя раз в 5 с, не дольше 3 часов. */
 const TITLE_WAIT_MS = 5000;
@@ -290,11 +291,14 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         console.warn('[shade] Проверка моделью: встречу не удалось перенести в корзину, оставляю:', error);
         return;
       }
+      // Убрана в корзину: для «Как вам Shade?» это не завершённая встреча; «Вернуть» возвращает в счёт
+      noteMeetingUncounted(id);
       const meetingId = id;
       const title = meta.title ?? null;
       const undo = async () => {
         try {
           await restoreMeeting(meetingId);
+          noteMeetingCompleted(meetingId);
           shadeToast.success(t('restored'), { description: title ? displayTitle(title) : undefined });
         } catch (error) {
           shadeToast.error(t('restoreFailed'), { description: String(error) });
