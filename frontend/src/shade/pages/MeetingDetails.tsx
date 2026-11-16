@@ -60,6 +60,7 @@ import { useConfig } from '@/contexts/ConfigContext';
 import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { RetranscribeDialog } from '@/components/MeetingDetails/RetranscribeDialog';
 import { useLang } from '@/shade/lib/lang';
+import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
 
 // Колонка текста: строки реплик не длиннее 760 px, дальше читать тяжело
 const MEASURE = 'max-w-[760px]';
@@ -500,6 +501,8 @@ function MeetingDetailsContent() {
   const [retranscribe, setRetranscribe] = useState(false);
 
   const meta = m.meeting.kind === 'ready' ? m.meeting.meta : null;
+  // Запись оборвал сбой, встречу восстановили при запуске (lib/crash-recovery.ts)
+  const recovered = useRecoveredMark(meta?.id);
   // Автоматическое название показываем датой «Встреча 7 ноября, 09:40», пока итоги ИИ
   // не дали своё: из текста встречи название не берём (format.ts, shownTitle)
   const shownTitle = meta ? titleForDisplay(meta.title) : '';
@@ -579,6 +582,7 @@ function MeetingDetailsContent() {
   const facts = [
     date && { label: t('metaDate'), value: date },
     duration && { label: t('metaDuration'), value: duration },
+    recovered && { label: t('metaRecording'), value: recoveredLabel(recovered) },
     { label: t('metaReplies'), value: formatNumber(m.hasMore ? m.total : visible.length) },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
   const canRetranscribe = Boolean(betaFeatures.importAndRetranscribe && meta.folder_path);

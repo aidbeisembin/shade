@@ -26,6 +26,7 @@ import type { MeetingDetails, MeetingStatus } from '@/shade/lib/meeting-details-
 import { cn } from '@/shade/lib/utils';
 import { t, tp, type StringKey } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
 
 export interface MeetingListItem {
   id: string;
@@ -126,6 +127,7 @@ interface MeetingRowProps {
 export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly, match }: MeetingRowProps) {
   useLang();
   const [editing, setEditing] = useState(false);
+  const recovered = useRecoveredMark(meeting.id);
   const d = meeting.details;
   const shown = shownTitle(meeting.title, d?.contentTitle);
   const kind = d?.status ?? 'unknown';
@@ -137,7 +139,7 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
   // не повторяется в каждой строке: это знак Sparkle, подпись есть у диктора
   const volume = kind === 'transcript' || kind === 'summary' || kind === 'summarizing' ? formatVolume(d?.durationSec, d?.words) : null;
   const label = kind === 'transcript' || kind === 'summary' || !status ? null : t(status.label);
-  const meta = [date, volume, label].filter(Boolean).join(' · ');
+  const meta = [date, volume, label, recovered ? recoveredLabel(recovered) : null].filter(Boolean).join(' · ');
 
   const begin = () => setEditing(true);
 
