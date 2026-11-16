@@ -67,9 +67,9 @@
 - `truncate` в Shade снова в одну строку (глобальный `text-wrap` сбрасывал `nowrap`).
 
 ## Крестик «Закрыть»
-Один на весь Shade: `components/ui/close-button.tsx` (`CloseButton`, `CLOSE_BUTTON`, `CLOSE_CORNER`, `CLOSE_RESERVE`, `CloseGlyph`).
+Один на весь Shade: `components/ui/close-button.tsx` (`CloseButton`, `CLOSE_BUTTON`, `CLOSE_CENTER`, `CLOSE_CORNER`, `CLOSE_RESERVE`, `CloseGlyph`).
 - Круглая кнопка 44 px на лёгкой подложке, значок X 14 px светло-серым (цвет подписи на 70 %). При наведении меняется только подложка (`.shade-icon-btn-glass`). Начертание bold с чуть более толстым контуром (`.shade-close-glyph`).
-- Место: везде в правом верхнем углу карточки, 4 px сверху и справа (`CLOSE_CORNER`): в уведомлениях (`Notice`, тосты, итог у капсулы), карточках про микрофон и диалогах. `CloseButton` встаёт туда сам, у родителя `relative`.
+- Место: у карточек (`Notice`, тосты, итог записи у капсулы, карточки про микрофон) справа по центру высоты, 4 px от правого края (`CLOSE_CENTER`), на одной линии с кнопкой действия; `CloseButton` встаёт туда сам, у родителя `relative`. У диалога в правом верхнем углу, 4 px сверху и справа (`CLOSE_CORNER`).
 - Текст и кнопки под крестик не заходят: у карточки справа запас `CLOSE_RESERVE` (4 + 44 + 8 px), у заголовка диалога `pr-12`.
 
 ## Геометрия бенто
