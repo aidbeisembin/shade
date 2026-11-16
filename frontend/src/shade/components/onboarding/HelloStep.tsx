@@ -11,8 +11,9 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Microphone, Sparkle, Stop } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
-import { t } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
 import { TITLE_CLASS, mainButtonClass } from './ui';
+import { useLang } from '@/shade/lib/lang';
 
 const LOGO_SRC = '/brand/shade.svg';
 /** Длина цикла показа, мс; как у анимаций .shade-ob-demo-* в globals.css. */
@@ -22,14 +23,15 @@ const TIMER_START_MS = 1000;
 /** Капсула гаснет на 5 с: таймер дальше не идёт. */
 const TIMER_STOP_MS = 5000;
 
-// Вымышленный разговор для показа
-const LINES: [string, string][] = [
-  ['Анна', 'Бету выпускаем в пятницу'],
-  ['Олег', 'Тексты подготовлю к четвергу'],
-  ['Анна', 'Тогда созвон в понедельник'],
+// Вымышленный разговор для показа (имя, реплика): тексты в словаре
+const LINES: [StringKey, StringKey][] = [
+  ['obLineAnna', 'obLineAnnaFirst'],
+  ['obLineOleg', 'obLineOlegText'],
+  ['obLineAnna', 'obLineAnnaSecond'],
 ];
 
 export function HelloStep({ ready, busy, onStart }: { ready: boolean; busy: boolean; onStart: () => void }) {
+  useLang();
   return (
     <div className="flex flex-col">
       <DemoRecording />
@@ -73,6 +75,7 @@ function useDemoSeconds() {
 
 /** Обложка с показом: высота пропорциональна ширине (8:3, как у обложки доступа), отступ как у плитки (20 px), группа по оптическому центру. */
 function DemoRecording() {
+  useLang();
   const sec = useDemoSeconds();
   return (
     <div aria-hidden className="flex aspect-[8/3] items-center justify-center rounded-nested bg-muted p-5">
@@ -82,7 +85,7 @@ function DemoRecording() {
           <div className="flex flex-col gap-2">
             {LINES.map(([who, text], i) => (
               <p key={text} className={`shade-ob-demo-l${i + 1} truncate text-[15px] leading-6`}>
-                <span className="font-semibold">{who}.</span> <span className="text-muted-foreground">{text}</span>
+                <span className="font-semibold">{t(who)}.</span> <span className="text-muted-foreground">{t(text)}</span>
               </p>
             ))}
           </div>

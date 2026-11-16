@@ -1,13 +1,18 @@
-// Форматирование дат, длительности и времени реплик.
+// Форматирование дат, длительности, чисел и времени реплик.
+// Язык и локаль берутся из lib/lang.ts в момент вызова (ru-RU или en-US), склонения
+// через Intl.PluralRules (strings.ts). Зашитых окончаний и кодов локали здесь нет.
+
+import { getLang, locale } from './lang';
+import { t, tf, tp } from '../strings';
 
 export function formatDuration(seconds: number | null | undefined): string | null {
   if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
   const total = Math.round(seconds);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
-  if (h > 0) return m > 0 ? `${h} ч ${m} мин` : `${h} ч`;
-  if (m > 0) return `${m} мин`;
-  return `${total} с`;
+  if (h > 0) return m > 0 ? tf('durHM', { h, m }) : tf('durH', { h });
+  if (m > 0) return tf('durM', { m });
+  return tf('durS', { s: total });
 }
 
 /** Метка времени реплики от начала записи: 4:07 или 1:02:15 */
@@ -38,29 +43,36 @@ function toDate(value: string | Date | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** 3 октября 2026, 09:30 */
+/** Время без секунд: «09:30» по-русски, «9:30 AM» по-английски. */
+function clock(d: Date): string {
+  return d.toLocaleTimeString(locale(), { hour: getLang() === 'ru' ? '2-digit' : 'numeric', minute: '2-digit' });
+}
+
+/** Русская локаль дописывает к году « г.»: в интерфейсе он лишний. */
+function noYearSuffix(text: string): string {
+  return getLang() === 'ru' ? text.replace(' г.', '') : text;
+}
+
+/** 3 октября 2026, 09:30 / October 3, 2026, 9:30 AM */
 export function formatDateTime(value: string | Date | null | undefined): string | null {
   const d = toDate(value);
   if (!d) return null;
-  const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).replace(' г.', '');
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  return `${date}, ${time}`;
+  const date = noYearSuffix(d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' }));
+  return `${date}, ${clock(d)}`;
 }
 
-/** Короткая дата для списка: «сегодня, 09:30», «вчера», «3 окт» */
+/** Короткая дата для списка: «сегодня, 09:30», «вчера, 09:30», «3 окт.» / “today, 9:30 AM”, “Oct 3” */
 export function formatShortDate(value: string | Date | null | undefined): string | null {
   const d = toDate(value);
   if (!d) return null;
   const now = new Date();
   const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000);
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  if (days === 0) return `сегодня, ${time}`;
-  if (days === 1) return `вчера, ${time}`;
+  const time = clock(d);
+  if (days === 0) return tf('todayAt', { time });
+  if (days === 1) return tf('yesterdayAt', { time });
   const sameYear = d.getFullYear() === now.getFullYear();
-  return d
-    .toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) })
-    .replace(' г.', '');
+  return noYearSuffix(d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) }));
 }
 
 export type DateGroup = 'today' | 'yesterday' | 'week' | 'earlier';
@@ -80,20 +92,20 @@ export function dateGroup(value: string | Date | null | undefined, now = new Dat
 /** Время встречи для строки в группе «Сегодня» и «Вчера»: дата уже в заголовке группы. */
 export function formatTime(value: string | Date | null | undefined): string | null {
   const d = toDate(value);
-  return d ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : null;
+  return d ? clock(d) : null;
 }
 
-/** Число с разрядами по-русски: 33 434 (узкий неразрывный пробел). */
+/** Число с разрядами по локали: 33 434 (узкий неразрывный пробел) / 33,434. */
 export function formatNumber(n: number): string {
-  return n.toLocaleString('ru-RU');
+  return new Intl.NumberFormat(locale()).format(n);
 }
 
-export function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
-  return many;
+/** Размер файла: «512 КБ», «1,5 МБ», “1.5 MB” (запятая или точка по локали). */
+export function formatFileSize(bytes: number): string {
+  const one = (value: number) => new Intl.NumberFormat(locale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value);
+  if (bytes < 1024 * 1024) return `${formatNumber(Math.max(1, Math.round(bytes / 1024)))} ${t('unitKb')}`;
+  if (bytes < 1024 * 1024 * 1024) return `${one(bytes / (1024 * 1024))} ${t('unitMb')}`;
+  return `${one(bytes / (1024 * 1024 * 1024))} ${t('unitGb')}`;
 }
 
 // Автоматическое название из useRecordingStart: «Meeting ДД_ММ_ГГ_ЧЧ_ММ_СС».
@@ -106,15 +118,13 @@ const AUTO_TITLE = /^Meeting (\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{2})$/;
 export function displayTitle(title: string | null | undefined, now = new Date()): string {
   const raw = (title ?? '').trim();
   const m = raw.match(AUTO_TITLE);
-  if (!m) return raw || 'Встреча без названия';
+  if (!m) return raw || t('untitledMeeting');
   const [, dd, mm, yy, hh, mi] = m;
   const d = new Date(2000 + Number(yy), Number(mm) - 1, Number(dd), Number(hh), Number(mi));
   if (Number.isNaN(d.getTime())) return raw;
   const sameYear = d.getFullYear() === now.getFullYear();
-  const date = d
-    .toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) })
-    .replace(' г.', '');
-  return `Встреча ${date}, ${hh}:${mi}`;
+  const date = noYearSuffix(d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) }));
+  return tf('autoMeetingTitle', { date, time: clock(d) });
 }
 
 /** Название придумано приложением, а не человеком. */
@@ -139,6 +149,6 @@ export function editableTitle(title: string | null | undefined, _fromContent?: s
 
 /** «12 мин · 340 слов» для строки списка. */
 export function formatVolume(durationSec: number | null | undefined, words: number | null | undefined): string | null {
-  const parts = [formatDuration(durationSec), words ? `${formatNumber(words)} ${plural(words, 'слово', 'слова', 'слов')}` : null].filter(Boolean);
+  const parts = [formatDuration(durationSec), words ? tp('wordsCount', words) : null].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }

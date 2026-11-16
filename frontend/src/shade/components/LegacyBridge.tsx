@@ -7,6 +7,7 @@
 
 import { useEffect } from 'react';
 import { looksUntranslated, translate } from '@/shade/lib/legacy-i18n';
+import { getLang } from '@/shade/lib/lang';
 
 const SCOPE = '.shade-legacy, [role="dialog"]:not([data-shade]), [role="alertdialog"]:not([data-shade]), [data-radix-popper-content-wrapper], [role="listbox"], [data-sonner-toast]';
 const ATTRS = ['placeholder', 'title', 'aria-label'];
@@ -18,7 +19,8 @@ function inScope(node: Node): boolean {
 }
 
 function report(text: string) {
-  if (process.env.NODE_ENV !== 'development' || reported.has(text) || !looksUntranslated(text)) return;
+  // в английском режиме оригинал и есть английский: нечего переводить, нечего сообщать
+  if (getLang() !== 'ru' || process.env.NODE_ENV !== 'development' || reported.has(text) || !looksUntranslated(text)) return;
   reported.add(text);
   console.info('[shade] Нет перевода для строки оригинала:', JSON.stringify(text));
 }

@@ -38,6 +38,7 @@ import { ImportDialog as ShadeImportDialog } from '@/shade/components/ImportDial
 import { ShadeRecordingControls } from '@/shade/lib/recording-controls'
 import { InPlaceMeetingRouter } from '@/shade/lib/in-place-router'
 import { LegacyBridge } from '@/shade/components/LegacyBridge'
+import { LangSync } from '@/shade/components/LangSync'
 import { ShadeOnboarding } from '@/shade/components/onboarding/ShadeOnboarding'
 import { ShadeRecordingProvider } from '@/shade/lib/recording-outcome'
 import { ShadeIcons } from '@/shade/components/ShadeIcons'
@@ -411,6 +412,7 @@ export default function RootLayout({
 
         {isShadeUI ? (
           <>
+            <LangSync />
             <ShadeToaster />
             <LegacyBridge />
           </>

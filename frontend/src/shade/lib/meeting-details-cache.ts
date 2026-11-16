@@ -35,7 +35,7 @@ const cache = new Map<string, { total: number; details: MeetingDetails; lines: S
 
 /** Нижний регистр с кириллицей и «ё» как «е»: «Ёлка» находится по «елка». */
 export function normalizeForSearch(text: string): string {
-  return text.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  return text.toLowerCase().replace(/ё/g, 'е');
 }
 
 async function load(meetingId: string): Promise<MeetingDetails> {

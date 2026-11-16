@@ -14,6 +14,7 @@ import {
 } from '@/lib/summary-language-preferences';
 import { formatOffset } from './format';
 import { pickDuration, recordedSeconds } from './recording-duration';
+import { t } from '@/shade/strings';
 
 // ---------- реплики ----------
 
@@ -69,7 +70,7 @@ export function transcriptAsMarkdown(title: string, segments: Segment[]): string
     const head = [time && `\`${time}\``, who].filter(Boolean).join(' ');
     return `${head ? `${head} ` : ''}${s.text}`;
   });
-  return `# ${title}\n\n## Транскрипт\n\n${lines.join('\n\n')}\n`;
+  return `# ${title}\n\n## ${t('transcript')}\n\n${lines.join('\n\n')}\n`;
 }
 
 // ---------- итоги ----------
@@ -220,7 +221,7 @@ export function pruneEmptySections(md: string): string | null {
 export function summaryForPage(md: string, title: string): string {
   const norm = (x: string) =>
     x
-      .toLocaleLowerCase('ru-RU')
+      .toLowerCase()
       .replace(/ё/g, 'е')
       .replace(/[«»"“”„'*_`.,:;!?()…-]/g, ' ')
       .replace(/\s+/g, ' ')
@@ -232,7 +233,7 @@ export function summaryForPage(md: string, title: string): string {
     if (i >= top) return true;
     const h1 = /^#\s+(.+)$/.exec(line);
     if (h1 && norm(h1[1]) === norm(title)) return false;
-    if (/^\s*(\*\*|__)?Дата( и время)?:?(\*\*|__)?:?\s/i.test(line)) return false;
+    if (/^\s*(\*\*|__)?(Дата( и время)?|Date( and time)?):?(\*\*|__)?:?\s/i.test(line)) return false;
     return true;
   });
   return out.join('\n').replace(/^\s*\n+/, '');
@@ -309,15 +310,15 @@ export function friendlyError(error: unknown, fallback: string): FriendlyError {
   const lower = raw.toLowerCase();
   let message = fallback;
   if (lower.includes('database is locked')) {
-    message = 'База встреч сейчас занята другим процессом. Закройте другие окна Shade и нажмите «Повторить».';
+    message = t('errDbLocked');
   } else if (lower.includes('no rows returned') || lower.includes('model not configured') || lower.includes('not configured')) {
-    message = 'Модель для итогов не выбрана. Откройте «Настройки» и выберите модель.';
+    message = t('errNoModel');
   } else if (lower.includes('connection refused') || lower.includes('ollama') || lower.includes('error sending request')) {
-    message = 'Модель недоступна: не удалось подключиться. Проверьте, что Ollama запущена, или выберите другую модель в настройках.';
+    message = t('errOllama');
   } else if (lower.includes('permission denied')) {
-    message = 'Нет доступа к файлам приложения. Проверьте права на папку с данными.';
+    message = t('errPermission');
   } else if (lower.includes('disk') || lower.includes('no space')) {
-    message = 'Не получилось записать на диск. Проверьте свободное место.';
+    message = t('errDisk');
   }
   return { message, raw };
 }
@@ -369,7 +370,7 @@ function summaryStateFrom(res: SummaryResponse | null): SummaryState {
     return markdown ? { kind: 'ready', markdown } : { kind: 'empty' };
   }
   if (status === 'failed' || status === 'error') {
-    return { kind: 'failed', error: friendlyError(res.error, 'Модель не смогла собрать итоги. Попробуйте ещё раз.') };
+    return { kind: 'failed', error: friendlyError(res.error, t('errSummaryModel')) };
   }
   // idle, cancelled и всё незнакомое: итогов нет
   const markdown = summaryToMarkdown(res.data);
@@ -405,7 +406,7 @@ export function useMeeting(meetingId: string | null) {
       }
     } catch (error) {
       if (req !== request.current) return;
-      setSummary({ kind: 'failed', error: friendlyError(error, 'Не удалось загрузить итоги.') });
+      setSummary({ kind: 'failed', error: friendlyError(error, t('errSummaryLoad')) });
     }
   }, []);
 
@@ -451,7 +452,7 @@ export function useMeeting(meetingId: string | null) {
       if (req === request.current) setDuration(seconds);
     } catch (error) {
       if (req !== request.current) return;
-      setMeeting(isNotFound(error) ? { kind: 'not-found' } : { kind: 'error', error: friendlyError(error, 'Не удалось открыть встречу.') });
+      setMeeting(isNotFound(error) ? { kind: 'not-found' } : { kind: 'error', error: friendlyError(error, t('errMeetingOpen')) });
       return;
     }
 
@@ -515,7 +516,7 @@ export function useMeeting(meetingId: string | null) {
       const all = await loadAll();
       const texts = all.map((s) => (s.speaker ? `${s.speaker}: ${s.text}` : s.text));
       const text = texts.join('\n');
-      if (!text.trim()) throw new Error('В транскрипте нет текста, итоги собирать не из чего.');
+      if (!text.trim()) throw new Error(t('errNoTranscriptText'));
 
       const config = await invoke<{ provider?: string; model?: string } | null>('api_get_model_config');
       if (!config?.provider || !config?.model) throw new Error('model not configured');
@@ -547,7 +548,7 @@ export function useMeeting(meetingId: string | null) {
       poll.current = setTimeout(() => void fetchSummary(meetingId, req), 1500);
     } catch (error) {
       if (req !== request.current) return;
-      setSummary({ kind: 'failed', error: friendlyError(error, 'Не получилось запустить сбор итогов.') });
+      setSummary({ kind: 'failed', error: friendlyError(error, t('errSummaryStart')) });
     }
   }, [meetingId, loadAll, fetchSummary]);
 

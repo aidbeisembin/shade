@@ -140,6 +140,7 @@ export async function macMicrophoneAnswer(): Promise<MacAnswer> {
   const secure = typeof window.isSecureContext === 'boolean' ? String(window.isSecureContext) : '?';
   if (!md?.getUserMedia) return { access: 'unknown', detail: `нет navigator.mediaDevices (защищённая страница: ${secure}, ${location.protocol})` };
   const started = performance.now();
+  // i18n-ignore: журнал разработчика, не интерфейс
   const took = () => `${Math.round(performance.now() - started)} мс`;
   try {
     // Без эхоподавления, шумодава и автоусиления: с ними WebKit открывает микрофон в режиме
@@ -159,6 +160,7 @@ export async function macMicrophoneAnswer(): Promise<MacAnswer> {
   } catch (error) {
     const name = error instanceof DOMException ? error.name : '';
     const message = error instanceof Error ? error.message : String(error);
+    // i18n-ignore: журнал разработчика, не интерфейс
     const detail = `${name || 'ошибка'}: ${message.slice(0, 120)} за ${took()}`;
     if (name === 'NotAllowedError') return { access: 'denied', detail };
     if (name === 'NotFoundError' || name === 'OverconstrainedError') return { access: 'no-device', detail };
@@ -171,12 +173,14 @@ export async function macMicrophoneAnswer(): Promise<MacAnswer> {
 export async function checkMicrophone(): Promise<MicCheck> {
   const trail: string[] = [];
   const devices = await listDevices();
+  // i18n-ignore: журнал разработчика, не интерфейс
   trail.push(devices ? `входов в списке ядра: ${devices.inputs.length}` : 'список устройств не получен');
   if (devices && devices.inputs.length === 0) return { access: 'no-device', trail };
 
   // macOS: сначала окно приложения, оно же задаёт вопрос, если доступ не спрашивали
   const mac = await macMicrophoneAnswer();
   if (mac.access !== null) {
+    // i18n-ignore: журнал разработчика, не интерфейс
     trail.push(`разрешение macOS через окно: ${mac.access} (${mac.detail})`);
     if (mac.access !== 'unknown') return { access: mac.access, trail };
   }
@@ -188,6 +192,7 @@ export async function checkMicrophone(): Promise<MicCheck> {
     command = await requestAccess('microphone');
     trail.push(`trigger_microphone_permission: ${command}`);
   } catch (error) {
+    // i18n-ignore: журнал разработчика, не интерфейс
     trail.push(error instanceof SlowError ? 'trigger_microphone_permission: нет ответа' : `trigger_microphone_permission: ${String(error)}`);
   }
   if (command === false) return { access: 'denied', trail };

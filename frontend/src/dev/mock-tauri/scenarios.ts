@@ -5,6 +5,7 @@
 import { createFullMeetings } from './fixtures/meetings';
 import { createLongMeetings } from './fixtures/long';
 import { createEdgeMeetings } from './fixtures/edge';
+import { createDemoEnMeetings } from './fixtures/demo-en';
 import type { MockMeeting } from './fixtures/types';
 
 export type ScenarioId =
@@ -14,7 +15,8 @@ export type ScenarioId =
   | 'recognition-failed' | 'mid-silence'
   | 'long-empty' | 'sparse' | 'no-model' | 'no-permission'
   | 'mic-denied' | 'mic-missing' | 'mic-prompt' | 'mic-core-refuses' | 'mic-silent' | 'mic-lost' | 'model-downloading'
-  | 'mic-prompt-deny' | 'mic-unknown-zeros' | 'mic-unknown-ok' | 'mic-unknown-blind' | 'onboarding-mac' | 'onboarding-mac-unknown';
+  | 'mic-prompt-deny' | 'mic-unknown-zeros' | 'mic-unknown-ok' | 'mic-unknown-blind' | 'onboarding-mac' | 'onboarding-mac-unknown'
+  | 'demo-en';
 
 /**
  * Что «ядро» присылает во время записи. Речевой сегмент после VAD приходит
@@ -83,6 +85,11 @@ export interface Scenario {
   macMic?: 'granted' | 'denied' | 'unknown' | 'prompt-granted' | 'prompt-denied';
   /** Уведомления как в ядре по умолчанию: согласие есть, показ выключен. */
   notificationsCoreDefault?: boolean;
+  /**
+   * Язык интерфейса по умолчанию для этого сценария (английский для снимков кейса).
+   * Перебивается ?lang= в адресе и выбором на вкладке; сохранённый выбор из настроек слабее.
+   */
+  lang?: 'ru' | 'en';
 }
 
 export const SCENARIOS: Record<ScenarioId, Scenario> = {
@@ -283,6 +290,20 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     id: 'model-downloading', label: 'model-downloading', description: 'Модель распознавания ещё качается (около минуты)',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: false, recordingOnLoad: false, failing: false,
     downloadOnLoad: true,
+  },
+  'demo-en': {
+    id: 'demo-en', label: 'demo-en',
+    description: 'Английская демонстрация для снимков кейса: 8 вымышленных встреч продуктовой команды на английском, английский интерфейс, во время записи приходят английские реплики',
+    meetings: createDemoEnMeetings, onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
+    lang: 'en',
+    live: 'script', scriptSeconds: 6,
+    script: [
+      'Morning, everyone. Let us start with the onboarding numbers.',
+      'Completion is up to 71 percent since we cut the setup to three steps.',
+      'Where do people still drop off?',
+      'Mostly on the team invite step, about a quarter never invite anyone.',
+      'Then let us move the invite after the first summary and test it for two weeks.',
+    ],
   },
 };
 

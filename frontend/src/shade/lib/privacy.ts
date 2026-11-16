@@ -6,13 +6,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { subscribe } from './tauri-events';
+import { t } from '@/shade/strings';
 
 export type PrivacyLevel = 'local' | 'cloud' | 'unknown';
 
 export interface ProviderPrivacy {
   /** id провайдера из конфигурации ядра, null если конфиг не прочитался */
   provider: string | null;
-  label: string;
   level: PrivacyLevel;
 }
 
@@ -22,6 +22,7 @@ export interface PrivacyInfo {
   summary: ProviderPrivacy;
 }
 
+/** Названия провайдеров: имена собственные, одинаковы на любом языке. */
 const LABELS: Record<string, string> = {
   localWhisper: 'Whisper',
   whisper: 'Whisper',
@@ -30,11 +31,9 @@ const LABELS: Record<string, string> = {
   elevenLabs: 'ElevenLabs',
   groq: 'Groq',
   openai: 'OpenAI',
-  'builtin-ai': 'встроенная модель',
   ollama: 'Ollama',
   claude: 'Claude',
   openrouter: 'OpenRouter',
-  'custom-openai': 'свой сервер',
 };
 
 const LOCAL_TRANSCRIPT = ['localWhisper', 'whisper', 'parakeet'];
@@ -51,26 +50,32 @@ function isLocalHost(endpoint: string): boolean {
   }
 }
 
+/** Подпись провайдера на текущем языке. Считается при показе, а не при загрузке настроек: язык может смениться. */
+export function providerLabel(p: ProviderPrivacy): string {
+  if (!p.provider) return t('privacyNotSet');
+  if (p.provider === 'builtin-ai') return t('privacyBuiltIn');
+  if (p.provider === 'custom-openai') return t('privacyOwnServer');
+  return LABELS[p.provider] ?? p.provider;
+}
+
 export function transcriptPrivacy(provider: string | null | undefined): ProviderPrivacy {
-  if (!provider) return { provider: null, label: 'не настроено', level: 'unknown' };
-  const label = LABELS[provider] ?? provider;
-  if (LOCAL_TRANSCRIPT.includes(provider)) return { provider, label, level: 'local' };
-  if (CLOUD_TRANSCRIPT.includes(provider)) return { provider, label, level: 'cloud' };
-  return { provider, label, level: 'unknown' };
+  if (!provider) return { provider: null, level: 'unknown' };
+  if (LOCAL_TRANSCRIPT.includes(provider)) return { provider, level: 'local' };
+  if (CLOUD_TRANSCRIPT.includes(provider)) return { provider, level: 'cloud' };
+  return { provider, level: 'unknown' };
 }
 
 export function summaryPrivacy(provider: string | null | undefined, ollamaEndpoint?: string | null): ProviderPrivacy {
-  if (!provider) return { provider: null, label: 'не настроено', level: 'unknown' };
-  const label = LABELS[provider] ?? provider;
-  if (LOCAL_SUMMARY.includes(provider)) return { provider, label, level: 'local' };
-  if (CLOUD_SUMMARY.includes(provider)) return { provider, label, level: 'cloud' };
+  if (!provider) return { provider: null, level: 'unknown' };
+  if (LOCAL_SUMMARY.includes(provider)) return { provider, level: 'local' };
+  if (CLOUD_SUMMARY.includes(provider)) return { provider, level: 'cloud' };
   if (provider === 'ollama') {
     // Ollama по умолчанию работает на этом компьютере; удалённый адрес уже не локально
-    if (!ollamaEndpoint || isLocalHost(ollamaEndpoint)) return { provider, label, level: 'local' };
-    return { provider, label, level: 'cloud' };
+    if (!ollamaEndpoint || isLocalHost(ollamaEndpoint)) return { provider, level: 'local' };
+    return { provider, level: 'cloud' };
   }
   // custom-openai и незнакомые провайдеры: адрес сервера не проверяем, честно «неизвестно»
-  return { provider, label, level: 'unknown' };
+  return { provider, level: 'unknown' };
 }
 
 export function combinePrivacy(a: PrivacyLevel, b: PrivacyLevel): PrivacyLevel {

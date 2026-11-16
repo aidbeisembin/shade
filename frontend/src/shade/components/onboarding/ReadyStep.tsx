@@ -8,7 +8,9 @@ import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
+import { formatNumber } from '@/shade/lib/format';
 import { HINT_CLASS, TITLE_CLASS, mainButtonClass } from './ui';
+import { useLang } from '@/shade/lib/lang';
 
 export interface SpeechModelState {
   ready: boolean;
@@ -19,7 +21,7 @@ export interface SpeechModelState {
   retrying: boolean;
 }
 
-const mb = (value: number) => Math.round(value).toLocaleString('ru-RU');
+const mb = (value: number) => formatNumber(Math.round(value));
 
 export function ReadyStep({
   speech,
@@ -34,6 +36,7 @@ export function ReadyStep({
   onRetry: () => void;
   onOpen: () => void;
 }) {
+  useLang();
   const percent = Math.max(0, Math.min(100, Math.round(speech.percent)));
   const caption = speech.failed
     ? t('obDownloadFailed')

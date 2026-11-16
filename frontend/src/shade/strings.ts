@@ -1,9 +1,28 @@
-// Строки интерфейса Shade. Русский по умолчанию; английский добавляется
-// вторым словарём с теми же ключами.
+// Строки интерфейса Shade на двух языках: русский (по умолчанию) и английский.
+//
+// Как устроено:
+//  - ru главный словарь. Тип en выводится из него (Mirror), поэтому ключ, пропущенный
+//    в en, это ошибка tsc, а не пустое место на экране.
+//  - Значение либо строка, либо набор форм для числа: ru {one, few, many, other},
+//    en {one, other}. Форму выбирает Intl.PluralRules текущего языка, окончаний вручную нет.
+//  - {name} в строке подставляет tf(); {n} в формах числа подставляет tp() с разрядами
+//    по локали (Intl.NumberFormat).
+//  - Язык и его хранение: lib/lang.ts. Компонент, который берёт тексты отсюда, вызывает
+//    useLang(), иначе при смене языка он не перерисуется (проверяет pnpm check:i18n).
+//  - Кириллица в src/shade допускается только здесь (scripts/check-i18n.mjs).
+//  - Английский: кавычки “…”, короткое тире –, апостроф ’, многоточие …, точка в конце
+//    стоит там же, где в русском (тест в strings.test.ts).
 
 import { TRASH_TTL_DAYS } from './lib/discard-policy';
+import { getLang, localeOf, type Lang } from './lib/lang';
 
-const ru = {
+/** Формы числа в русском: Intl.PluralRules('ru') даёт one, few, many, other. */
+export type RuPlural = { one: string; few: string; many: string; other: string };
+/** Формы числа в английском: one и other. */
+export type EnPlural = { one: string; other: string };
+type Entry = string | RuPlural;
+
+export const ru = {
   appName: 'Shade',
   loading: 'Загрузка…',
   retry: 'Повторить',
@@ -332,21 +351,559 @@ const ru = {
   obSaveSlow: 'Сохранение настроек затянулось.',
   obSaveFailed: 'Не удалось сохранить настройки.',
   obNextRunNote: 'Если не сохранятся, этот экран покажется при следующем запуске.',
+  // язык интерфейса (Настройки → Общие)
+  interfaceLanguage: 'Язык / Language',
+  interfaceLanguageRow: 'Язык интерфейса',
+  interfaceLanguageHint: 'Язык меню и текстов Shade, меняется сразу. Язык речи для распознавания выбирается отдельно.',
+  langRu: 'Русский',
+  langEn: 'English',
+
+  // форматы: длительность, размер, подстановки
+  durHM: '{h} ч {m} мин',
+  durH: '{h} ч',
+  durM: '{m} мин',
+  durS: '{s} с',
+  unitKb: 'КБ',
+  unitMb: 'МБ',
+  unitGb: 'ГБ',
+  sizeMb: '{n} МБ',
+  ofCount: '{a} из {b}',
+  quoted: '«{name}»',
+  untitledMeeting: 'Встреча без названия',
+  autoMeetingTitle: 'Встреча {date}, {time}',
+  todayAt: 'сегодня, {time}',
+  yesterdayAt: 'вчера, {time}',
+
+  // склонения (Intl.PluralRules): {n} подставляется числом с разрядами
+  wordsCount: { one: '{n} слово', few: '{n} слова', many: '{n} слов', other: '{n} слова' },
+  repliesCount: { one: '{n} реплика', few: '{n} реплики', many: '{n} реплик', other: '{n} реплики' },
+  recordsCount: { one: '{n} запись', few: '{n} записи', many: '{n} записей', other: '{n} записи' },
+  recordsDeleteFailed: { one: '{n} запись не удалось удалить', few: '{n} записи не удалось удалить', many: '{n} записей не удалось удалить', other: '{n} записи не удалось удалить' },
+  searchMoreHits: { one: 'ещё в {n} реплике', few: 'ещё в {n} репликах', many: 'ещё в {n} репликах', other: 'ещё в {n} репликах' },
+  daysCount: { one: '{n}\u00A0день', few: '{n}\u00A0дня', many: '{n}\u00A0дней', other: '{n}\u00A0дня' },
+  emptyCleanupAsk: { one: 'Удалить {n} пустую запись?', few: 'Удалить {n} пустые записи?', many: 'Удалить {n} пустых записей?', other: 'Удалить {n} пустой записи?' },
+
+  // подсказки и подписи, которые раньше лежали в компонентах
+  emptyCleanupHintOne: 'В ней нет ни одной реплики. Она {days} полежит в корзине, оттуда её можно вернуть. Если там был разговор, нажмите «Оставить».',
+  emptyCleanupHintMany: 'В них нет ни одной реплики. Они {days} полежат в корзине, оттуда их можно вернуть. Если в какой-то был разговор, нажмите «Оставить».',
+  navMain: 'Основная навигация',
+  toasterClose: 'Закрыть уведомление',
+  toasterRegion: 'Уведомления',
+  searchProgressOf: '{done} из {total}',
+  homeLoadHint: 'Проверьте, что приложение запущено, и попробуйте ещё раз.',
+  privacyWhereLocal: 'на этом компьютере',
+  privacyWhereCloud: 'на сервере провайдера',
+  privacyWhereUnknown: 'неизвестно где',
+  privacyTranscriptLine: 'Транскрипция',
+  privacyBuiltIn: 'встроенная модель',
+  privacyOwnServer: 'свой сервер',
+  privacyNotSet: 'не настроено',
+  obLineAnna: 'Анна',
+  obLineAnnaFirst: 'Бету выпускаем в пятницу',
+  obLineOleg: 'Олег',
+  obLineOlegText: 'Тексты подготовлю к четвергу',
+  obLineAnnaSecond: 'Тогда созвон в понедельник',
+  soundMicMissing: 'Выбранный микрофон не найден: «{name}».',
+
+  // ошибки и сбои операций
+  stopFailed: 'Не удалось остановить запись',
+  resumeFailed: 'Не удалось продолжить запись',
+  pauseFailed: 'Не удалось поставить на паузу',
+  trashEraseFailed: 'Не удалось удалить встречу из базы',
+  restoreFolderExists: 'На прежнем месте уже есть папка: {path}',
+  errDbLocked: 'База встреч сейчас занята другим процессом. Закройте другие окна Shade и нажмите «Повторить».',
+  errNoModel: 'Модель для итогов не выбрана. Откройте «Настройки» и выберите модель.',
+  errOllama: 'Модель недоступна: не удалось подключиться. Проверьте, что Ollama запущена, или выберите другую модель в настройках.',
+  errPermission: 'Нет доступа к файлам приложения. Проверьте права на папку с данными.',
+  errDisk: 'Не получилось записать на диск. Проверьте свободное место.',
+  errSummaryModel: 'Модель не смогла собрать итоги. Попробуйте ещё раз.',
+  errSummaryLoad: 'Не удалось загрузить итоги.',
+  errMeetingOpen: 'Не удалось открыть встречу.',
+  errNoTranscriptText: 'В транскрипте нет текста, итоги собирать не из чего.',
+  errSummaryStart: 'Не получилось запустить сбор итогов.',
+  transcriptHeading: 'Транскрипт',
+} satisfies Record<string, Entry>;
+
+type RuDict = typeof ru;
+/** Ключи-строки: для t() и tf(). */
+export type StringKey = { [K in keyof RuDict]: RuDict[K] extends string ? K : never }[keyof RuDict];
+/** Ключи с формами числа: для tp(). */
+export type PluralKey = Exclude<keyof RuDict, StringKey>;
+/** Тот же набор ключей и тех же видов значений, что у ru: пропуск или лишний ключ не пройдёт tsc. */
+type Mirror<R> = { [K in keyof R]: R[K] extends string ? string : EnPlural };
+
+export const en: Mirror<RuDict> = {
+  appName: 'Shade',
+  loading: 'Loading…',
+  retry: 'Try again',
+  back: 'All meetings',
+  details: 'Details',
+
+  // навигация и тема
+  navMeetings: 'Meetings',
+  navSettings: 'Settings',
+  themeLight: 'Light theme',
+  themeDark: 'Dark theme',
+  themeToLight: 'Switch to light theme',
+  themeToDark: 'Switch to dark theme',
+  theme: 'Theme',
+
+  // главная
+  homeTitle: 'Meetings',
+  homeSubtitle: 'Recordings, transcripts and summaries are stored on this computer',
+  record: 'Record',
+  recordingTile: 'Recording',
+  filterAll: 'All',
+  filterSummary: 'With summaries',
+  filterTrash: 'Trash',
+  filtersLabel: 'Show meetings',
+  noSummaries: 'No summaries yet',
+  noSummariesHint: 'Open a meeting and click “Generate summary”.',
+  trashPanelHint: 'Deleted meetings stay here for {days} together with the recording file, then are removed permanently.',
+  trashEmpty: 'The trash is empty',
+  trashDaysLeft: 'deleted in {n}\u00A0d',
+  restore: 'Restore',
+  undoDelete: 'Undo',
+  trashFileStayed: 'The recording file stayed in its folder',
+  deleteForever: 'Delete permanently',
+  deleteForeverTitle: 'Delete this meeting permanently?',
+  deleteForeverHint: 'The transcript, summary and recording file will be deleted and cannot be restored.',
+  deletedForever: 'Meeting deleted permanently',
+  emptyTrash: 'Empty trash',
+  emptyTrashTitle: 'Empty the trash?',
+  emptyTrashHint: 'All meetings in the trash and their recording files will be deleted and cannot be restored.',
+  trashEmptied: 'Trash emptied',
+  restored: 'Meeting restored',
+  restoreFailed: 'Could not restore the meeting',
+  inTrashTitle: 'Meeting in the trash',
+  inTrashHint: 'It was deleted. Restore it to open the transcript and summary again.',
+  metaDate: 'Date',
+  metaDuration: 'Duration',
+  metaReplies: 'Segments',
+  startRecording: 'Start recording',
+  importAudio: 'Import audio',
+  searchMeetings: 'Search meeting titles and text',
+  searchShort: 'Title or text',
+  closeSearch: 'Close search',
+  foundInText: 'in the text',
+  searchProgress: 'Also searching meeting text, read',
+  groupToday: 'Today',
+  groupYesterday: 'Yesterday',
+  groupWeek: 'This week',
+  groupEarlier: 'Earlier',
+  noMeetings: 'No meetings yet',
+  noMeetingsHint: 'Click “Record” below. Text appears as people speak and stays on this computer.',
+  startFailed: 'Recording did not start',
+  startFailedHint: 'Try again. If that does not help, restart the app.',
+  blockNoModel: 'No speech recognition model',
+  blockNoModelHint: 'Without it the recording will have no text. Download a model, it takes a couple of minutes.',
+  downloadModel: 'Download model',
+  blockDownloading: 'The speech recognition model is still downloading',
+  blockDownloadingHint: 'Start recording when the download finishes.',
+  showDownload: 'View download',
+  blockNoMic: 'No microphone access',
+  blockNoMicHint: 'Without access the recording will be silent. Allow the microphone and screen recording in system settings.',
+  grantAccess: 'Grant access',
+  checkAgain: 'Check again',
+  later: 'Later',
+  meetingsList: 'Meetings list',
+  statusSummary: 'Summary ready',
+  statusSummarizing: 'Preparing summary',
+  statusTranscript: 'Transcript only',
+  statusSilent: 'Speech not recognized',
+  nothingFound: 'Nothing found',
+  nothingFoundHint: 'Not in meeting titles or text. Check the spelling or clear the search.',
+  meetingsError: 'Could not load the meetings list',
+
+  // запись
+  recording: 'Recording',
+  paused: 'Paused',
+  stopRecording: 'Stop',
+  pauseRecording: 'Pause',
+  resumeRecording: 'Resume',
+  liveTranscript: 'Live transcript',
+  waitingSpeech: 'Listening…',
+  toLatest: 'Jump to latest',
+  finishTranscribing: 'Finishing the last lines',
+  finishSaving: 'Saving',
+  finishSaved: 'Meeting saved',
+  finishOpen: 'Open',
+  discardedEmpty: 'Empty recording – not saved',
+  lowContentTitle: 'Not much content',
+  lowContentHint: 'Recording in the trash',
+  discardedSilent: 'No speech',
+  discardedUnrecognized: 'Speech not recognized',
+  discardedNotSaved: 'Recording not saved',
+  micDeniedTitle: 'No microphone access',
+  micNotSaved: 'Recording not saved',
+  micRestartNote: 'Already turned it on? Restart Shade',
+  micDemoPane: 'Microphone',
+  micSwitchHint: 'Turn on Shade in System Settings, under “Microphone”, and come back.',
+  micMissingTitle: 'Microphone not found',
+  micOpenSettings: 'Open settings',
+  recordSystemOnly: 'Record computer audio only',
+  systemOnlyShort: 'Computer audio only',
+  micAccessBack: 'Microphone access is on, you can record',
+  micAccessUnknownBack: 'We will check the microphone in the first seconds of recording',
+  micNeedsAccess: 'Microphone access needed',
+  micSilentTitle: 'Cannot hear the microphone',
+  micSilentHint: 'Recording continues. Check that the microphone is on and the right one is selected.',
+  micLostTitle: 'Microphone disconnected',
+  micLostHint: 'Recording continues without your voice. Reconnect the microphone.',
+  micBlindTitle: 'Could not check the microphone',
+  micBlindHint: 'Your voice may not be recorded. Check access in settings.',
+  systemOnlyTitle: 'Recording computer audio only',
+  systemOnlyHint: 'The microphone is not recorded: your voice will not be in the recording.',
+  noSpeechTitle: 'No speech heard',
+  silenceCauseGeneric: 'Check the microphone and system audio.',
+  silenceCauseNoAccess: 'The app has no microphone access. Allow it in system settings.',
+  silenceCauseMicMissing: 'The selected microphone was not found:',
+  silenceCauseCheck: 'Check that the right devices are selected and the sound is not muted.',
+  defaultMic: 'default microphone',
+  defaultMicCap: 'Default microphone',
+  systemAudioLower: 'system audio',
+  systemAudioDefaultLower: 'default system audio',
+  soundCheck: 'Check sound',
+  soundCheckTitle: 'Sound check',
+  soundCheckHint: 'If the other people speak through the computer, system audio is needed.',
+  micAccess: 'Microphone access',
+  micAccessOk: 'Yes',
+  micAccessNo: 'No: the app sees no microphones',
+  microphone: 'Microphone',
+  notFound: 'not found',
+  systemAudio: 'System audio',
+  systemAudioDefault: 'Default source',
+  devicesLocked: 'You can change the device after the recording stops, in “Settings → Recording”.',
+  openSystemSettings: 'System settings',
+  done: 'Done',
+  longSilence: 'The meeting seems to be over. Stop recording?',
+  continueRecording: 'Continue',
+  consentNotice: 'Tell the participants that the meeting is being recorded.',
+  consentDone: 'Got it',
+  consentNever: 'Do not remind me again',
+  transcriptionStopped: 'Recognition stopped',
+  transcriptionStoppedHint: 'Audio is still being recorded. After you stop, the meeting can be transcribed again.',
+  transcriptionLagging: 'Recognition is falling behind, some phrases may be lost. The audio is recorded in full.',
+
+  // встреча
+  summary: 'Summary',
+  transcript: 'Transcript',
+  noSummary: 'No summary yet',
+  noSummaryHint: 'The model will collect decisions, tasks and the main points. It takes up to a couple of minutes.',
+  generateSummary: 'Generate summary',
+  regenerateSummary: 'Try again',
+  summaryProcessing: 'Preparing summary',
+  summaryProcessingHint: 'It takes up to a couple of minutes, you can keep reading the transcript.',
+  summaryFailed: 'The summary did not work out',
+  nothingToCopy: 'Nothing to copy: no segments',
+  noSummaryEmpty: 'The summary will appear once the transcript has text.',
+  meetingSections: 'Meeting sections',
+  meetingTitle: 'Meeting title',
+  rename: 'Rename',
+  renamed: 'Title saved',
+  renameFailed: 'Could not rename',
+  titleEmpty: 'The title cannot be empty',
+  save: 'Save',
+  cancel: 'Cancel',
+  delete: 'Delete',
+  deleteMeeting: 'Delete meeting',
+  deleteTitle: 'Delete this meeting?',
+  deleteHint: 'The meeting and its recording stay in the trash for {days}, then are deleted permanently. You can restore it from the “Trash” filter.',
+  deleted: 'Meeting in the trash',
+  deletedHint: 'You can restore it from the “Trash” filter within {days}.',
+  deleteFailed: 'Could not delete the meeting',
+  openRecordingFolder: 'Open recording folder',
+  retranscribe: 'Transcribe again',
+  silentTitle: 'Speech not recognized',
+  silentNoModel: 'The recognition model is not downloaded, so the audio was recorded without text. Download the model and transcribe the recording again.',
+  silentNoMic: 'The app has no microphone access, so the recording is most likely silent. Check the file in the recording folder.',
+  silentHeard: 'There was a voice in the recording, but recognition produced no text. Transcribe the recording again.',
+  silentUnknown: 'No speech was found in the recording. The microphone may have been off or the wrong audio source selected. Listen to the file or transcribe the recording again.',
+  loadMore: 'Show more',
+  segmentsCount: 'segments',
+  unknownSpeaker: 'Speaker',
+  meetingNotFound: 'Meeting not found',
+  meetingNotFoundHint: 'It may have been deleted. Go back to the meetings list.',
+  meetingError: 'Could not open the meeting',
+
+  // копирование
+  copy: 'Copy',
+  copied: 'Copied',
+  copyAsMarkdown: 'As Markdown',
+  copyAsText: 'As text',
+  collapse: 'Collapse',
+  expand: 'Expand',
+  summaryRedo: 'Redo',
+  pulseSinceStart: 'since start',
+  summaryOpenHint: 'Decisions, tasks and the main points of the conversation',
+  copyFailed: 'Could not copy. Select the text and press ⌘C',
+
+  // настройки
+  settingsGeneral: 'General',
+  settingsSectionNotifications: 'Notifications',
+  settingsSectionStorage: 'Recordings on disk',
+  settingsSectionPrivacy: 'Privacy',
+  settingsRecording: 'Recording',
+  settingsTranscription: 'Recognition',
+  settingsSummary: 'Summary',
+  settingsBeta: 'Beta',
+  settingsAbout: 'About',
+  notificationsTitle: 'Recording start and stop notifications',
+  notificationsHint: 'A system notification when a recording starts and when it stops.',
+  notificationsNoPermission: 'The system blocked notifications for the app. Allow them in system settings.',
+  recordingsFolder: 'Recordings folder',
+  openFolder: 'Open folder',
+  openFolderFailed: 'Could not open the folder',
+  openLinkFailed: 'Could not open the link',
+  saveFailed: 'Could not save',
+  version: 'Version',
+  licenseTitle: 'Shade is based on Meetily (MIT, Zackriya Solutions)',
+  licenseHint: 'Open source. The original license text is kept unchanged.',
+  license: 'License',
+
+  // приватность
+  privacy: 'Privacy',
+  privacyLocal: 'Local',
+  privacyCloud: 'Cloud',
+  privacyUnknown: 'Unknown',
+  privacyHintLocal: 'Audio, transcript and summary never leave this computer.',
+  privacyHintCloud: 'Some data is sent to a provider on the internet.',
+  privacyHintUnknown: 'Could not tell where the data is processed. Check the models in settings.',
+
+  // Пятый круг
+  backToMeetings: 'To meetings',
+  backFromRecording: 'To the meetings list, recording continues',
+  openRecording: 'Open recording',
+  noSpeechNoticeTitle: 'Nothing was recorded',
+  notSavedNotificationBody: 'No speech was heard, no meeting was created',
+  close: 'Close',
+  renameHint: 'Click to rename',
+  copiedShort: 'Copied',
+  launching: 'Opening Shade',
+  importHint: 'The file becomes a meeting with a transcript. Everything is processed on this computer.',
+  importChoose: 'Choose an audio file',
+  importChecking: 'Checking the file…',
+  importOtherFile: 'Another file',
+  importTitle: 'Meeting title',
+  importParakeetLanguage: 'Parakeet detects the language itself',
+  importNoModels: 'No downloaded models',
+  importStart: 'Import',
+  importRunning: 'Importing audio',
+  importRunningHint: 'Recognizing speech. You can keep the window open, it takes a couple of minutes.',
+  importCancel: 'Stop import',
+  importCancelled: 'Import stopped',
+  importDone: 'Import finished',
+  importFailed: 'Could not import',
+  importFailedHint: 'The file was not processed. Try again or choose another file.',
+  languageAuto: 'Detect automatically',
+  languageAutoTranslate: 'Detect and translate to English',
+  settingsLanguageTitle: 'Speech language',
+  settingsLanguageHint: 'Whisper recognizes speech in this language. Automatic detection is needed if meetings are held in different languages.',
+  settingsLanguageParakeet: 'Parakeet detects the language itself and ignores this setting. To set a language, choose Whisper.',
+  heardNoTextTitle: 'Speech is heard, but there is no text',
+  heardNoTextHint: 'Recognition produces no lines. Check the model and the recognition language.',
+  recognitionModel: 'Model',
+  recognitionLanguage: 'Language',
+  unknownModel: 'not selected',
+  openTranscriptionSettings: 'Recognition settings',
+  pulseTitle: 'Conversation pulse',
+  pulseWindow: 'last 3 min 20 s',
+  pulseWords: 'Words',
+  pulseReplies: 'Segments',
+  pulseSpeechShare: 'Time with speech',
+  pulseLastSpeech: 'Last phrase',
+  pulseNow: 'now',
+  copyAllHint: 'Summary and transcript as text',
+  hotkeyScope: 'in the Shade window',
+  hotkeyStopTooEarly: 'You can stop with the shortcut after 3 seconds',
+  importShort: 'Import',
+  emptyCleanupTitle: 'Delete empty recordings?',
+  emptyCleanupKeep: 'Keep',
+  notSavedTitle: 'This recording was not saved',
+  notSavedHint: 'There was no speech in it, so it was not saved.',
+  // первый запуск
+  obStepOf: 'Step {n} of {total}',
+  obStart: 'Start',
+  obHelloLine: 'Click “Record”, Shade does the rest',
+  obAccessTitle: 'Audio access',
+  obAccessHint: 'Click “Allow” when macOS asks.',
+  obSystem: 'Computer audio',
+  obContinue: 'Continue',
+  obLater: 'Later',
+  obReadyTitle: 'Almost ready',
+  obReadyHint: 'Downloading the speech recognition model. It runs right on your computer.',
+  obDemoSummary: 'Summary',
+  obDemoSummaryText: 'Beta on Friday · copy by Thursday · call on Monday',
+  obDemoPrompt: 'Shade would like to access the microphone',
+  obDemoDeny: 'Don’t allow',
+  obMic: 'Microphone',
+  obMicHint: 'To record your voice',
+  obSystemHint: 'Needed for Zoom and Meet calls',
+  obAllow: 'Allow',
+  obPending: 'Answer in the macOS window',
+  obGranted: 'Access granted',
+  obDenied: 'Access is off. Turn on Shade in settings',
+  obOpenSettings: 'Open settings',
+  obUnverified: 'We will check at the first recording',
+  obSlow: 'macOS did not answer. We will check at the first recording',
+  obContinueAnyway: 'Continue anyway',
+  obSpeechModel: 'Speech recognition',
+  obPreparing: 'Preparing the download',
+  obModelReady: 'Downloaded, ready to record',
+  obOfMb: '{done} of {total} MB',
+  obSummaryLater: 'The summary model will finish downloading in the background',
+  obSummaryReady: 'The summary model is ready',
+  obDownloadFailed: 'The download was interrupted. Check your internet connection and try again.',
+  obOpenApp: 'Open Shade',
+  obOpening: 'Opening',
+  obSaveSlow: 'Saving the settings is taking too long.',
+  obSaveFailed: 'Could not save the settings.',
+  obNextRunNote: 'If they are not saved, this screen will appear at the next launch.',
+  // язык интерфейса (Настройки → Общие)
+  interfaceLanguage: 'Язык / Language',
+  interfaceLanguageRow: 'Interface language',
+  interfaceLanguageHint: 'The language of Shade’s menus and texts, applied immediately. The speech language for recognition is chosen separately.',
+  langRu: 'Русский',
+  langEn: 'English',
+
+  // форматы: длительность, размер, подстановки
+  durHM: '{h} h {m} min',
+  durH: '{h} h',
+  durM: '{m} min',
+  durS: '{s} s',
+  unitKb: 'KB',
+  unitMb: 'MB',
+  unitGb: 'GB',
+  sizeMb: '{n} MB',
+  ofCount: '{a} of {b}',
+  quoted: '“{name}”',
+  untitledMeeting: 'Untitled meeting',
+  autoMeetingTitle: 'Meeting on {date}, {time}',
+  todayAt: 'today, {time}',
+  yesterdayAt: 'yesterday, {time}',
+
+  // склонения (Intl.PluralRules): {n} подставляется числом с разрядами
+  wordsCount: { one: '{n} word', other: '{n} words' },
+  repliesCount: { one: '{n} segment', other: '{n} segments' },
+  recordsCount: { one: '{n} recording', other: '{n} recordings' },
+  recordsDeleteFailed: { one: 'Could not delete {n} recording', other: 'Could not delete {n} recordings' },
+  searchMoreHits: { one: 'and in {n} more segment', other: 'and in {n} more segments' },
+  daysCount: { one: '{n}\u00A0day', other: '{n}\u00A0days' },
+  emptyCleanupAsk: { one: 'Delete {n} empty recording?', other: 'Delete {n} empty recordings?' },
+
+  // подсказки и подписи, которые раньше лежали в компонентах
+  emptyCleanupHintOne: 'It has no segments. It will stay in the trash for {days}, and you can restore it from there. If there was a conversation in it, click “Keep”.',
+  emptyCleanupHintMany: 'They have no segments. They will stay in the trash for {days}, and you can restore them from there. If there was a conversation in any of them, click “Keep”.',
+  navMain: 'Main navigation',
+  toasterClose: 'Dismiss notification',
+  toasterRegion: 'Notifications',
+  searchProgressOf: '{done} of {total}',
+  homeLoadHint: 'Check that the app is running and try again.',
+  privacyWhereLocal: 'on this computer',
+  privacyWhereCloud: 'on the provider’s server',
+  privacyWhereUnknown: 'location unknown',
+  privacyTranscriptLine: 'Transcription',
+  privacyBuiltIn: 'built-in model',
+  privacyOwnServer: 'your own server',
+  privacyNotSet: 'not set up',
+  obLineAnna: 'Anna',
+  obLineAnnaFirst: 'We ship the beta on Friday',
+  obLineOleg: 'Mark',
+  obLineOlegText: 'I’ll have the copy ready by Thursday',
+  obLineAnnaSecond: 'Then we’ll have a call on Monday',
+  soundMicMissing: 'The selected microphone was not found: “{name}”.',
+
+  // ошибки и сбои операций
+  stopFailed: 'Could not stop the recording',
+  resumeFailed: 'Could not resume the recording',
+  pauseFailed: 'Could not pause the recording',
+  trashEraseFailed: 'Could not delete the meeting from the database',
+  restoreFolderExists: 'There is already a folder at the original location: {path}',
+  errDbLocked: 'The meetings database is busy with another process. Close other Shade windows and click “Try again”.',
+  errNoModel: 'No summary model is selected. Open “Settings” and choose a model.',
+  errOllama: 'The model is unavailable: could not connect. Check that Ollama is running or choose another model in settings.',
+  errPermission: 'No access to the app files. Check the permissions of the data folder.',
+  errDisk: 'Could not write to disk. Check the free space.',
+  errSummaryModel: 'The model could not put the summary together. Try again.',
+  errSummaryLoad: 'Could not load the summary.',
+  errMeetingOpen: 'Could not open the meeting.',
+  errNoTranscriptText: 'The transcript has no text, so there is nothing to summarize.',
+  errSummaryStart: 'Could not start generating the summary.',
+  transcriptHeading: 'Transcript',
 };
 
-export type StringKey = keyof typeof ru;
+const DICTS: Record<Lang, Record<string, string | RuPlural | EnPlural>> = { ru, en };
 
-export function t(key: StringKey): string {
-  return ru[key] ?? key;
+const warned = new Set<string>();
+
+/** Запись словаря: выбранный язык, затем русский, затем сам ключ (на случай устаревшего бандла). */
+export function lookup(lang: Lang, key: string): string | RuPlural | EnPlural {
+  const found = DICTS[lang][key] ?? DICTS.ru[key];
+  if (found !== undefined) {
+    if (DICTS[lang][key] === undefined && process.env.NODE_ENV !== 'production' && !warned.has(`${lang}:${key}`)) {
+      warned.add(`${lang}:${key}`);
+      console.warn(`[shade] Нет перевода ключа "${key}" на ${lang}, показан русский`);
+    }
+    return found;
+  }
+  if (process.env.NODE_ENV !== 'production' && !warned.has(`?:${key}`)) {
+    warned.add(`?:${key}`);
+    console.warn(`[shade] Нет ключа "${key}" в словаре`);
+  }
+  return key;
 }
 
-/** Срок корзины словами для подстановки {days}: «30 дней» (TRASH_TTL_DAYS, discard-policy.ts). */
+export type Params = Record<string, string | number>;
+
+function fill(template: string, params: Params | undefined, lang: Lang): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const v = params[name];
+    if (v === undefined) return whole;
+    return typeof v === 'number' ? new Intl.NumberFormat(localeOf(lang)).format(v) : v;
+  });
+}
+
+/** Строка на заданном языке (для мест вне React и для тестов). */
+export function tIn(lang: Lang, key: StringKey, params?: Params): string {
+  const v = lookup(lang, key);
+  return typeof v === 'string' ? fill(v, params, lang) : key;
+}
+
+/** Строка на текущем языке. Не вызывать на верхнем уровне модуля: язык там зафиксируется навсегда. */
+export function t(key: StringKey): string {
+  return tIn(getLang(), key);
+}
+
+/** Строка с подстановками {name}: tf('obStepOf', { n: 2, total: 3 }). Числа форматируются по локали. */
+export function tf(key: StringKey, params: Params): string {
+  return tIn(getLang(), key, params);
+}
+
+const pluralRules = new Map<string, Intl.PluralRules>();
+
+/** Строка в нужной форме числа: tp('wordsCount', 21) даёт «21 слово» или «21 words». */
+export function tpIn(lang: Lang, key: PluralKey, n: number, params?: Params): string {
+  const v = lookup(lang, key);
+  if (typeof v === 'string') return key;
+  const loc = localeOf(lang);
+  let rules = pluralRules.get(loc);
+  if (!rules) {
+    rules = new Intl.PluralRules(loc);
+    pluralRules.set(loc, rules);
+  }
+  const forms = v as Partial<Record<Intl.LDMLPluralRule, string>>;
+  const form = forms[rules.select(n)] ?? forms.other ?? key;
+  return fill(form, { ...params, n }, lang);
+}
+
+export function tp(key: PluralKey, n: number, params?: Params): string {
+  return tpIn(getLang(), key, n, params);
+}
+
+/** Срок корзины словами для подстановки {days}: «30 дней», «30 days» (TRASH_TTL_DAYS, discard-policy.ts). */
 export function trashDays(): string {
-  const n = TRASH_TTL_DAYS;
-  const m10 = n % 10;
-  const m100 = n % 100;
-  const word = m10 === 1 && m100 !== 11 ? 'день' : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? 'дня' : 'дней';
-  return `${n}\u00A0${word}`;
+  return tp('daysCount', TRASH_TTL_DAYS);
 }
 
 /** Строка со сроком корзины на месте {days}. */

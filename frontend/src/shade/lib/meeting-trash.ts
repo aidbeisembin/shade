@@ -21,6 +21,7 @@ import { invoke } from '@tauri-apps/api/core';
 import Analytics from '@/lib/analytics';
 import { forgetDetails } from './meeting-details-cache';
 import { listTrash, moveRecordingToTrash, removeTrashFolder, restoreRecordingFromTrash, TRASH_TTL_DAYS, type TrashEntry } from './recording-trash';
+import { t } from '@/shade/strings';
 
 const KEY = 'shade.meetingTrash.v1';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -173,7 +174,7 @@ async function eraseEntry(id: string | null, dir: string | null): Promise<boolea
 export async function deleteForever(id: string): Promise<void> {
   const item = trashedMeetings().find((x) => x.id === id);
   if (!item) return;
-  if (!(await eraseEntry(id, item.trashedFolder))) throw new Error('Не удалось удалить встречу из базы');
+  if (!(await eraseEntry(id, item.trashedFolder))) throw new Error(t('trashEraseFailed'));
   write(trashedMeetings().filter((x) => x.id !== id));
   console.info(`[shade] Встреча удалена насовсем: ${id}`);
 }

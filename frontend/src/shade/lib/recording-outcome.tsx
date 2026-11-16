@@ -30,6 +30,7 @@ import { purgeExpiredTrash, restoreMeeting, trashMeeting } from './meeting-trash
 import { shadeToast } from './toasts';
 import { displayTitle } from './format';
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 /**
  * Сколько показывать карточку «Тишина»: короткий заголовок, подсказка и одно
@@ -151,6 +152,7 @@ export function readStoredOutcome(folder: string | null | undefined): StoredOutc
 }
 
 export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
+  useLang();
   const recording = useRecordingState();
   const { transcriptsRef } = useTranscripts();
   const noop = useCallback(() => undefined, []);
@@ -383,11 +385,13 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         // сохраняем как есть обычной встречей
         if (verdict !== 'speech' && !liveRef.current.tracking) {
           verdict = 'speech';
+          // i18n-ignore: журнал разработчика, не интерфейс
           reason = 'начало записи не отслежено, сохраняем как есть';
         }
 
         // Журнал решения: одна строка на каждую остановку (консоль окна; логгер
         // приложения tauri-plugin-log в ядре не подключён, из интерфейса недоступен)
+        // i18n-ignore: журнал разработчика, не интерфейс
         const fmt = (n: number | null) => (n === null ? 'нет данных' : `${n.toFixed(1)} с`);
         console.info(
           `[shade] Итог записи: длительность ${fmt(seconds.current)}, речь по детектору ${fmt(detectorSeconds)} ` +
@@ -536,6 +540,6 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
 
 export function useRecordingOutcome(): Ctx {
   const ctx = useContext(RecordingOutcomeContext);
-  if (!ctx) throw new Error('useRecordingOutcome вне ShadeRecordingProvider');
+  if (!ctx) throw new Error('useRecordingOutcome outside ShadeRecordingProvider');
   return ctx;
 }

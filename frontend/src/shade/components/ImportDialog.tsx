@@ -13,26 +13,21 @@ import { Button } from '@/shade/components/ui/button';
 import { Input } from '@/shade/components/ui/input';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { shadeToast } from '@/shade/lib/toasts';
-import { formatDuration, formatNumber, plural } from '@/shade/lib/format';
+import { formatDuration, formatFileSize } from '@/shade/lib/format';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, tf, tp } from '@/shade/strings';
 import { useConfig } from '@/contexts/ConfigContext';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { useImportAudio, type ImportResult } from '@/hooks/useImportAudio';
 import { useTranscriptionModels, type ModelOption } from '@/hooks/useTranscriptionModels';
 import { LANGUAGES } from '@/constants/languages';
+import { useLang } from '@/shade/lib/lang';
 
 const FORMATS = 'MP4, WAV, MP3, FLAC, OGG, MKV, WebM, WMA';
 
-function fileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} МБ`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1).replace('.', ',')} ГБ`;
-}
-
 function modelLabel(m: ModelOption): string {
   const engine = m.provider === 'parakeet' ? 'Parakeet' : 'Whisper';
-  return `${engine} · ${m.name} · ${formatNumber(Math.round(m.size_mb))} МБ`;
+  return `${engine} · ${m.name} · ${tf('sizeMb', { n: Math.round(m.size_mb) })}`;
 }
 
 /** Поле-список в стиле Shade: колодец со скруглением плитки, как поле поиска. */
@@ -56,6 +51,7 @@ interface Props {
 }
 
 export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
+  useLang();
   const router = useRouter();
   const { refetchMeetings } = useSidebar();
   const { selectedLanguage, transcriptModelConfig } = useConfig();
@@ -70,7 +66,7 @@ export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
   const onComplete = useCallback(
     (result: ImportResult) => {
       shadeToast.success(t('importDone'), {
-        description: `${formatNumber(result.segments_count)} ${plural(result.segments_count, 'реплика', 'реплики', 'реплик')}`,
+        description: tp('repliesCount', result.segments_count),
       });
       void refetchMeetings();
       onOpenChange(false);
@@ -174,7 +170,7 @@ export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
                     {fileInfo.filename}
                   </p>
                   <p className="tabular mt-0.5 text-sm text-muted-foreground">
-                    {[formatDuration(fileInfo.duration_seconds), fileSize(fileInfo.size_bytes), fileInfo.format?.toUpperCase()].filter(Boolean).join(' · ')}
+                    {[formatDuration(fileInfo.duration_seconds), formatFileSize(fileInfo.size_bytes), fileInfo.format?.toUpperCase()].filter(Boolean).join(' · ')}
                   </p>
                 </div>
                 <Button variant="ghost" className="h-10 shrink-0 px-4 text-muted-foreground" onClick={() => void choose()}>

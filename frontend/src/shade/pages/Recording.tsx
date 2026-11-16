@@ -29,6 +29,7 @@ import { displayTitle } from '@/shade/lib/format';
 import { isShownText } from '@/shade/lib/speech';
 import { t } from '@/shade/strings';
 import { useTranscripts } from '@/contexts/TranscriptContext';
+import { useLang } from '@/shade/lib/lang';
 
 interface RecordingViewProps {
   isPaused: boolean;
@@ -45,6 +46,7 @@ export const LONG_SILENCE_SEC = 120;
 
 /** Долгая тишина после речи: предложить остановить, но не останавливать самим. */
 function LongSilencePrompt({ onStop, onContinue }: { onStop: () => void; onContinue: () => void }) {
+  useLang();
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-nested bg-muted p-4" role="alert">
       <p className="min-w-0 flex-1 text-sm font-semibold">{t('longSilence')}</p>
@@ -66,6 +68,7 @@ const NOTICE_KEY = 'show_recording_notification'; // тот же ключ, чт�
 
 /** Напоминание предупредить участников. Настройка общая с оригиналом: preferences.json. */
 function ConsentNotice() {
+  useLang();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -116,6 +119,7 @@ function ConsentNotice() {
 
 /** Ошибки распознавания во время записи: звук пишется дальше, а текста не будет. */
 function useTranscriptionProblems() {
+  useLang();
   const [error, setError] = useState<{ message: string; raw: string } | null>(null);
   const [lagging, setLagging] = useState(false);
 
@@ -130,6 +134,7 @@ function useTranscriptionProblems() {
 }
 
 export function RecordingView({ isPaused, duration, live, onBack, onStop }: RecordingViewProps) {
+  useLang();
   const { transcripts, meetingTitle } = useTranscripts();
   // Галлюцинации на тишине («Thank you.» на 0:00) не показываем (speech.ts, isShownText)
   const segments = useMemo(() => transcripts.filter((tr) => tr.text?.trim()).map(toSegment).filter((x) => isShownText(x.text)), [transcripts]);
