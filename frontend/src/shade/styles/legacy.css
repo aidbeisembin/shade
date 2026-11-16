@@ -3169,3 +3169,18 @@
 [role='dialog'] .border-blue-200 {
   border-color: transparent;
 }
+
+/* Выбранная карточка модели и способа записи (Whisper, Parakeet, встроенные модели, источник
+   звука): чистая поверхность тайла и ровная рамка цвета выбора (как у выбранного чипа),
+   без тонировки лаймом по серому и без колец Tailwind: на серой вложенной подложке они
+   давали грязный оливковый оттенок. Рамка border-2 даёт 2 px сама, у карточек с border 1 px
+   вторую даёт тень 1 px. */
+:is(.shade-legacy, [role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper], [data-sonner-toast]) :is(.border-blue-500.bg-blue-50, .border-blue-500.ring-1, .border-gray-800.ring-2) {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--primary-edge));
+  box-shadow: none;
+}
+
+:is(.shade-legacy, [role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper], [data-sonner-toast]) :is(.border-blue-500.ring-1, .border-gray-800.ring-2) {
+  box-shadow: 0 0 0 1px hsl(var(--primary-edge));
+}
