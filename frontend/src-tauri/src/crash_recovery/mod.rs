@@ -159,18 +159,24 @@ fn split_folder_name(name: &str) -> (String, Option<DateTime<Utc>>) {
     (name.to_string(), None)
 }
 
+/// Файлы, которые пишет сама запись. Чужое в папке (ручные «(восстановлена)», наши метки)
+/// не считается: иначе время «когда оборвалась запись» уехало бы на момент, когда в папку кто-то зашёл.
+const RECORDING_FILES: [&str; 5] = ["metadata.json", ".metadata.json.tmp", "transcripts.json", ".transcripts.json.tmp", "audio.mp4"];
+
+/// Время последней записи самой записью: метаданные, реплики, итоговый звук, куски и их `.part`.
 fn newest_mtime(folder: &Path) -> Option<SystemTime> {
     let mut newest: Option<SystemTime> = None;
-    for dir in [folder.to_path_buf(), folder.join(".checkpoints")] {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+    let mut take = |path: PathBuf| {
+        if let Some(m) = std::fs::metadata(&path).ok().filter(|m| m.is_file()).and_then(|m| m.modified().ok()) {
+            newest = Some(newest.map_or(m, |n| n.max(m)));
+        }
+    };
+    for name in RECORDING_FILES {
+        take(folder.join(name));
+    }
+    if let Ok(entries) = std::fs::read_dir(folder.join(".checkpoints")) {
         for entry in entries.filter_map(|e| e.ok()) {
-            let Ok(md) = entry.metadata() else { continue };
-            if !md.is_file() {
-                continue;
-            }
-            if let Ok(m) = md.modified() {
-                newest = Some(newest.map_or(m, |n| n.max(m)));
-            }
+            take(entry.path());
         }
     }
     newest

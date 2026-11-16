@@ -318,11 +318,17 @@ async fn manual_recovered_files_are_untouched() {
     make_chunk(&manual_audio, 6.0);
     fs::write(&manual_text, "# Транскрипт\nвручную").unwrap();
     let (a, t) = (fs::read(&manual_audio).unwrap(), fs::read(&manual_text).unwrap());
+    // ручные файлы свежее записи: время «когда оборвалась» от них не зависит
+    let last_write: DateTime<Utc> = newest_mtime(&folder).unwrap().into();
+    std::thread::sleep(Duration::from_millis(1100));
+    fs::write(&manual_text, &t).unwrap();
 
     let report = recover_all(&pool, root.path(), &opts()).await;
     assert_eq!(report.recovered.len(), 1);
     assert_eq!(fs::read(&manual_audio).unwrap(), a);
     assert_eq!(fs::read(&manual_text).unwrap(), t);
+    let completed: DateTime<Utc> = text(&meta(&folder), "completed_at").unwrap().parse().unwrap();
+    assert_eq!(completed, last_write, "completed_at по записи, а не по ручным файлам");
     // звук один: `audio.mp4` из исходных кусков, не копия ручного
     let d = media::probe(&ffmpeg(), &folder.join("audio.mp4")).unwrap();
     assert!((d - 6.0).abs() < 0.3);
