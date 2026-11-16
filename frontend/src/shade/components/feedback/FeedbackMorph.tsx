@@ -43,6 +43,14 @@ const FORM_START: Flow = { ...START, step: 'form', origin: 'low' };
 type Phase = 'closed' | 'open' | 'closing' | 'plaque';
 
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
+
+/** Ближайший прокручиваемый предок (плитка Настроек). */
+function scrollParent(el: HTMLElement | null): HTMLElement | null {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(n).overflowY)) return n;
+  }
+  return null;
+}
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 /** Каждый итог (ушло, в очереди, отвергнуто) начинает новый круг: кнопка с пустым черновиком. */
@@ -73,6 +81,7 @@ function Morph({ onDone }: { onDone: () => void }) {
   const geo = React.useRef({ w0: 200, labelW: 120, h1: 280, r1: 28 });
   const phaseRef = React.useRef(phase);
   phaseRef.current = phase;
+  const scroller = React.useRef<HTMLElement | null>(null);
 
   const draw = React.useCallback((p: number) => {
     const g = geo.current;
@@ -96,6 +105,13 @@ function Morph({ onDone }: { onDone: () => void }) {
       const c = clamp01((p - 0.5) / 0.5);
       body.current.style.opacity = c.toFixed(3);
       body.current.style.transform = `translateY(${((1 - c) * 6).toFixed(1)}px)`;
+    }
+    // Строка в конце плитки Настроек, форма растёт вниз: пока раскрывается, плитка докручивается
+    // вслед за нижним краем (в такт пружине), иначе «Отправить» уходит под нижнюю кромку.
+    const sc = scroller.current;
+    if (phaseRef.current === 'open' && sc) {
+      const need = el.getBoundingClientRect().bottom + PAD - sc.getBoundingClientRect().bottom;
+      if (need > 0.5) sc.scrollTop += need;
     }
   }, []);
 
@@ -132,7 +148,9 @@ function Morph({ onDone }: { onDone: () => void }) {
     measure();
     draw(s.value);
     s.to(1);
-    textRef.current?.focus();
+    scroller.current = scrollParent(anchor.current);
+    // Фокус без своей прокрутки: она шла бы к полю в ещё не раскрытой оболочке (докрутку делает draw)
+    textRef.current?.focus({ preventScroll: true });
   }, [phase]);
 
   // Высота формы меняется (счётчик знаков, перенос): следим, пока открыта
@@ -220,8 +238,9 @@ function Morph({ onDone }: { onDone: () => void }) {
           role="dialog"
           aria-modal="false"
           aria-labelledby="shade-feedback-morph-title"
+          // Размер и радиус только из draw (layout-эффект до первой отрисовки): стиль в разметке
+          // React переписал бы при перерисовке посреди хода пружины (щелчок по звезде сжимал форму)
           className="absolute right-0 top-0 z-30 overflow-hidden"
-          style={{ width: geo.current.w0, height: BTN_H, borderRadius: BTN_R }}
           onKeyDown={(e) => {
             if (e.key === 'Escape' && !e.defaultPrevented) {
               e.preventDefault();

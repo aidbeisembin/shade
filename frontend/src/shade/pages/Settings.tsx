@@ -306,7 +306,8 @@ function FeedbackRows() {
   const ask = useAskEnabled();
   return (
     <>
-      <Row title={t('feedbackRowTitle')} hint={t('feedbackRowHint')}>
+      {/* wide: «Поставить звезду на GitHub» не помещается в 200 px */}
+      <Row title={t('feedbackRowTitle')} hint={t('feedbackRowHint')} wide>
         <div className="flex w-full flex-col gap-2">
           <FeedbackMorph />
           <GithubButton variant="secondary" className="w-full" />
