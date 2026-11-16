@@ -133,3 +133,16 @@
 3. Сделать запись в форке → файл в `~/Movies/Shade/`.
 4. Встреча форка не видна в оригинале и наоборот.
 5. `ls -la ~/Library/Application\ Support/com.meetily.ai/` до и после работы форка: даты изменения файлов оригинала не меняются.
+
+## 5. Правки ядра сверх патча идентичности (запись, восстановление, сохранение)
+
+Разрешение владельца: только в части записи, восстановления и сохранения; форматы существующих данных не менялись (`metadata.json`, `transcripts.json`, имена `audio_chunk_NNN.mp4`, `audio.mp4`, схема базы). Коммит `fix(core): восстановление встречи после сбоя`.
+
+| Файл | Что | Зачем |
+|---|---|---|
+| `frontend/src-tauri/src/crash_recovery/` (новый модуль) | Восстановление прерванных записей при запуске: команда `recover_interrupted_meetings`, разбор обрезанного `transcripts.json`, проверка и склейка кусков (`media.rs`), надёжная запись файла (`fsio.rs`), тесты | Встреча 16.11 не попала в список, потому что строка в базе создаётся только при «Остановить» |
+| `frontend/src-tauri/src/lib.rs` | `pub mod crash_recovery;` (стр. 43), команда в `generate_handler!` (стр. 713) | Подключение модуля |
+| `frontend/src-tauri/src/audio/recording_saver.rs` | `write_metadata` и `write_transcripts_json` пишут через `fsio::write_atomic` (временный файл, fsync, rename, fsync папки; те же имена `.metadata.json.tmp`, `.transcripts.json.tmp`) | Без fsync после жёсткого выключения мог остаться пустой или обрезанный файл под настоящим именем |
+| `frontend/src-tauri/src/audio/incremental_saver.rs` | Кусок звука 30 с → `CHECKPOINT_SECONDS = 10`; кусок кодируется в `audio_chunk_NNN.mp4.part`, fsync, затем rename | Потеря при сбое до 10 с вместо 30 с; кусок под настоящим именем всегда целый |
+
+Не менялось: `finalize` (склейка при обычной остановке), `recover_audio_from_checkpoints` и остальные команды оригинала; старое окно «восстановить?» оригинала (IndexedDB) осталось в коде и в Shade не подключено.

@@ -264,15 +264,12 @@ impl RecordingSaver {
         Ok(())
     }
 
-    /// Write metadata.json to disk (atomic write with temp file)
+    /// Write metadata.json to disk: temp file, fsync, rename, fsync of the folder.
+    /// Without fsync a hard power-off can leave an empty or half-written file under the
+    /// final name (docs/ui/recording-outcome.md, «Восстановление после сбоя»).
     fn write_metadata(&self, folder: &PathBuf, metadata: &MeetingMetadata) -> Result<()> {
-        let metadata_path = folder.join("metadata.json");
-        let temp_path = folder.join(".metadata.json.tmp");
-
         let json_string = serde_json::to_string_pretty(metadata)?;
-        std::fs::write(&temp_path, json_string)?;
-        std::fs::rename(&temp_path, &metadata_path)?;  // Atomic
-
+        crate::crash_recovery::fsio::write_atomic(&folder.join("metadata.json"), json_string.as_bytes())?;
         Ok(())
     }
 
@@ -289,7 +286,6 @@ impl RecordingSaver {
         info!("Writing {} transcript segments to JSON", segments_clone.len());
 
         let transcript_path = folder.join("transcripts.json");
-        let temp_path = folder.join(".transcripts.json.tmp");
 
         // Create JSON structure
         let json = serde_json::json!({
@@ -306,25 +302,12 @@ impl RecordingSaver {
                 anyhow::anyhow!("JSON serialization failed: {}", e)
             })?;
 
-        // Write to temp file with error handling
-        std::fs::write(&temp_path, &json_string)
+        // Temp file + fsync + rename + fsync of the folder: after a crash or power loss
+        // the file is either the previous version or the new one, never a half-written one
+        crate::crash_recovery::fsio::write_atomic(&transcript_path, json_string.as_bytes())
             .map_err(|e| {
-                error!("Failed to write transcript temp file to {}: {}", temp_path.display(), e);
-                anyhow::anyhow!("Failed to write temp file: {}", e)
-            })?;
-
-        // Verify temp file was written correctly
-        if !temp_path.exists() {
-            error!("Temp transcript file does not exist after write: {}", temp_path.display());
-            return Err(anyhow::anyhow!("Temp file verification failed"));
-        }
-
-        // Atomic rename
-        std::fs::rename(&temp_path, &transcript_path)
-            .map_err(|e| {
-                error!("Failed to rename transcript file from {} to {}: {}",
-                       temp_path.display(), transcript_path.display(), e);
-                anyhow::anyhow!("Failed to rename transcript file: {}", e)
+                error!("Failed to write transcripts to {}: {}", transcript_path.display(), e);
+                anyhow::anyhow!("Failed to write transcript file: {}", e)
             })?;
 
         info!("✅ Successfully wrote transcripts.json with {} segments", segments_clone.len());
