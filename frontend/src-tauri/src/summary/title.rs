@@ -324,6 +324,19 @@ mod tests {
     }
 
     #[test]
+    fn recovered_mark_survives_title_writes() {
+        // встреча, восстановленная после сбоя: метка #31 остаётся байт в байт, название получает свой файл
+        let dir = temp_folder("recovered");
+        let mark = br#"{"partial":false,"recovered_at":"2026-11-16T10:00:00Z"}"#;
+        std::fs::write(dir.join("recovered.json"), mark).unwrap();
+        write_origin(&dir, TitleOrigin::Auto).unwrap();
+        write_origin(&dir, TitleOrigin::Manual).unwrap();
+        assert_eq!(std::fs::read(dir.join("recovered.json")).unwrap(), mark);
+        assert_eq!(read_origin(&dir), Some(TitleOrigin::Manual));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn manual_title_is_never_overwritten_by_automation() {
         let d = |origin, ovr| decide_set(Some("Мой план"), origin, "Мой план", "Бюджет на квартал", ovr);
         assert_eq!(d(Some(TitleOrigin::Manual), false), SetOutcome::Manual);
