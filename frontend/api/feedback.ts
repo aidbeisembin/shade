@@ -3,7 +3,7 @@
 // (output: 'export'), свои маршруты API у него невозможны; эту функцию Vercel собирает отдельно.
 //
 // Принимает POST JSON {rating, text, appVersion, macos, locale} (договор и пределы в
-// src/shade/lib/feedback/contract.ts, общий с приложением).
+// api/_contract.ts, общий с приложением; файлы с «_» Vercel функциями не считает).
 // Ответы: 200 ушло; 400 тело не по договору; 405 не тот метод; 413 тело больше MAX_BODY_BYTES;
 // 429 больше RATE_LIMIT отзывов с одного адреса за RATE_WINDOW_MS; 502 Telegram не принял;
 // 503 не заданы переменные окружения (тогда Shade кладёт отзыв в очередь и пишет
@@ -11,7 +11,9 @@
 // Переменные окружения Vercel (в репозиторий не коммитятся): SHADE_FEEDBACK_BOT_TOKEN, SHADE_FEEDBACK_CHAT_ID.
 // Текст отзыва в журнал функции не пишется, только код ответа.
 
-import { MAX_BODY_BYTES, validatePayload, type FeedbackPayload } from '../src/shade/lib/feedback/contract';
+// .js и api/package.json с "type": "module": Vercel компилирует файлы по одному, без сборщика,
+// и Node грузит их как ES-модули только так (без этого 500 FUNCTION_INVOCATION_FAILED).
+import { MAX_BODY_BYTES, validatePayload, type FeedbackPayload } from './_contract.js';
 
 /** Не больше отзывов с одного адреса за окно. Счёт в памяти экземпляра функции (см. docs/ui/feedback.md). */
 export const RATE_LIMIT = 5;
