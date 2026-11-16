@@ -21,7 +21,7 @@ export const windowBootScript = `
   w.__shadeShowWindow = function() {
     if (shown) return;
     shown = true;
-    T.invoke('plugin:window|show', { label: 'main' }).catch(function(e) { console.warn('[shade] Окно не показалось:', e); });
+    T.invoke('plugin:window|show', { label: 'main' }).catch(function(e) { console.warn('[shade] Window did not show:', e); });
   };
   try {
     var dark = document.documentElement.classList.contains('dark');

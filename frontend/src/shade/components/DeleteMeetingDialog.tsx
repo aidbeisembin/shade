@@ -7,6 +7,7 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { Button } from '@/shade/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { t, tDays } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 interface DeleteMeetingDialogProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface DeleteMeetingDialogProps {
 }
 
 export function DeleteMeetingDialog({ open, onOpenChange, title, onConfirm }: DeleteMeetingDialogProps) {
+  useLang();
   const [busy, setBusy] = useState(false);
   return (
     <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>

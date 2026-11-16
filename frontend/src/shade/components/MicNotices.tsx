@@ -20,6 +20,7 @@ import { shadeToast } from '@/shade/lib/toasts';
 import { BRAND_MARK_SRC } from '@/shade/components/BrandMark';
 import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 type MicBlocker = Extract<StartBlocker, { kind: 'no-microphone' | 'mic-denied' }>;
 
@@ -69,6 +70,7 @@ function Sign({ children }: { children: React.ReactNode }) {
 }
 
 function CloseButton({ onClick }: { onClick: () => void }) {
+  useLang();
   return (
     // Общий круглый крестик (ui/close-button.tsx): в правом верхнем углу карточки, 4 px сверху и справа
     <CloseButtonBase label={t('close')} onClick={onClick} />
@@ -88,6 +90,7 @@ export function MicAccessCard({
   onSystemOnly: () => void;
   onClose: () => void;
 }) {
+  useLang();
   const [checking, setChecking] = useState(false);
   const awaiting = useRef(false);
   const primary = useRef<HTMLButtonElement>(null);
@@ -173,6 +176,7 @@ export function MicAccessCard({
  * включён, указатель стоит на нём. Для читалки экрана одна фраза.
  */
 function SettingsHint() {
+  useLang();
   return (
     <div className="mt-3 w-[240px] max-w-full">
       <div aria-hidden className="shade-mic-demo pointer-events-none select-none overflow-hidden rounded-nested bg-muted p-2.5">
@@ -227,6 +231,7 @@ export function micHintKind(watch: MicWatchState, systemOnly: boolean, blind: bo
 
 /** Подсказка над капсулой записи: тихая, с крестиком, запись не трогает. */
 export function MicHint({ kind, onClose }: { kind: MicHintKind; onClose: () => void }) {
+  useLang();
   const [soundCheck, setSoundCheck] = useState(false);
   return (
     // Крестик в углу подложки дока (у неё relative и p-4): справа запас 40 px, кнопки и текст не заходят под него

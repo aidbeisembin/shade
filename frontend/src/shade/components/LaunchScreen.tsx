@@ -9,11 +9,13 @@
 import { useEffect, useState } from 'react';
 import { BRAND_MARK_SRC } from './BrandMark';
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 const MIN_MS = 450;
 const FADE_MS = 260;
 
 export function LaunchScreen() {
+  useLang();
   const [state, setState] = useState<'shown' | 'leaving' | 'gone'>('shown');
   useEffect(() => {
     const start = (window as unknown as { __shadeLaunchAt?: number }).__shadeLaunchAt ?? performance.now();

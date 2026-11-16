@@ -21,16 +21,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shade/components/ui/t
 import { usePrivacy } from '@/shade/lib/privacy';
 import { formatTimer } from '@/shade/lib/format';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
 import { useRecordingState } from '@/contexts/RecordingStateContext';
 import { useRecordingControls } from '@/shade/lib/recording-controls';
+import { useLang } from '@/shade/lib/lang';
 
-type NavItem = { label: string; href: string; icon: typeof GearSix; match: (p: string) => boolean };
+type NavItem = { label: StringKey; href: string; icon: typeof GearSix; match: (p: string) => boolean };
 
-const SETTINGS: NavItem = { label: t('navSettings'), href: '/settings', icon: GearSix, match: (p) => p.startsWith('/settings') };
+const SETTINGS: NavItem = { label: 'navSettings', href: '/settings', icon: GearSix, match: (p) => p.startsWith('/settings') };
 
 /** Раздел сайдбара: выбранный тёмно-серой таблеткой, остальные серой иконкой. */
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  useLang();
   const active = item.match(pathname);
   const Icon = item.icon;
   return (
@@ -38,7 +40,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
       <TooltipTrigger asChild>
         <Link
           href={item.href}
-          aria-label={item.label}
+          aria-label={t(item.label)}
           aria-current={active ? 'page' : undefined}
           className={cn(
             SIDEBAR_BUTTON,
@@ -48,7 +50,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
           <Icon className="size-6" aria-hidden />
         </Link>
       </TooltipTrigger>
-      <TooltipContent side="right">{item.label}</TooltipContent>
+      <TooltipContent side="right">{t(item.label)}</TooltipContent>
     </Tooltip>
   );
 }
@@ -65,6 +67,7 @@ export const SIDEBAR_BUTTON =
 
 /** Запись идёт, а пользователь ушёл с главной: кнопка с красной точкой записи ведёт к «Остановить». */
 function RecordingLink({ pathname }: { pathname: string }) {
+  useLang();
   const rec = useRecordingState();
   if (!rec.isRecording || pathname === '/') return null;
   const seconds = rec.activeDuration ?? rec.recordingDuration ?? 0;
@@ -83,6 +86,7 @@ function RecordingLink({ pathname }: { pathname: string }) {
 
 /** Знак Shade: логотип, ведёт к списку встреч (и с экрана записи, и со встречи). */
 function BrandLink() {
+  useLang();
   const c = useRecordingControls();
   return (
     <Tooltip>
@@ -104,6 +108,7 @@ function BrandLink() {
 }
 
 export function ShadeSidebar() {
+  useLang();
   const pathname = usePathname() ?? '/';
   const { privacy, loading: privacyLoading } = usePrivacy();
   // Страховка к скрипту в <head> (theme.ts): класс полосы окна macOS (WindowBar)
@@ -111,7 +116,7 @@ export function ShadeSidebar() {
 
   return (
     <aside className="flex h-full w-[72px] shrink-0 flex-col items-center rounded-tile bg-card py-3">
-      <nav className="flex flex-1 flex-col items-center gap-2" aria-label="Основная навигация">
+      <nav className="flex flex-1 flex-col items-center gap-2" aria-label={t('navMain')}>
         <BrandLink />
         <RecordingLink pathname={pathname} />
         {/* Настройки внизу, над приватностью */}

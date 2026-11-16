@@ -25,6 +25,7 @@ import { t } from '@/shade/strings';
 import { HelloStep } from './HelloStep';
 import { AccessStep } from './AccessStep';
 import { ReadyStep, type SpeechModelState } from './ReadyStep';
+import { useLang } from '@/shade/lib/lang';
 
 const PARAKEET_MODEL = 'parakeet-tdt-0.6b-v3-int8';
 /** Уход шага (размытие и сдвиг) перед появлением следующего, мс; как .shade-ob-out в globals.css. */
@@ -286,6 +287,7 @@ export function ShadeOnboarding({ onComplete }: { onComplete: () => void }) {
 }
 
 function StepDots({ count, current }: { count: number; current: number }) {
+  useLang();
   if (count < 2) return null;
   const label = t('obStepOf').replace('{n}', String(current + 1)).replace('{total}', String(count));
   return (
@@ -304,6 +306,7 @@ function StepDots({ count, current }: { count: number; current: number }) {
 }
 
 function FinishNote({ state, onRetry, onAnyway }: { state: 'slow' | 'failed'; onRetry: () => void; onAnyway: () => void }) {
+  useLang();
   return (
     <div role="status" className="flex flex-col items-center gap-3 text-center">
       <p className="text-[13px] leading-5 text-muted-foreground">

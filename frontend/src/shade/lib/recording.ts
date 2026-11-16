@@ -43,6 +43,7 @@ import {
 import { useMicWatch } from './mic-watch';
 import { useConfig } from '@/contexts/ConfigContext';
 import { useRecordingOutcome } from './recording-outcome';
+import { t } from '@/shade/strings';
 
 export type StartBlocker =
   | { kind: 'no-model' }
@@ -300,7 +301,7 @@ export function useShadeRecording() {
     } catch (error) {
       if (isNoRecording(error)) return;
       console.error('[shade] Не удалось остановить запись:', error);
-      shadeToast.error('Не удалось остановить запись', { description: String(error) });
+      shadeToast.error(t('stopFailed'), { description: String(error) });
       await handleRecordingStop(false);
     } finally {
       setBusy(null);
@@ -313,7 +314,7 @@ export function useShadeRecording() {
     try {
       await invoke(recording.isPaused ? 'resume_recording' : 'pause_recording');
     } catch (error) {
-      shadeToast.error(recording.isPaused ? 'Не удалось продолжить запись' : 'Не удалось поставить на паузу', {
+      shadeToast.error(recording.isPaused ? t('resumeFailed') : t('pauseFailed'), {
         description: String(error),
       });
     } finally {

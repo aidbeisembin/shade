@@ -5,6 +5,7 @@ import { MockBackend } from './backend';
 import { FAILING_COMMANDS, UNREGISTERED_COMMANDS, handlers, notFound, pluginHandlers } from './handlers';
 import { mountScenarioPanel } from './panel';
 import { MOCK_OFF, SCENARIOS, resolveScenarioId } from './scenarios';
+import { setDemoLang } from '@/shade/lib/lang';
 
 declare global {
   interface Window {
@@ -28,10 +29,13 @@ declare global {
 export function installMockTauri() {
   const scenarioId = resolveScenarioId();
   if (scenarioId === MOCK_OFF) {
+    setDemoLang(null);
     console.info('[mock-tauri] Заглушки отключены (?mock=off). Включить: ?mock=full');
     return;
   }
   const scenario = SCENARIOS[scenarioId];
+  // Язык сценария (demo-en: английский) на время вкладки; у остальных сценариев сбрасывается
+  setDemoLang(scenario.lang ?? null);
   const be = new MockBackend(scenario);
 
   const calledCommands = new Set<string>();

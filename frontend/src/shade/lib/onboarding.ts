@@ -17,7 +17,7 @@ export function obLog(message: string, extra?: unknown) {
 
 export class SlowError extends Error {
   constructor(label: string) {
-    super(`${label}: нет ответа за ${SLOW_MS} мс`);
+    super(`${label}: no answer in ${SLOW_MS} ms`);
     this.name = 'SlowError';
   }
 }

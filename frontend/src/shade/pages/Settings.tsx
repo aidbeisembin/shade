@@ -25,22 +25,23 @@ import { Switch } from '@/shade/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shade/components/ui/tabs';
 import { shadeToast } from '@/shade/lib/toasts';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
 import { useConfig, type NotificationSettings } from '@/contexts/ConfigContext';
 import { RecordingSettings } from '@/components/RecordingSettings';
 import { TranscriptSettings } from '@/components/TranscriptSettings';
 import { SummaryModelSettings } from '@/components/SummaryModelSettings';
 import { BetaSettings } from '@/components/BetaSettings';
 import AnalyticsConsentSwitch from '@/components/AnalyticsConsentSwitch';
+import { LANGS, setLang, useLang, type Lang } from '@/shade/lib/lang';
 
 const TABS = [
-  { value: 'general', label: t('settingsGeneral'), icon: SlidersHorizontal },
-  { value: 'recording', label: t('settingsRecording'), icon: Microphone },
-  { value: 'transcription', label: t('settingsTranscription'), icon: Waveform },
-  { value: 'summary', label: t('settingsSummary'), icon: Sparkle },
-  { value: 'beta', label: t('settingsBeta'), icon: Flask },
-  { value: 'about', label: t('settingsAbout'), icon: BookOpen },
-] as const;
+  { value: 'general', label: 'settingsGeneral', icon: SlidersHorizontal },
+  { value: 'recording', label: 'settingsRecording', icon: Microphone },
+  { value: 'transcription', label: 'settingsTranscription', icon: Waveform },
+  { value: 'summary', label: 'settingsSummary', icon: Sparkle },
+  { value: 'beta', label: 'settingsBeta', icon: Flask },
+  { value: 'about', label: 'settingsAbout', icon: BookOpen },
+] as const satisfies readonly { value: string; label: StringKey; icon: unknown }[];
 type TabValue = (typeof TABS)[number]['value'];
 
 // Разделы вкладки один под другим: 32 px между группами
@@ -75,6 +76,7 @@ function Row({ title, hint, children }: { title: string; hint?: ReactNode; child
 
 /** Переключатель показывает то же, что проверяет ядро перед уведомлением: show_recording_started и _stopped. */
 function NotificationsRow() {
+  useLang();
   const { notificationSettings, isLoadingPreferences, loadPreferences, updateNotificationSettings } = useConfig();
   const [saving, setSaving] = useState(false);
 
@@ -127,6 +129,7 @@ function NotificationsRow() {
 }
 
 function StorageRow() {
+  useLang();
   const { storageLocations, loadPreferences } = useConfig();
 
   useEffect(() => {
@@ -160,10 +163,40 @@ function StorageRow() {
   );
 }
 
+const LANG_NAME: Record<Lang, StringKey> = { ru: 'langRu', en: 'langEn' };
+
+const LANG_SELECT =
+  'h-12 w-full appearance-none rounded-full bg-muted px-5 text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/** Язык интерфейса: выбор запоминается и применяется сразу, без перезапуска (lib/lang.ts). */
+function InterfaceLanguageRow() {
+  const lang = useLang();
+  return (
+    <Row title={t('interfaceLanguageRow')} hint={t('interfaceLanguageHint')}>
+      <select
+        className={LANG_SELECT}
+        aria-label={t('interfaceLanguageRow')}
+        value={lang}
+        onChange={(e) => setLang(e.target.value as Lang)}
+      >
+        {LANGS.map((code) => (
+          <option key={code} value={code} lang={code}>
+            {t(LANG_NAME[code])}
+          </option>
+        ))}
+      </select>
+    </Row>
+  );
+}
+
 function GeneralTab() {
+  useLang();
   return (
     // Бенто: разделы отдельными плитками, 8 px между плитками
     <div className="flex flex-col gap-8">
+      <Section title={t('interfaceLanguage')}>
+        <InterfaceLanguageRow />
+      </Section>
       <Section title={t('settingsSectionNotifications')}>
         <NotificationsRow />
       </Section>
@@ -180,6 +213,7 @@ function GeneralTab() {
 }
 
 function AboutTab() {
+  useLang();
   const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,9 +243,16 @@ function AboutTab() {
  * Монтируется только на клиенте: мост переводит текст после гидратации.
  */
 function Legacy({ children, className }: { children: ReactNode; className?: string }) {
+  // key={lang}: при смене языка секция оригинала собирается заново, иначе мост оставил бы
+  // в уже переведённых узлах прежний язык (LegacyBridge подменяет только новые узлы)
+  const lang = useLang();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  return <div className={`shade-legacy ${className ?? ''}`}>{mounted ? children : <Skeleton className="h-40 w-full rounded-nested" />}</div>;
+  return (
+    <div key={lang} className={`shade-legacy ${className ?? ''}`}>
+      {mounted ? children : <Skeleton className="h-40 w-full rounded-nested" />}
+    </div>
+  );
 }
 
 /** Вкладка из секций оригинала: одна плитка, внутри вложенная ступень тона (.shade-nest). */
@@ -226,6 +267,7 @@ function LegacyTile({ title, children, className }: { title: string; children: R
 }
 
 function SettingsContent() {
+  useLang();
   const params = useSearchParams();
   const router = useRouter();
   const { transcriptModelConfig, setTranscriptModelConfig } = useConfig();
@@ -254,9 +296,9 @@ function SettingsContent() {
               <Icon aria-hidden />
               {/* Ширина по полужирному варианту: выбранная вкладка font-medium, соседи не сдвигаются */}
               <span className="grid">
-                <span className="col-start-1 row-start-1">{x.label}</span>
+                <span className="col-start-1 row-start-1">{t(x.label)}</span>
                 <span aria-hidden className="invisible col-start-1 row-start-1 font-medium">
-                  {x.label}
+                  {t(x.label)}
                 </span>
               </span>
             </TabsTrigger>
@@ -306,6 +348,7 @@ function SettingsContent() {
 }
 
 export default function Settings() {
+  useLang();
   return (
     <Suspense
       fallback={

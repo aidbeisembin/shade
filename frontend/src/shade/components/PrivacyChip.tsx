@@ -5,29 +5,34 @@
 import { Cloud, ShieldCheck, ShieldWarning, Sparkle, Waveform } from '@phosphor-icons/react';
 import { Badge } from '@/shade/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shade/components/ui/tooltip';
-import type { PrivacyInfo, PrivacyLevel, ProviderPrivacy } from '@/shade/lib/privacy';
-import { t } from '@/shade/strings';
+import { providerLabel, type PrivacyInfo, type PrivacyLevel, type ProviderPrivacy } from '@/shade/lib/privacy';
+import { t, type StringKey } from '@/shade/strings';
 import { cn } from '@/shade/lib/utils';
+import { useLang } from '@/shade/lib/lang';
 
 const LEVEL = {
-  local: { icon: ShieldCheck, label: t('privacyLocal'), hint: t('privacyHintLocal'), variant: 'accent' as const },
-  cloud: { icon: Cloud, label: t('privacyCloud'), hint: t('privacyHintCloud'), variant: 'outline' as const },
-  unknown: { icon: ShieldWarning, label: t('privacyUnknown'), hint: t('privacyHintUnknown'), variant: 'secondary' as const },
-} satisfies Record<PrivacyLevel, unknown>;
+  local: { icon: ShieldCheck, label: 'privacyLocal', hint: 'privacyHintLocal', variant: 'accent' as const },
+  cloud: { icon: Cloud, label: 'privacyCloud', hint: 'privacyHintCloud', variant: 'outline' as const },
+  unknown: { icon: ShieldWarning, label: 'privacyUnknown', hint: 'privacyHintUnknown', variant: 'secondary' as const },
+} satisfies Record<PrivacyLevel, { icon: unknown; label: StringKey; hint: StringKey; variant: string }>;
 
-const WHERE: Record<PrivacyLevel, string> = {
-  local: 'на этом компьютере',
-  cloud: 'на сервере провайдера',
-  unknown: 'неизвестно где',
+const WHERE: Record<PrivacyLevel, StringKey> = {
+  local: 'privacyWhereLocal',
+  cloud: 'privacyWhereCloud',
+  unknown: 'privacyWhereUnknown',
 };
 
 function line(title: string, p: ProviderPrivacy) {
-  return `${title}: ${p.label}, ${WHERE[p.level]}`;
+  return `${title}: ${providerLabel(p)}, ${t(WHERE[p.level])}`;
 }
 
 /** compact: круглая кнопка 48 px только с иконкой (узкий сайдбар), подпись в подсказке. */
 export function PrivacyChip({ privacy, className, compact }: { privacy: PrivacyInfo; className?: string; compact?: boolean }) {
-  const { icon: Icon, label, hint, variant } = LEVEL[privacy.level];
+  useLang();
+  const level = LEVEL[privacy.level];
+  const { icon: Icon, variant } = level;
+  const label = t(level.label);
+  const hint = t(level.hint);
 
   return (
     <Tooltip>
@@ -61,9 +66,9 @@ export function PrivacyChip({ privacy, className, compact }: { privacy: PrivacyI
           <Icon className="mt-px size-5 text-primary-ink" aria-hidden />
           <p className="whitespace-nowrap font-medium">{hint}</p>
           <Waveform className="mt-px size-4 justify-self-center text-muted-foreground" aria-hidden />
-          <p className="whitespace-nowrap text-muted-foreground">{line('Транскрипция', privacy.transcript)}</p>
+          <p className="whitespace-nowrap text-muted-foreground">{line(t('privacyTranscriptLine'), privacy.transcript)}</p>
           <Sparkle className="mt-px size-4 justify-self-center text-muted-foreground" aria-hidden />
-          <p className="whitespace-nowrap text-muted-foreground">{line('Итоги', privacy.summary)}</p>
+          <p className="whitespace-nowrap text-muted-foreground">{line(t('summary'), privacy.summary)}</p>
         </div>
       </TooltipContent>
     </Tooltip>

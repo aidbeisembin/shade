@@ -9,14 +9,15 @@ import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { cn } from '@/shade/lib/utils';
 import type { AccessKind, AccessState } from '@/shade/lib/onboarding';
-import { t } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
 import { accessSettled, useAccessChecks } from './useAccessChecks';
 import { HINT_CLASS, TITLE_CLASS, mainButtonClass } from './ui';
+import { useLang } from '@/shade/lib/lang';
 
 const LOGO_SRC = '/brand/shade.svg';
 const ICON = { microphone: Microphone, systemAudio: SpeakerHigh } as const;
-const TITLE = { microphone: t('obMic'), systemAudio: t('obSystem') } as const;
-const HINT = { microphone: t('obMicHint'), systemAudio: t('obSystemHint') } as const;
+const TITLE = { microphone: 'obMic', systemAudio: 'obSystem' } as const satisfies Record<AccessKind, StringKey>;
+const HINT = { microphone: 'obMicHint', systemAudio: 'obSystemHint' } as const satisfies Record<AccessKind, StringKey>;
 
 interface Props {
   /** Идёт сохранение настроек (этот шаг последний, если модель уже скачана). */
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function AccessStep({ busy, last, onContinue, onLater }: Props) {
+  useLang();
   const { state, ask, openSettings } = useAccessChecks();
   const mic = state.microphone;
   const continueLabel = mic === 'slow' ? t('obContinueAnyway') : last ? t('obOpenApp') : t('obContinue');
@@ -79,6 +81,7 @@ type DemoState = 'loop' | 'granted' | 'still';
  * granted: стоит «Доступ есть»; still: стоит окно без указателя (отказ, проверим позже).
  */
 function DemoPrompt({ state }: { state: DemoState }) {
+  useLang();
   return (
     <div aria-hidden data-state={state} className="shade-ob-prompt relative flex aspect-[8/3] items-center justify-center overflow-hidden rounded-nested bg-muted p-5">
       <div className="shade-ob-prompt-card -mt-1 w-[300px] max-w-full rounded-[16px] bg-card p-4 shadow-sm">
@@ -123,6 +126,7 @@ function AccessCard({
   onAllow: () => void;
   onOpenSettings: () => void;
 }) {
+  useLang();
   const Icon = ICON[kind];
   const caption =
     state === 'pending'
@@ -135,14 +139,14 @@ function AccessCard({
             ? t('obUnverified')
             : state === 'slow'
               ? t('obSlow')
-              : HINT[kind];
+              : t(HINT[kind]);
   const needsSettings = state === 'denied' || state === 'unverified' || state === 'slow';
 
   return (
     <div className="flex min-h-[72px] items-center gap-3 rounded-nested bg-muted py-3 pl-4 pr-3">
       <Icon className="size-6 shrink-0 text-foreground" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold leading-6">{TITLE[kind]}</p>
+        <p className="text-[15px] font-semibold leading-6">{t(TITLE[kind])}</p>
         <p
           role="status"
           className={cn(

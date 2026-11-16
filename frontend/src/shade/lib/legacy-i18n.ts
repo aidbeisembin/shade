@@ -5,6 +5,8 @@
 // лишних пробелов. Если строки нет в словаре, она остаётся как есть, а в dev
 // попадает в консоль, чтобы её можно было добавить.
 
+import { getLang } from './lang';
+
 const EXACT: Record<string, string> = {
   // ---------- общие ----------
   'Loading...': 'Загрузка…',
@@ -331,10 +333,14 @@ const PATTERNS: Array<[RegExp, (...m: string[]) => string]> = [
   [/^(\d+(?:\.\d+)?) MiB \/ (\d+(?:\.\d+)?) MiB$/, (_, a, b) => `${a} из ${b} МБ`],
 ];
 
-/** Перевод строки оригинала или null, если перевода нет. */
+/**
+ * Перевод строки оригинала или null, если перевода нет. В английском режиме оригинал уже
+ * по-английски и остаётся как есть, подменяется только чужое имя бренда.
+ */
 export function translate(text: string): string | null {
   const key = text.replace(/\s+/g, ' ').trim();
   if (!key) return null;
+  if (getLang() !== 'ru') return key.includes('Meetily') && !/[\\/]/.test(key) ? key.replace(/Meetily/g, 'Shade') : null;
   if (key in EXACT) return EXACT[key];
   for (const [re, fn] of PATTERNS) {
     const m = key.match(re);

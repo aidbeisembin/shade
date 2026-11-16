@@ -13,6 +13,7 @@ import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
 import { openPrivacySettings } from '@/shade/lib/onboarding';
 import { useConfig } from '@/contexts/ConfigContext';
+import { useLang } from '@/shade/lib/lang';
 
 interface Device {
   name: string;
@@ -75,6 +76,7 @@ function Row({ ok, title, value }: { ok: boolean; title: string; value: string }
 }
 
 export function SoundCheckDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  useLang();
   const s = useSoundState(open);
   const access = Boolean(s && s.inputs.length > 0);
   const micFound = Boolean(s && (!s.mic || s.inputs.includes(s.mic)));

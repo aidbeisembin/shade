@@ -15,7 +15,8 @@ import type { Segment } from '@/shade/lib/meeting';
 import { countWords } from '@/shade/lib/speech';
 import { formatNumber } from '@/shade/lib/format';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, tf } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 const BUCKET_SEC = 5;
 const BARS = 40;
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function LivePulse({ live, duration, isPaused, segments }: Props) {
+  useLang();
   const current = Math.floor(duration / BUCKET_SEC);
   const bars = useMemo(() => {
     const counts = new Map<number, number>();
@@ -53,7 +55,7 @@ export function LivePulse({ live, duration, isPaused, segments }: Props) {
     { label: t('pulseWords'), value: formatNumber(words) },
     { label: t('pulseReplies'), value: formatNumber(segments.length) },
     { label: t('pulseSpeechShare'), value: `${speechShare}%` },
-    { label: t('pulseLastSpeech'), value: since === null ? '—' : since < 3 ? t('pulseNow') : `${since} с` },
+    { label: t('pulseLastSpeech'), value: since === null ? '—' : since < 3 ? t('pulseNow') : tf('durS', { s: since }) },
   ];
 
   return (

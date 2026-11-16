@@ -54,11 +54,12 @@ import { InlineRename } from '@/shade/components/InlineRename';
 import { countWords, isShownText, MIN_SUMMARY_WORDS } from '@/shade/lib/speech';
 import { useRecordingControls } from '@/shade/lib/recording-controls';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, tf, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { useConfig } from '@/contexts/ConfigContext';
 import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { RetranscribeDialog } from '@/components/MeetingDetails/RetranscribeDialog';
+import { useLang } from '@/shade/lib/lang';
 
 // Колонка текста: строки реплик не длиннее 760 px, дальше читать тяжело
 const MEASURE = 'max-w-[760px]';
@@ -69,10 +70,12 @@ const ON_ROLE_MAIN = 'bg-on-role text-white hover:bg-on-role/90';
 const ON_ROLE_SOFT = 'bg-black/10 text-on-role hover:bg-black/15';
 
 function BackLink() {
+  useLang();
   return <BackButton label={t('back')} href="/" />;
 }
 
 function ErrorAlert({ title, error, onRetry }: { title: string; error: FriendlyError; onRetry?: () => void }) {
+  useLang();
   return (
     // В колонке плиток ошибка тоже плитка
     <Alert variant="destructive" className="rounded-tile bg-card p-5 [&>svg]:left-5 [&>svg]:top-5">
@@ -98,6 +101,7 @@ function ErrorAlert({ title, error, onRetry }: { title: string; error: FriendlyE
 
 /** Название встречи с переименованием на месте. В базе хранится то, что ввёл человек. */
 function Title({ shown, editable, onRename }: { shown: string; editable: string; onRename: (next: string) => Promise<void> }) {
+  useLang();
   const [editing, setEditing] = useState(false);
   const begin = () => setEditing(true);
 
@@ -138,14 +142,14 @@ function Title({ shown, editable, onRename }: { shown: string; editable: string;
 
 type Cause = StartBlocker['kind'] | 'silence' | 'heard-no-text';
 
-const CAUSE: Record<Cause, string> = {
-  'no-model': t('silentNoModel'),
-  'model-downloading': t('silentNoModel'),
-  'no-microphone': t('silentNoMic'),
-  'mic-denied': t('silentNoMic'),
-  'check-failed': t('silentUnknown'),
-  silence: t('silentUnknown'),
-  'heard-no-text': t('silentHeard'),
+const CAUSE: Record<Cause, StringKey> = {
+  'no-model': 'silentNoModel',
+  'model-downloading': 'silentNoModel',
+  'no-microphone': 'silentNoMic',
+  'mic-denied': 'silentNoMic',
+  'check-failed': 'silentUnknown',
+  silence: 'silentUnknown',
+  'heard-no-text': 'silentHeard',
 };
 
 /**
@@ -165,6 +169,7 @@ function SilentRecording({
   onOpenFolder: () => void;
   onDelete: () => void;
 }) {
+  useLang();
   const { checkPermissions } = usePermissionCheck();
   const [cause, setCause] = useState<Cause | null>(null);
 
@@ -195,7 +200,7 @@ function SilentRecording({
       <h2 id="silent-title" className="mt-4 text-[22px] font-bold leading-7 tracking-tight">
         {t('silentTitle')}
       </h2>
-      <p className="mt-1 max-w-xl text-[15px] text-muted-foreground">{cause ? CAUSE[cause] : t('loading')}</p>
+      <p className="mt-1 max-w-xl text-[15px] text-muted-foreground">{cause ? t(CAUSE[cause]) : t('loading')}</p>
       <div className="mt-5 flex flex-wrap gap-2">
         {needModel ? (
           <Button asChild size="main" className={ON_ROLE_MAIN}>
@@ -235,6 +240,7 @@ function SummaryBlock({
   /** Нет у короткой встречи и во время записи: «Сделать заново» не показывается. */
   onRetry?: () => void;
 }) {
+  useLang();
   // Свёрнуты по умолчанию: главное на странице транскрипт. Раскрываются сами,
   // когда итоги только что сделаны на этой странице.
   const [open, setOpen] = useState(false);
@@ -336,6 +342,7 @@ function SummaryBlock({
  * галочкой, тост не нужен. То же по ⌘⇧C (Ctrl+Shift+C не на Mac) на странице встречи.
  */
 function CopyButton({ disabled, getText }: { disabled: boolean; getText: () => Promise<string> }) {
+  useLang();
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
   const [hotkey, setHotkey] = useState('⌘⇧C');
   useEffect(() => {
@@ -417,6 +424,7 @@ function IconAction({ label, onClick, children }: { label: string; onClick: () =
 }
 
 function LoadingState() {
+  useLang();
   return (
     <Page
       layout="bento"
@@ -445,6 +453,7 @@ function LoadingState() {
 
 /** Встреча в корзине, открытая по адресу: что случилось и «Восстановить». */
 function InTrash({ id, title }: { id: string; title: string }) {
+  useLang();
   const [busy, setBusy] = useState(false);
   const restore = async () => {
     setBusy(true);
@@ -472,6 +481,7 @@ function InTrash({ id, title }: { id: string; title: string }) {
 }
 
 function MeetingDetailsContent() {
+  useLang();
   const params = useSearchParams();
   const meetingId = params.get('id');
   const router = useRouter();
@@ -677,7 +687,7 @@ function MeetingDetailsContent() {
               <div className="flex justify-center pt-6">
                 <Button variant="outline" onClick={() => void m.loadMore()} disabled={m.loadingMore}>
                   {m.loadingMore && <Spinner tone="inherit" />}
-                  {t('loadMore')} ({m.segments.length} из {m.total})
+                  {t('loadMore')} ({tf('ofCount', { a: m.segments.length, b: m.total })})
                 </Button>
               </div>
             )}

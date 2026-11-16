@@ -17,6 +17,7 @@ import { useTranscripts } from '@/contexts/TranscriptContext';
 import { shadeToast } from './toasts';
 import { useRecordingOutcome } from './recording-outcome';
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 /**
  * Сочетание работает только в окне Shade: глобальному нужен плагин в ядре
@@ -67,6 +68,7 @@ function hotkeyLabel(): string {
 }
 
 export function ShadeRecordingControls({ children }: { children: ReactNode }) {
+  useLang();
   const rec = useShadeRecording();
   const router = useRouter();
   const pathname = usePathname() ?? '/';
@@ -182,6 +184,6 @@ export function ShadeRecordingControls({ children }: { children: ReactNode }) {
 
 export function useRecordingControls(): Controls {
   const ctx = useContext(RecordingControlsContext);
-  if (!ctx) throw new Error('useRecordingControls вне ShadeRecordingControls');
+  if (!ctx) throw new Error('useRecordingControls outside ShadeRecordingControls');
   return ctx;
 }

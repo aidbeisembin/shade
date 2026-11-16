@@ -14,6 +14,8 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { getStoredTheme, onThemeChange, type ThemeMode } from '@/shade/lib/theme';
 import { installShadeToasts } from '@/shade/lib/toasts';
 import { STACK_GAP } from '@/shade/lib/notice-stack';
+import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 installShadeToasts();
 
@@ -30,6 +32,7 @@ const ICONS = {
 };
 
 export function ShadeToaster() {
+  useLang();
   const [theme, setTheme] = useState<ThemeMode>('light');
 
   useEffect(() => {
@@ -48,8 +51,8 @@ export function ShadeToaster() {
       duration={5000}
       visibleToasts={3}
       className="shade-toaster"
-      toastOptions={{ closeButtonAriaLabel: 'Закрыть уведомление' }}
-      containerAriaLabel="Уведомления"
+      toastOptions={{ closeButtonAriaLabel: t('toasterClose') }}
+      containerAriaLabel={t('toasterRegion')}
     />
   );
 }

@@ -40,6 +40,7 @@ import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
 import { useConfig } from '@/contexts/ConfigContext';
 import { LANGUAGES } from '@/constants/languages';
+import { useLang } from '@/shade/lib/lang';
 
 /** Через сколько секунд без единой осмысленной реплики показать «Не слышу речи». */
 export const NO_SPEECH_HINT_SEC = 20;
@@ -140,6 +141,7 @@ function LevelBars({ paused }: { paused: boolean }) {
 
 /** «Не слышу речи» внутри плитки записи: детектор речь слышит или речь не доходит. */
 function SpeechHint({ heard }: { heard: boolean }) {
+  useLang();
   const [open, setOpen] = useState(false);
   const sound = useSoundState(true);
   const { transcriptModelConfig, selectedLanguage } = useConfig();
@@ -193,6 +195,7 @@ interface CardView {
 
 /** Кнопка записи в покое: круг 88 px, сплошной Mikado, от него расходятся две волны. */
 function RecordButton() {
+  useLang();
   const c = useRecordingControls();
   // Известно, что доступа к микрофону нет: кнопка «нужен доступ» (не лаймовая,
   // перечёркнутый микрофон, без волн), клик открывает карточку про микрофон
@@ -263,6 +266,7 @@ function IdleRecordButton() {
 }
 
 export function RecordDock() {
+  useLang();
   const c = useRecordingControls();
   const { live, notice } = useRecordingOutcome();
   const router = useRouter();

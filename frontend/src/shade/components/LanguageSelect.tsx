@@ -11,6 +11,7 @@
 import { useConfig } from '@/contexts/ConfigContext';
 import { LANGUAGES } from '@/constants/languages';
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 const SELECT =
   'h-12 w-full appearance-none rounded-full bg-muted px-5 text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
@@ -26,6 +27,7 @@ function useParakeet() {
 }
 
 export function LanguageSelect() {
+  useLang();
   const { selectedLanguage, setSelectedLanguage } = useConfig();
   const parakeet = useParakeet();
   return (
@@ -47,5 +49,6 @@ export function LanguageSelect() {
 
 /** Подсказка строки: для Parakeet честно говорит, что язык не учитывается. */
 export function LanguageHint() {
+  useLang();
   return <>{useParakeet() ? t('settingsLanguageParakeet') : t('settingsLanguageHint')}</>;
 }

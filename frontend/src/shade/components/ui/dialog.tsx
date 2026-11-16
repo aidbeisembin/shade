@@ -5,6 +5,8 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { CLOSE_BUTTON, CLOSE_CORNER, CloseGlyph } from '@/shade/components/ui/close-button';
 import { cn } from '@/shade/lib/utils';
+import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -13,7 +15,9 @@ const DialogClose = DialogPrimitive.Close;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => {
+  useLang();
+  return (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="shade-dialog-overlay fixed inset-0 z-50" />
     <DialogPrimitive.Content
@@ -31,11 +35,12 @@ const DialogContent = React.forwardRef<
       {/* Общий круглый крестик (ui/close-button.tsx): в правом верхнем углу, 4 px сверху и справа */}
       <DialogPrimitive.Close className={cn(CLOSE_BUTTON, CLOSE_CORNER)}>
         <CloseGlyph />
-        <span className="sr-only">Закрыть</span>
+        <span className="sr-only">{t('close')}</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPrimitive.Portal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogTitle = React.forwardRef<

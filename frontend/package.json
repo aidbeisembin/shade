@@ -27,6 +27,8 @@
         "tauri:build:hipblas": "tauri build -- --features hipblas",
         "lint": "next lint",
         "check:contrast": "node scripts/check-contrast.mjs",
+        "check:i18n": "node scripts/check-i18n.mjs",
+        "check": "tsc --noEmit && pnpm check:contrast && pnpm check:i18n && pnpm test",
         "test": "bun test src/shade"
     },
     "dependencies": {

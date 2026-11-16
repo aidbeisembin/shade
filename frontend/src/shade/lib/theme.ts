@@ -53,14 +53,14 @@ export const themeScript = `
     var dark = s === 'dark' || (s !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (dark) document.documentElement.classList.add('dark');
   } catch (e) {}
-  // Окно Tauri на macOS (кнопки окна в верхней полосе WindowBar): класс ставится до первой
-  // отрисовки, иначе плитки первые мгновения стоят под кнопками окна
+  // Tauri window on macOS (window buttons sit in the WindowBar strip): the class is set before
+  // the first paint, otherwise the tiles stand under the window buttons for a moment
   try {
     var w = window;
     if (w.__TAURI_INTERNALS__ && !/[?&]mock=/.test(location.search) && /Mac/i.test(navigator.platform || navigator.userAgent)) {
       document.documentElement.classList.add('shade-titlebar-overlay');
     } else if (/[?&]mock=/.test(location.search)) {
-      // Браузер на заглушках: та же полоса окна с нарисованными кнопками, как на Mac
+      // Browser on mocks: the same window strip with drawn buttons, as on a Mac
       document.documentElement.classList.add('shade-titlebar-overlay', 'shade-titlebar-mock');
     }
   } catch (e) {}

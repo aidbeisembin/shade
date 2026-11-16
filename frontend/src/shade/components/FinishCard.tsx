@@ -16,7 +16,8 @@ import { Notice } from '@/shade/components/ui/notice';
 import { Button } from '@/shade/components/ui/button';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { displayTitle } from '@/shade/lib/format';
-import { t } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 export type FinishCardStage = 'transcribing' | 'saving' | 'saved' | 'discarded';
 /** Почему записи нет в списке (recording-outcome.tsx, DiscardVerdict). */
@@ -41,11 +42,11 @@ export function FinishGlyph({ stage }: { stage: FinishCardStage }) {
   );
 }
 
-const DISCARD_TITLE: Record<DiscardReason, string> = {
-  empty: t('discardedEmpty'),
-  'no-speech': t('discardedSilent'),
-  unrecognized: t('discardedUnrecognized'),
-  'low-content': t('lowContentTitle'),
+const DISCARD_TITLE: Record<DiscardReason, StringKey> = {
+  empty: 'discardedEmpty',
+  'no-speech': 'discardedSilent',
+  unrecognized: 'discardedUnrecognized',
+  'low-content': 'lowContentTitle',
 };
 
 interface FinishCardProps {
@@ -64,6 +65,7 @@ interface FinishCardProps {
 }
 
 export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onClose, onHold, still }: FinishCardProps) {
+  useLang();
   const [soundCheck, setSoundCheck] = useState(false);
   const [held, setHeld] = useState(false);
   const hold = (why: string, on: boolean) => {
@@ -93,7 +95,7 @@ export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onC
 
   const name = title ? displayTitle(title) : null;
   const heading =
-    stage === 'transcribing' ? t('finishTranscribing') : stage === 'saving' ? t('finishSaving') : stage === 'saved' ? t('finishSaved') : DISCARD_TITLE[reason];
+    stage === 'transcribing' ? t('finishTranscribing') : stage === 'saving' ? t('finishSaving') : stage === 'saved' ? t('finishSaved') : t(DISCARD_TITLE[reason]);
 
   return (
     <>

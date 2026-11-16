@@ -6,14 +6,16 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun } from '@phosphor-icons/react';
 import { getStoredTheme, onThemeChange, setTheme, type ThemeMode } from '@/shade/lib/theme';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
-const OPTIONS = [
-  { mode: 'light' as const, icon: Sun, label: t('themeLight') },
-  { mode: 'dark' as const, icon: Moon, label: t('themeDark') },
+const OPTIONS: { mode: ThemeMode; icon: typeof Sun; label: StringKey }[] = [
+  { mode: 'light', icon: Sun, label: 'themeLight' },
+  { mode: 'dark', icon: Moon, label: 'themeDark' },
 ];
 
 export function ThemeSwitcher() {
+  useLang();
   const [mode, setMode] = useState<ThemeMode>('light');
 
   useEffect(() => {
@@ -23,8 +25,9 @@ export function ThemeSwitcher() {
 
   return (
     <div role="radiogroup" aria-label={t('theme')} className="flex flex-col gap-1 rounded-full bg-muted p-1">
-      {OPTIONS.map(({ mode: m, icon: Icon, label }) => {
+      {OPTIONS.map(({ mode: m, icon: Icon, label: labelKey }) => {
         const active = mode === m;
+        const label = t(labelKey);
         return (
           <button
             key={m}

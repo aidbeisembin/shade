@@ -33,11 +33,12 @@ import { isDiscarded, isKept, marksSnapshot, onMarksChange, purgeDiscarded, setE
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { cn } from '@/shade/lib/utils';
 import { friendlyError, type FriendlyError } from '@/shade/lib/meeting';
-import { dateGroup, displayTitle, plural, shownTitle, type DateGroup } from '@/shade/lib/format';
-import { t, tDays, trashDays } from '@/shade/strings';
+import { dateGroup, displayTitle, shownTitle, type DateGroup } from '@/shade/lib/format';
+import { t, tDays, tf, tp, trashDays, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { useImportDialog } from '@/contexts/ImportDialogContext';
 import { useConfig } from '@/contexts/ConfigContext';
+import { useLang } from '@/shade/lib/lang';
 
 type ListState =
   | { kind: 'loading' }
@@ -45,6 +46,7 @@ type ListState =
   | { kind: 'ready'; meetings: MeetingListItem[] };
 
 function useMeetingsList(refreshKey: unknown) {
+  useLang();
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   // Одна загрузка за раз: новая отменяет предыдущую, уход со страницы отменяет текущую.
   // Иначе подгрузка подробностей (до 5000 реплик на встречу) копилась бы при каждом
@@ -93,7 +95,7 @@ function useMeetingsList(refreshKey: unknown) {
         signal,
       );
     } catch (error) {
-      if (!signal.cancelled) setState({ kind: 'error', error: friendlyError(error, 'Проверьте, что приложение запущено, и попробуйте ещё раз.') });
+      if (!signal.cancelled) setState({ kind: 'error', error: friendlyError(error, t('homeLoadHint')) });
     }
   }, []);
 
@@ -121,13 +123,14 @@ function useMeetingsList(refreshKey: unknown) {
 
 // Про микрофон (нет доступа, нет устройства) говорит карточка у кнопки записи (MicNotices),
 // здесь только модель распознавания
-const BLOCKER: Record<'no-model' | 'model-downloading', { title: string; hint: string; action: string; href: string }> = {
-  'no-model': { title: t('blockNoModel'), hint: t('blockNoModelHint'), action: t('downloadModel'), href: '/settings?tab=transcription' },
-  'model-downloading': { title: t('blockDownloading'), hint: t('blockDownloadingHint'), action: t('showDownload'), href: '/settings?tab=transcription' },
+const BLOCKER: Record<'no-model' | 'model-downloading', { title: StringKey; hint: StringKey; action: StringKey; href: string }> = {
+  'no-model': { title: 'blockNoModel', hint: 'blockNoModelHint', action: 'downloadModel', href: '/settings?tab=transcription' },
+  'model-downloading': { title: 'blockDownloading', hint: 'blockDownloadingHint', action: 'showDownload', href: '/settings?tab=transcription' },
 };
 
 /** Почему запись не началась и как это исправить. Фокус переходит на кнопку исправления. */
 function StartBlockerPanel({ blocker, onRetry, onClose }: { blocker: StartBlocker; onRetry: () => void; onClose: () => void }) {
+  useLang();
   const actionRef = useRef<HTMLAnchorElement & HTMLButtonElement>(null);
   useEffect(() => actionRef.current?.focus(), [blocker]);
   if (blocker.kind !== 'no-model' && blocker.kind !== 'model-downloading') return null;
@@ -137,13 +140,13 @@ function StartBlockerPanel({ blocker, onRetry, onClose }: { blocker: StartBlocke
     <Alert aria-live="polite">
       <Warning />
       <div>
-        <AlertTitle>{copy.title}</AlertTitle>
+        <AlertTitle>{t(copy.title)}</AlertTitle>
         <AlertDescription>
-          <p>{copy.hint}</p>
+          <p>{t(copy.hint)}</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild size="main">
               <Link ref={actionRef} href={copy.href}>
-                {copy.action}
+                {t(copy.action)}
               </Link>
             </Button>
             {blocker.kind !== 'no-model' && (
@@ -198,6 +201,7 @@ function useTrashed(): TrashedMeeting[] {
 
 /** Подтверждение окончательного удаления: одна встреча или вся корзина. */
 function EraseDialog({ title, hint, onConfirm, onClose }: { title: string; hint: string; onConfirm: () => Promise<void>; onClose: () => void }) {
+  useLang();
   const [busy, setBusy] = useState(false);
   const confirm = async () => {
     setBusy(true);
@@ -229,6 +233,7 @@ function EraseDialog({ title, hint, onConfirm, onClose }: { title: string; hint:
 
 /** Фильтр «Корзина»: удалённые встречи, срок, «Восстановить» и «Удалить насовсем»; сверху «Очистить корзину». */
 function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored: () => void }) {
+  useLang();
   const [busy, setBusy] = useState<string | null>(null);
   const [erase, setErase] = useState<TrashedMeeting | 'all' | null>(null);
   const restore = async (m: TrashedMeeting) => {
@@ -254,7 +259,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
   };
   const eraseAll = async () => {
     const n = await emptyTrash();
-    shadeToast.success(t('trashEmptied'), { description: n ? `${n} ${plural(n, 'запись', 'записи', 'записей')}` : undefined });
+    shadeToast.success(t('trashEmptied'), { description: n ? tp('recordsCount', n) : undefined });
   };
   if (items.length === 0) {
     return (
@@ -272,7 +277,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
       </div>
       <ul className="flex flex-col gap-1">
         {items.map((m) => {
-          const left = t('trashDaysLeft').replace('{n}', String(daysLeft(m)));
+          const left = tf('trashDaysLeft', { n: daysLeft(m) });
           return (
             <li key={m.id} className="flex min-h-[64px] items-center gap-3 rounded-nested p-2">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden>
@@ -328,6 +333,7 @@ type Filter = 'all' | 'summary' | 'trash';
 
 /** Чипы-фильтры таблетками: выбранный Mikado (роль «выделение»), счётчик серым. */
 function FilterChips({ value, onChange, counts }: { value: Filter; onChange: (f: Filter) => void; counts: Partial<Record<Filter, number>> }) {
+  useLang();
   const items: Array<{ id: Filter; label: string }> = [
     { id: 'all', label: t('filterAll') },
     { id: 'summary', label: t('filterSummary') },
@@ -364,6 +370,7 @@ function FilterChips({ value, onChange, counts }: { value: Filter; onChange: (f:
 
 /** Однократный вопрос при первом запуске новой версии: удалить старые пустые записи. */
 function EmptyCleanupDialog({ meetings, onDone }: { meetings: MeetingListItem[]; onDone: () => void }) {
+  useLang();
   const [busy, setBusy] = useState(false);
   const n = meetings.length;
   const remove = async () => {
@@ -378,7 +385,7 @@ function EmptyCleanupDialog({ meetings, onDone }: { meetings: MeetingListItem[];
     }
     setBusy(false);
     setEmptyCleanupAsked();
-    if (failed) shadeToast.error(t('deleteFailed'), { description: `${failed} ${plural(failed, 'запись', 'записи', 'записей')} не удалось удалить` });
+    if (failed) shadeToast.error(t('deleteFailed'), { description: tp('recordsDeleteFailed', failed) });
     onDone();
   };
   const keep = () => {
@@ -389,12 +396,10 @@ function EmptyCleanupDialog({ meetings, onDone }: { meetings: MeetingListItem[];
     <Dialog open onOpenChange={(v) => !v && keep()}>
       <DialogContent>
         <DialogTitle>
-          Удалить {n} {plural(n, 'пустую запись', 'пустые записи', 'пустых записей')}?
+          {tp('emptyCleanupAsk', n)}
         </DialogTitle>
         <DialogDescription>
-          {n === 1
-            ? `В ней нет ни одной реплики. Она ${trashDays()} полежит в корзине, оттуда её можно вернуть. Если там был разговор, нажмите «Оставить».`
-            : `В них нет ни одной реплики. Они ${trashDays()} полежат в корзине, оттуда их можно вернуть. Если в какой-то был разговор, нажмите «Оставить».`}
+          {tDays(n === 1 ? 'emptyCleanupHintOne' : 'emptyCleanupHintMany')}
         </DialogDescription>
         <DialogFooter>
           <Button variant="outline" size="main" onClick={keep} disabled={busy}>
@@ -422,6 +427,7 @@ interface HomeViewProps {
 }
 
 function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: HomeViewProps) {
+  useLang();
   const { meetings: sidebarMeetings, setMeetings } = useSidebar();
   const { state, setState, reload } = useMeetingsList(sidebarMeetings);
   const [toDelete, setToDelete] = useState<MeetingListItem | null>(null);
@@ -684,7 +690,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
           {search && search.pending > 0 && (
             <p className="pb-2 text-sm text-muted-foreground" role="status">
               <Spinner size={16} className="mr-2 inline-block align-[-3px]" />
-              {t('searchProgress')} {search.total - search.pending} из {search.total}
+              {t('searchProgress')} {tf('searchProgressOf', { done: search.total - search.pending, total: search.total })}
             </p>
           )}
 

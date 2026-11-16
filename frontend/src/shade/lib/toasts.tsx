@@ -160,7 +160,7 @@ export function installShadeToasts() {
     const text = String(message ?? '');
     const prefix = 'Failed to start recording.';
     if (text.startsWith(prefix)) {
-      toast.error('Запись не началась', { description: text.slice(prefix.length).trim() || undefined });
+      toast.error(shadeT('startFailed'), { description: text.slice(prefix.length).trim() || undefined });
       return;
     }
     nativeAlert(message);

@@ -207,6 +207,7 @@ export function judgeRecording(e: RecordingEvidence): RecordingJudgement {
   if (content.tier !== 'empty') {
     return { ...base, verdict: 'speech', reason: `значимых слов ${content.count}${content.tier === 'check' ? ', проверка моделью' : ''}` };
   }
+  // i18n-ignore: журнал разработчика, не интерфейс
   const heard = e.vadSegments === 0 ? 'детектор речи не сработал' : `детектор сработал (${e.vadSegments} сегм.)`;
   const long = !(typeof e.durationSec === 'number' && e.durationSec < SHORT_EMPTY_SECONDS);
   if (count === 0 && e.vadSegments === 0 && long) return { ...base, verdict: 'no-speech', reason: `${heard}, слов нет` };

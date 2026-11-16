@@ -12,6 +12,7 @@ import { Input } from '@/shade/components/ui/input';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 interface InlineRenameProps {
   /** Полный текст для поля (editableTitle). */
@@ -23,6 +24,7 @@ interface InlineRenameProps {
 }
 
 export function InlineRename({ initial, onSave, onClose, inputClassName, className }: InlineRenameProps) {
+  useLang();
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);

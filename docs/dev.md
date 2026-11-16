@@ -5,7 +5,7 @@
 ## Проект
 - Продукт **Shade**, основан на открытом Meetily (MIT, Zackriya Solutions): приватный ИИ-ассистент встреч, запись, транскрипция и итоги на компьютере пользователя. Прежние рабочие названия «Aid Meetings» и «ShadeNotes» больше нигде не используются.
 - Десктоп на Tauri 2: ядро на Rust (`frontend/src-tauri`, чужое), интерфейс на Next.js 14 + React 18. Свой слой интерфейса в `frontend/src/shade/` (ветка `shade`, префиксы `shade-` в классах, `[shade]` в журнале, `shade.` в ключах хранилищ).
-- Идентичность: `identifier` `io.github.katanana23.shade` (от него папка данных), папки данных ядра `APP_DATA_DIR_NAME = "Shade"` и `RECORDINGS_DIR_NAME = "Shade"` (`src-tauri/src/config.rs`), ключи `localStorage` с префиксом `shade.` (`shade.theme` и др.). Любая смена этих имён отрывает данные пользователя от приложения: делать её только вместе со скриптом переноса, как `scripts/migrate-from-aid.sh` (2026-11-14, переход с `io.github.katanana23.aid-meetings`). Репозиторий на GitHub `katanana23/shade`.
+- Идентичность: `identifier` `io.github.katanana23.shade` (от него папка данных), папки данных ядра `APP_DATA_DIR_NAME = "Shade"` и `RECORDINGS_DIR_NAME = "Shade"` (`src-tauri/src/config.rs`), ключи `localStorage` с префиксом `shade.` (`shade.theme`, `shade.lang` и др.; язык вкладки `shade.lang.tab` и язык заглушек `shade.lang.demo` в `sessionStorage`). Любая смена этих имён отрывает данные пользователя от приложения: делать её только вместе со скриптом переноса, как `scripts/migrate-from-aid.sh` (2026-11-14, переход с `io.github.katanana23.aid-meetings`). Репозиторий на GitHub `katanana23/shade`.
 - Ветка `main` зеркалит оригинал, рабочая ветка `shade`. Подробнее: `docs/FORK.md`, `docs/isolation.md`, `docs/recon.md`.
 
 ## Границы
@@ -26,7 +26,7 @@
 
 ## Заглушки
 - Интерфейс разрабатывать в браузере на заглушках: `cd frontend && pnpm dev`, затем `http://localhost:3118/?mock=full`.
-- Сценарии: `full`, `long`, `empty`, `recording`, `error`, `onboarding` (`docs/case/mock.md`). Сценарии итога записи: [ui/recording-outcome.md](ui/recording-outcome.md#заглушки-для-разработки).
+- Сценарии: `full`, `long`, `empty`, `recording`, `error`, `onboarding`, `demo-en` (английский для снимков кейса) (`docs/case/mock.md`). Сценарии итога записи: [ui/recording-outcome.md](ui/recording-outcome.md#заглушки-для-разработки).
 
 ## Проверка в окне приложения
 - Визуальные задачи (анимации, размытие, стекло, уведомления) в конце проверять в окне приложения: оно рисует WebKit, а заглушки обычно смотрят в Chromium, и `backdrop-filter`, `filter: blur` и их анимации в WebKit ведут себя иначе.
@@ -38,7 +38,7 @@
 - Кеш сборки общий у рабочих деревьев через `CARGO_TARGET_DIR` основной папки.
 
 ## Проверки
-- После правок во `frontend`: `npx tsc --noEmit`, `pnpm check:contrast`, `pnpm test`, `pnpm build`. Те же шаги на каждый PR в `shade` запускает `.github/workflows/shade-check.yml`.
+- После правок во `frontend`: `npx tsc --noEmit`, `pnpm check:contrast`, `pnpm check:i18n`, `pnpm test`, `pnpm build` (первые четыре подряд: `pnpm check`). Те же шаги на каждый PR в `shade` запускает `.github/workflows/shade-check.yml`.
 - Скрипт переноса данных `scripts/migrate-from-aid.sh`: тест `bash scripts/test-migrate-from-aid.sh` (подставной `HOME`, вымышленные данные), в CI отдельной задачей той же проверки.
 
 ## Git и отчёты

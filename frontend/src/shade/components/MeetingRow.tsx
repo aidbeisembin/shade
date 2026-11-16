@@ -19,12 +19,13 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { Button } from '@/shade/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shade/components/ui/tooltip';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/shade/components/ui/context-menu';
-import { editableTitle, formatNumber, formatOffset, formatShortDate, formatTime, formatVolume, isAutoTitle, plural, shownTitle } from '@/shade/lib/format';
+import { editableTitle, formatOffset, formatShortDate, formatTime, formatVolume, isAutoTitle, shownTitle } from '@/shade/lib/format';
 import type { TranscriptMatch } from '@/shade/lib/transcript-search';
 import { InlineRename } from '@/shade/components/InlineRename';
 import type { MeetingDetails, MeetingStatus } from '@/shade/lib/meeting-details-cache';
 import { cn } from '@/shade/lib/utils';
-import { t } from '@/shade/strings';
+import { t, tp, type StringKey } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 export interface MeetingListItem {
   id: string;
@@ -39,12 +40,12 @@ export interface MeetingListItem {
 }
 
 // Цвет иконки по роли: итоги Indigo (ИИ), «Не распознано» Giants, транскрипт серый
-const STATUS: Record<Exclude<MeetingStatus, 'unknown'>, { icon: Icon | null; label: string; className: string }> = {
-  summary: { icon: Sparkle, label: t('statusSummary'), className: 'text-indigo-ink' },
+const STATUS: Record<Exclude<MeetingStatus, 'unknown'>, { icon: Icon | null; label: StringKey; className: string }> = {
+  summary: { icon: Sparkle, label: 'statusSummary', className: 'text-indigo-ink' },
   // Итоги в работе: общий Spinner вместо иконки (см. ниже)
-  summarizing: { icon: null, label: t('statusSummarizing'), className: '' },
-  transcript: { icon: ChatText, label: t('statusTranscript'), className: 'text-muted-foreground' },
-  silent: { icon: MicrophoneSlash, label: t('statusSilent'), className: 'text-giants-ink' },
+  summarizing: { icon: null, label: 'statusSummarizing', className: '' },
+  transcript: { icon: ChatText, label: 'statusTranscript', className: 'text-muted-foreground' },
+  silent: { icon: MicrophoneSlash, label: 'statusSilent', className: 'text-giants-ink' },
 };
 
 /** Миниатюра состояния: круг 48 px на ступени тона, иконка 20 px в цвете роли. */
@@ -65,6 +66,7 @@ export function StatusThumb({ kind }: { kind: MeetingStatus }) {
  * встанет обычная строка (Home.tsx).
  */
 export function PendingRow({ title, stage, done = false }: { title: string; stage: string; done?: boolean }) {
+  useLang();
   const now = formatTime(new Date());
   return (
     <li className="flex min-h-[64px] select-none items-center gap-3 rounded-nested py-2 pl-2 pr-3" aria-busy={!done} data-shade-pending>
@@ -122,6 +124,7 @@ interface MeetingRowProps {
 }
 
 export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly, match }: MeetingRowProps) {
+  useLang();
   const [editing, setEditing] = useState(false);
   const d = meeting.details;
   const shown = shownTitle(meeting.title, d?.contentTitle);
@@ -133,7 +136,7 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
   // Полезное вместо «Только транскрипт»: длительность и объём. «Итоги готовы» словами
   // не повторяется в каждой строке: это знак Sparkle, подпись есть у диктора
   const volume = kind === 'transcript' || kind === 'summary' || kind === 'summarizing' ? formatVolume(d?.durationSec, d?.words) : null;
-  const label = kind === 'transcript' || kind === 'summary' ? null : status?.label;
+  const label = kind === 'transcript' || kind === 'summary' || !status ? null : t(status.label);
   const meta = [date, volume, label].filter(Boolean).join(' · ');
 
   const begin = () => setEditing(true);
@@ -198,7 +201,7 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
                   {match.before}
                   <mark className="rounded-[3px] bg-primary/20 text-foreground">{match.hit}</mark>
                   {match.after}
-                  {match.hits > 1 && <span className="ml-1.5 whitespace-nowrap text-xs">ещё в {formatNumber(match.hits - 1)} {plural(match.hits - 1, 'реплике', 'репликах', 'репликах')}</span>}
+                  {match.hits > 1 && <span className="ml-1.5 whitespace-nowrap text-xs">{tp('searchMoreHits', match.hits - 1)}</span>}
                 </span>
               )}
             </span>

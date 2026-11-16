@@ -33,6 +33,7 @@ const VS = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }';
 // столбов шума), ядро с широким ореолом (граница уходит в фон), размеры в CSS-пикселях
 // (одинаковые волны на любой ширине плитки), скругление только снизу, uAmp для ухода,
 // uLine для паузы (тонкая линия), верх холста всегда пустой: там последняя реплика.
+// Комментарии внутри шейдера ниже по-английски: строка шейдера не должна содержать кириллицу.
 const FS = `
 precision mediump float;
 uniform vec2 uRes;
@@ -44,7 +45,7 @@ float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2.
   return mix(mix(hash(i), hash(i + vec2(1., 0.)), u.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), u.x), u.y); }
 vec3 apal(float t){
   t = fract(t);
-  // Розовый, персиковый, сиреневый, барвинок: соседние цвета смешиваются без серого
+  // Pink, peach, lilac, periwinkle: neighbouring colours blend without turning grey
   vec3 c0 = vec3(1., .40, .50), c1 = vec3(1., .72, .45), c2 = vec3(.76, .50, .98), c3 = vec3(.52, .60, 1.);
   float s = t * 4.;
   return s < 1. ? mix(c0, c1, s) : s < 2. ? mix(c1, c2, s - 1.) : s < 3. ? mix(c2, c3, s - 2.) : mix(c3, c0, s - 3.);
@@ -53,11 +54,11 @@ vec3 apal(float t){
 void main(){
   vec2 px = gl_FragCoord.xy;
   float W = uRes.x, H = uRes.y;
-  // Плитка уходит вверх за холст: скругление и кромка только у нижнего края
+  // The tile extends above the canvas: rounding and rim only on the bottom edge
   float sd = sdRoundBox(px - vec2(W * .5, H * 2.), vec2(W * .5, H * 2.), uRadius);
   float inside = 1. - smoothstep(-1., 1., sd);
   if (inside <= 0. || uAmp <= 0.) { gl_FragColor = vec4(0.); return; }
-  // Всё в CSS-пикселях: волны одного размера на любой ширине плитки
+  // Everything in CSS pixels: same wave size at any tile width
   float X = px.x / uPx;
   float y = px.y / uPx;
   float top = H / uPx;
@@ -65,35 +66,35 @@ void main(){
   float t = uTime;
   float L = uLevel;
 
-  // Цвет медленно течёт вдоль края: один слой гладкого шума, без ряби
+  // Colour drifts slowly along the edge: one layer of smooth noise, no ripple
   float flow = vnoise(vec2(X / 420. - t * .1, t * .05));
   vec3 hue = apal(X / 1100. + flow * .55 + t * .04);
 
-  // Волны: три бегущие синусоиды разной длины, сумма даёт плавные холмы без столбов
+  // Waves: three travelling sines of different length, the sum gives smooth hills without spikes
   float w = sin(X / 83. + t * .9) * .5
           + sin(X / 49. - t * 1.25 + 1.7) * .32
           + sin(X / 31. + t * 1.7 + 4.1) * .18;
   w = smoothstep(-.9, .9, w);
-  // Холмы то выше, то ниже: медленный шум по длине волны
+  // Hills grow and shrink: slow noise along the wave
   float swell = .55 + .45 * vnoise(vec2(X / 520. + t * .18, t * .12));
   float h = 14. + L * (26. + 120. * w * swell);
-  // Думает: мягкий холм ходит из стороны в сторону
+  // Thinking: a soft hill sweeps from side to side
   float lump = exp(-pow((x - uSweep) / .22, 2.));
   h = mix(h, 16. + 96. * lump * (.75 + .25 * w), uThink);
-  // Пауза: тонкая линия по краю
+  // Paused: a thin line along the edge
   h = mix(h, 3., uLine);
 
-  // Ядро и широкий тихий ореол: граница уходит в фон, а не обрывается
+  // Core and a wide quiet halo: the border fades into the background instead of cutting off
   float g = exp(-pow(y / max(h, 1.), 1.5));
   float halo = exp(-pow(y / max(h * 2.2, 1.), 1.3));
   vec3 col = hue * (g * (.5 + .8 * L + .45 * uThink) + halo * (.16 + .2 * L));
 
-  // Кромка по краю и скруглениям: широкая и тихая
+  // Rim along the edge and the rounded corners: wide and quiet
   float rim = exp(sd / (10. * uPx)) * smoothstep(60., 0., y);
   col += mix(hue, vec3(1.), .3) * rim * (.2 + .35 * L + .2 * uThink);
   col += vec3(1.) * pow(g, 5.) * (.05 + .2 * L + .1 * uThink);
 
-  // Верх холста пустой и сходит на нет плавно: последняя реплика над свечением
+  // The top of the canvas is empty and fades out smoothly: the last line sits above the glow
   col *= smoothstep(top, top * .35, y);
 
   col = 1. - exp(-col * 1.1);

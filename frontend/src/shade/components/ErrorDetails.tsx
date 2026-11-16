@@ -1,7 +1,9 @@
 // Сворачиваемый исходный текст ошибки ядра: пригодится в отчёте об ошибке.
 import { t } from '@/shade/strings';
+import { useLang } from '@/shade/lib/lang';
 
 export function ErrorDetails({ raw }: { raw: string }) {
+  useLang();
   if (!raw) return null;
   return (
     <details className="group text-sm">

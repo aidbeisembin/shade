@@ -18,6 +18,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { exists, mkdir, readDir, readTextFile, remove, rename, writeTextFile } from '@tauri-apps/plugin-fs';
+import { tf } from '@/shade/strings';
 
 /** Путь внутри папки: тот же разделитель, что в пути папки (Windows или Unix). */
 export function joinPath(folder: string, name: string): string {
@@ -100,7 +101,7 @@ export async function moveRecordingToTrash(
  * тогда встреча остаётся в корзине, а не возвращается без звука (папку удалила бы очистка).
  */
 export async function restoreRecordingFromTrash(trashed: string, folder: string): Promise<void> {
-  if (await exists(folder)) throw new Error(`На прежнем месте уже есть папка: ${folder}`);
+  if (await exists(folder)) throw new Error(tf('restoreFolderExists', { path: folder }));
   await rename(trashed, folder);
   try {
     await remove(joinPath(folder, MARKER));
