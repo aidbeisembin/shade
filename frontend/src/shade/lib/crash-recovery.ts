@@ -117,9 +117,10 @@ let attempt = 0;
 /**
  * Один вызов при запуске (и повторы, пока ядро откладывает свежие папки). Ошибка команды
  * (старое ядро, заглушка) только в журнал: восстановление не должно мешать запуску.
- * `onRecovered` вызывается, когда в базе появились новые встречи (перечитать список).
+ * `onRecovered` вызывается, когда в базе появились новые встречи (перечитать список), с их id:
+ * по ним придумываются названия (recording-outcome.tsx, title-service.ts).
  */
-export async function runCrashRecovery(onRecovered: () => void): Promise<void> {
+export async function runCrashRecovery(onRecovered: (recoveredIds?: string[]) => void): Promise<void> {
   if (typeof window === 'undefined') return;
   if (process.env.NODE_ENV === 'development' && (await previewRecovery(onRecovered))) return;
   try {
@@ -128,7 +129,7 @@ export async function runCrashRecovery(onRecovered: () => void): Promise<void> {
     setMarks(report.marked ?? []);
     if (report.recovered?.length) {
       announceRecovered(report.recovered);
-      onRecovered();
+      onRecovered(report.recovered.map((m) => m.meeting_id));
     }
     if (report.failed?.length) console.warn('[shade] Восстановление после сбоя: не всё удалось, данные на месте:', report.failed);
     if (report.deferred > 0 && attempt < MAX_RETRIES) {
@@ -144,7 +145,7 @@ export async function runCrashRecovery(onRecovered: () => void): Promise<void> {
  * Только в разработке: уведомление и пометки без настоящего сбоя.
  * ?recovery=done|partial|two|many (русский и английский: ?lang=…).
  */
-async function previewRecovery(onRecovered: () => void): Promise<boolean> {
+async function previewRecovery(onRecovered: (recoveredIds?: string[]) => void): Promise<boolean> {
   const kind = new URLSearchParams(window.location.search).get('recovery');
   if (!kind) return false;
   const ids = await invoke<Array<{ id: string }>>('api_get_meetings').then((list) => (list ?? []).map((m) => m.id)).catch(() => [] as string[]);

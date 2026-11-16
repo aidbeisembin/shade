@@ -19,7 +19,7 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { Button } from '@/shade/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shade/components/ui/tooltip';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/shade/components/ui/context-menu';
-import { editableTitle, formatOffset, formatShortDate, formatTime, formatVolume, isAutoTitle, shownTitle } from '@/shade/lib/format';
+import { editableTitle, formatOffset, formatRowDate, formatTime, formatVolume, shownTitle } from '@/shade/lib/format';
 import type { TranscriptMatch } from '@/shade/lib/transcript-search';
 import { InlineRename } from '@/shade/components/InlineRename';
 import type { MeetingDetails, MeetingStatus } from '@/shade/lib/meeting-details-cache';
@@ -132,9 +132,10 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
   const shown = shownTitle(meeting.title, d?.contentTitle);
   const kind = d?.status ?? 'unknown';
   const status = kind !== 'unknown' ? STATUS[kind] : null;
-  // Дата не повторяется, если название и так «Встреча 3 ноября, 11:37»
-  const titleIsDate = isAutoTitle(meeting.title);
-  const date = meeting.created_at && !titleIsDate ? (timeOnly ? formatTime(meeting.created_at) : formatShortDate(meeting.created_at)) : null;
+  // Дата и время есть всегда, перед длительностью: «16 нояб., 15:02 · 29 мин · 1 953 слова». Название-тема
+  // даты не говорит, а у названия по дате («Встреча 16 ноября, 15:02») строка не меняется,
+  // когда название придумано: ни мигания, ни сдвига (docs/ui/meetings-list.md)
+  const date = meeting.created_at ? (timeOnly ? formatTime(meeting.created_at) : formatRowDate(meeting.created_at)) : null;
   // Полезное вместо «Только транскрипт»: длительность и объём. «Итоги готовы» словами
   // не повторяется в каждой строке: это знак Sparkle, подпись есть у диктора
   const volume = kind === 'transcript' || kind === 'summary' || kind === 'summarizing' ? formatVolume(d?.durationSec, d?.words) : null;

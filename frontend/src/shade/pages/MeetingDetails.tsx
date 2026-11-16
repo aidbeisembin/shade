@@ -40,6 +40,7 @@ import { ErrorDetails } from '@/shade/components/ErrorDetails';
 import { TranscriptList } from '@/shade/components/TranscriptList';
 import { deleteMeeting, toastTrashed, openMeetingFolder, renameMeeting } from '@/shade/lib/meeting-actions';
 import { readStoredOutcome } from '@/shade/lib/recording-outcome';
+import { onTitleSet, titler } from '@/shade/lib/title-service';
 import {
   markdownToPlain,
   summaryForPage,
@@ -50,7 +51,7 @@ import {
 } from '@/shade/lib/meeting';
 import { checkReadyToRecord, type StartBlocker } from '@/shade/lib/recording';
 import { shadeToast } from '@/shade/lib/toasts';
-import { editableTitle, formatDateTime, formatDuration, formatNumber, isAutoTitle, shownTitle as titleForDisplay } from '@/shade/lib/format';
+import { editableTitle, formatDateTime, formatDuration, formatNumber, shownTitle as titleForDisplay } from '@/shade/lib/format';
 import { InlineRename } from '@/shade/components/InlineRename';
 import { countWords, isShownText, MIN_SUMMARY_WORDS } from '@/shade/lib/speech';
 import { useRecordingControls } from '@/shade/lib/recording-controls';
@@ -489,6 +490,16 @@ function MeetingDetailsContent() {
   const router = useRouter();
   const m = useMeeting(meetingId);
   const { meetings, setMeetings, refetchMeetings } = useSidebar();
+  // «Подвести итоги» (в том числе «Сделать заново»): когда итоги будут готовы, название создаётся вместе
+  // с ними, если его не задал человек (title-service.ts). Следим по ядру, страница может быть уже закрыта
+  const generate = () => {
+    void m.generateSummary();
+    if (meetingId) void titler.watchSummary(meetingId);
+  };
+  const [retitling, setRetitling] = useState(false);
+  // Название придумано (в фоне или кнопкой): страница показывает его сразу
+  const setTitle = m.setTitle;
+  useEffect(() => onTitleSet((id, title) => id === meetingId && setTitle(title)), [meetingId, setTitle]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [trashed, setTrashed] = useState(() => (meetingId ? isTrashed(meetingId) : false));
   useEffect(() => {
@@ -520,7 +531,7 @@ function MeetingDetailsContent() {
   useEffect(() => {
     if (!summarize || asked.current || !segmentsReady) return;
     asked.current = true;
-    if (m.summary.kind === 'empty' && countWords(m.segments.map((x) => x.text).join(' ')) >= MIN_SUMMARY_WORDS) void m.generateSummary();
+    if (m.summary.kind === 'empty' && countWords(m.segments.map((x) => x.text).join(' ')) >= MIN_SUMMARY_WORDS) generate();
   }, [summarize, segmentsReady, m]);
   useEffect(() => {
     if (!meetingId) return;
@@ -575,8 +586,8 @@ function MeetingDetailsContent() {
 
   // Пусто и тогда, когда все реплики оказались галлюцинациями на тишине
   const empty = m.total === 0 || (!m.hasMore && visible.length === 0);
-  // Дата не повторяется, если название и так «Встреча 3 ноября, 11:37»
-  const date = isAutoTitle(meta.title) ? null : formatDateTime(meta.created_at);
+  // Дата всегда в мете: у названия-темы её иначе нет, а когда название придумывается позже, мета не прыгает
+  const date = formatDateTime(meta.created_at);
   const duration = formatDuration(m.duration);
   // Мета подписью и значением: дата, длительность, реплики
   const facts = [
@@ -607,6 +618,19 @@ function MeetingDetailsContent() {
     shadeToast.success(t('renamed'));
   };
 
+  // «Придумать заново»: только по нажатию, меняет и название, заданное человеком (title-service.ts, режим again)
+  const regenerateTitle = async () => {
+    if (retitling) return;
+    setRetitling(true);
+    try {
+      const out = await titler.titleOne(meta.id, { mode: 'again' });
+      if (out.status === 'set') shadeToast.success(t('titleRegenDone'));
+      else shadeToast.error(t(out.reason === 'no-model' ? 'titleRegenNoModel' : 'titleRegenFailed'));
+    } finally {
+      setRetitling(false);
+    }
+  };
+
   const remove = async () => {
     try {
       await deleteMeeting(meta.id);
@@ -628,7 +652,7 @@ function MeetingDetailsContent() {
     <>
       {showGenerate && (
         // 56 px, Indigo: роль итогов и ИИ
-        <Button variant="indigo" size="main" onClick={() => void m.generateSummary()}>
+        <Button variant="indigo" size="main" onClick={generate}>
           <Sparkle />
           {t('generateSummary')}
         </Button>
@@ -644,8 +668,8 @@ function MeetingDetailsContent() {
       <IconAction label={t('openRecordingFolder')} onClick={openFolder}>
         <FolderOpen />
       </IconAction>
-      {canRetranscribe && !isRecording && (
-        // Меню «Ещё»: «Распознать заново» не главная кнопка страницы
+      {(canRetranscribe || !empty) && !isRecording && (
+        // Меню «Ещё»: «Распознать заново» и «Придумать название заново» не главные кнопки страницы
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -658,10 +682,18 @@ function MeetingDetailsContent() {
             <TooltipContent>{t('rerecMenu')}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent>
-            <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
-              <ArrowClockwise />
-              {t('rerecTitle')}
-            </DropdownMenuItem>
+            {canRetranscribe && (
+              <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
+                <ArrowClockwise />
+                {t('rerecTitle')}
+              </DropdownMenuItem>
+            )}
+            {!empty && (
+              <DropdownMenuItem disabled={retitling} onSelect={() => void regenerateTitle()}>
+                {retitling ? <Spinner /> : <Sparkle />}
+                {retitling ? t('titleRegenBusy') : t('titleRegen')}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -696,7 +728,7 @@ function MeetingDetailsContent() {
         />
       ) : (
         <>
-          {showSummary && <SummaryBlock summary={m.summary} title={shownTitle} onRetry={canSummarize ? () => void m.generateSummary() : undefined} />}
+          {showSummary && <SummaryBlock summary={m.summary} title={shownTitle} onRetry={canSummarize ? generate : undefined} />}
           {/* Транскрипт отдельной плиткой одним текстовым потоком, колонка до 760 px */}
           {/* Пока ИИ готовит итоги, по нижнему краю транскрипта свечение «думает» (VoiceGlow);
               запас снизу на высоту свечения, чтобы последняя реплика была над ним */}
@@ -730,7 +762,7 @@ function MeetingDetailsContent() {
           folderPath={meta.folder_path ?? null}
           hasSummary={m.summary.kind === 'ready'}
           onDone={() => void m.retry()}
-          onUpdateSummary={() => void m.generateSummary()}
+          onUpdateSummary={generate}
         />
       )}
     </Page>

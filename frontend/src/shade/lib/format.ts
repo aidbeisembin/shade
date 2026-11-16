@@ -75,6 +75,24 @@ export function formatShortDate(value: string | Date | null | undefined): string
   return noYearSuffix(d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) }));
 }
 
+/**
+ * Дата и время для строки списка встреч: «16 нояб., 15:02», «сегодня, 15:02», «вчера, 15:02»;
+ * из другого года с годом. Время есть всегда: по названию-теме дату встречи иначе не узнать.
+ */
+export function formatRowDate(value: string | Date | null | undefined): string | null {
+  const d = toDate(value);
+  if (!d) return null;
+  const now = new Date();
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000);
+  const time = clock(d);
+  if (days === 0) return tf('todayAt', { time });
+  if (days === 1) return tf('yesterdayAt', { time });
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const date = noYearSuffix(d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) }));
+  return `${date}, ${time}`;
+}
+
 export type DateGroup = 'today' | 'yesterday' | 'week' | 'earlier';
 
 /** Группа списка встреч по дате: сегодня, вчера, последние 7 дней, раньше. */

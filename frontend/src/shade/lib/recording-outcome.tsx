@@ -29,9 +29,14 @@ import { markDiscarded, purgeDiscarded } from './recording-marks';
 import { purgeExpiredTrash, restoreMeeting, trashMeeting } from './meeting-trash';
 import { shadeToast } from './toasts';
 import { runCrashRecovery } from './crash-recovery';
+import { stillBusy, titleMany, titler } from './title-service';
 import { displayTitle } from './format';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+
+/** Идёт новая запись: название ждёт её конца, проверяя раз в 5 с, не дольше 3 часов. */
+const TITLE_WAIT_MS = 5000;
+const TITLE_WAIT_TRIES = (3 * 60 * 60 * 1000) / TITLE_WAIT_MS;
 
 /**
  * Сколько показывать карточку «Тишина»: короткий заголовок, подсказка и одно
@@ -308,13 +313,43 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
     [showNotice],
   );
 
+  /**
+   * Название по сути разговора: встреча сохранена, текст финальный. Работает только локальная
+   * модель (title-service.ts, режим auto: облачному провайдеру ничего не уходит), в фоне, без
+   * уведомлений. Идёт новая запись: ждём её конца, чтобы модель не делила процессор с распознаванием.
+   * Не получилось: название остаётся датой, причина в журнале.
+   */
+  const titleSaved = useCallback(async (before: string | null, folder: string | null, review: Promise<void> | null) => {
+    try {
+      let id: string | null = null;
+      for (let i = 0; i < 100 && !id; i++) {
+        const cur = meetingRef.current?.id ?? null;
+        if (cur && cur !== before) id = cur;
+        else await sleep(100);
+      }
+      if (!id) return;
+      // Проверка моделью могла отправить встречу в корзину («Мало содержания»): тогда названия не нужно
+      if (review) await review.catch(() => undefined);
+      const meta = await invoke<{ folder_path?: string | null } | null>('api_get_meeting_metadata', { meetingId: id }).catch(() => null);
+      if (!meta || folderMismatch(folder, meta.folder_path)) return;
+      if (await stillBusy(() => recordingNow.current, TITLE_WAIT_TRIES, TITLE_WAIT_MS, sleep)) return;
+      await titler.titleOne(id, { mode: 'auto' });
+    } catch (error) {
+      console.info('[shade] Название встречи не придумано:', error);
+    }
+  }, []);
+
   // При запуске: удалить из базы пустые записи, которые не успели удалить в прошлый
   // раз, и очистить корзину от встреч старше TRASH_TTL_DAYS (30 дней, discard-policy.ts)
   useEffect(() => {
     void purgeDiscarded();
     void purgeExpiredTrash();
     // Прерванные сбоем записи: ядро создаёт встречи, здесь тихое уведомление и перечитанный список
-    void runCrashRecovery(() => void refetchRef.current?.());
+    void runCrashRecovery((ids) => {
+      void refetchRef.current?.();
+      // Восстановленная встреча получает название по сути, как любая; пометка восстановления лежит в recovered.json и не затрагивается
+      if (ids?.length) void titleMany(ids);
+    });
     // Приложение живёт в трее неделями: срок корзины проверяется и раз в 6 часов
     const id = setInterval(() => void purgeExpiredTrash(), TRASH_PURGE_EVERY_MS);
     return () => clearInterval(id);
@@ -424,7 +459,8 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
           const before = meetingRef.current?.id ?? null;
           setFinishing(null);
           await handle(true);
-          if (check) void reviewSaved(check, before, folder);
+          const review = check ? reviewSaved(check, before, folder) : null;
+          void titleSaved(before, folder, review);
           return verdict;
         }
 
@@ -455,7 +491,7 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         setFinishing(null);
       }
     },
-    [transcriptsRef, showNotice, reviewSaved],
+    [transcriptsRef, showNotice, reviewSaved, titleSaved],
   );
 
   const abandon = useCallback(async (handle: StopHandler) => {
@@ -525,6 +561,11 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         if (e.payload?.phase !== 'startup') update({ recognitionFailed: true });
       }),
       subscribe('transcript-error', () => update({ recognitionFailed: true })),
+      // «Распознать заново» закончилось: текст встречи новый, название по умолчанию (если оно ещё такое) придумывается по нему
+      subscribe<{ meeting_id?: string }>('retranscription-complete', (e) => {
+        const id = e.payload?.meeting_id;
+        if (id) void titler.titleOne(id, { mode: 'auto' });
+      }),
       subscribe('transcription-warning', () => update({ recognitionFailed: true })),
       // Остановка из трея: tray.rs шлёт recording-stop-complete после stop_recording
       subscribe<boolean>('recording-stop-complete', (e) => {

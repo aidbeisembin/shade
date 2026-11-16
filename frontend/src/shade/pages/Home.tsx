@@ -39,6 +39,7 @@ import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { useImportDialog } from '@/contexts/ImportDialogContext';
 import { useConfig } from '@/contexts/ConfigContext';
 import { useLang } from '@/shade/lib/lang';
+import { onTitleSet } from '@/shade/lib/title-service';
 
 type ListState =
   | { kind: 'loading' }
@@ -435,6 +436,12 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
 
   const patch = (fn: (list: MeetingListItem[]) => MeetingListItem[]) =>
     setState((prev) => (prev.kind === 'ready' ? { kind: 'ready', meetings: fn(prev.meetings) } : prev));
+  // Название придумано в фоне (после «Остановить», по итогам, массовым действием): строка меняет
+  // только текст названия, мета и высота те же, список не перечитывается
+  useEffect(
+    () => onTitleSet((id, title) => setState((prev) => (prev.kind === 'ready' ? { kind: 'ready', meetings: prev.meetings.map((x) => (x.id === id ? { ...x, title } : x)) } : prev))),
+    [setState],
+  );
 
   const rename = async (m: MeetingListItem, title: string) => {
     try {
