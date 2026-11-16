@@ -33,6 +33,9 @@ import { SummaryModelSettings } from '@/components/SummaryModelSettings';
 import { BetaSettings } from '@/components/BetaSettings';
 import AnalyticsConsentSwitch from '@/components/AnalyticsConsentSwitch';
 import { LANGS, setLang, useLang, type Lang } from '@/shade/lib/lang';
+import { LanguageHint, LanguageSelect } from '@/shade/components/LanguageSelect';
+import { SpeechWords } from '@/shade/components/SpeechWords';
+import { SpeechEngineNotice } from '@/shade/components/SpeechEngineNotice';
 
 const TABS = [
   { value: 'general', label: 'settingsGeneral', icon: SlidersHorizontal },
@@ -61,7 +64,7 @@ function Section({ title, children, className }: { title?: string; children: Rea
 }
 
 /** Строка: подпись слева, управление справа в колонке 200 px (переключатели на одной линии). */
-function Row({ title, hint, children }: { title: string; hint?: ReactNode; children: ReactNode }) {
+function Row({ title, hint, children, wide }: { title: string; hint?: ReactNode; children: ReactNode; wide?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
       <div className="min-w-0 flex-1 basis-64">
@@ -69,7 +72,8 @@ function Row({ title, hint, children }: { title: string; hint?: ReactNode; child
         {hint && <div className="mt-1 text-sm text-muted-foreground">{hint}</div>}
       </div>
       {/* Кнопки на всю ширину колонки, переключатель у её правого края */}
-      {children !== null && <div className="flex w-[200px] shrink-0 justify-end [&>button:not([role=switch])]:w-full">{children}</div>}
+      {/* wide: длинная подпись выбора («Русский (с английскими словами)») не помещается в 200 px */}
+      {children !== null && <div className={cn('flex shrink-0 justify-end [&>button:not([role=switch])]:w-full', wide ? 'w-[300px]' : 'w-[200px]')}>{children}</div>}
     </div>
   );
 }
@@ -212,6 +216,22 @@ function GeneralTab() {
   );
 }
 
+/** Вкладка «Распознавание»: язык встреч и частые слова над моделями оригинала. */
+function SpeechTab() {
+  useLang();
+  return (
+    <div className="flex flex-col gap-8">
+      <Section title={t('speechSectionTitle')}>
+        <SpeechEngineNotice />
+        <Row title={t('speechLangTitle')} hint={<LanguageHint />} wide>
+          <LanguageSelect />
+        </Row>
+        <SpeechWords />
+      </Section>
+    </div>
+  );
+}
+
 function AboutTab() {
   useLang();
   const [version, setVersion] = useState<string | null>(null);
@@ -321,6 +341,7 @@ function SettingsContent() {
         </LegacyTile>
       </TabsContent>
       <TabsContent value="transcription" className={TAB}>
+        <SpeechTab />
         <LegacyTile title={t('settingsTranscription')}>
           <TranscriptSettings
             transcriptModelConfig={transcriptModelConfig}

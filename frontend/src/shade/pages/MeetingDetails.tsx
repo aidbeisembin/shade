@@ -17,6 +17,7 @@ import {
   Check,
   CaretDown,
   ClipboardText,
+  DotsThree,
   FolderOpen,
   MicrophoneSlash,
   Sparkle,
@@ -56,9 +57,9 @@ import { useRecordingControls } from '@/shade/lib/recording-controls';
 import { cn } from '@/shade/lib/utils';
 import { t, tf, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
-import { useConfig } from '@/contexts/ConfigContext';
 import { usePermissionCheck } from '@/hooks/usePermissionCheck';
-import { RetranscribeDialog } from '@/components/MeetingDetails/RetranscribeDialog';
+import { RerecognizeDialog } from '@/shade/components/RerecognizeDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shade/components/ui/dropdown-menu';
 import { useLang } from '@/shade/lib/lang';
 import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
 
@@ -488,7 +489,6 @@ function MeetingDetailsContent() {
   const router = useRouter();
   const m = useMeeting(meetingId);
   const { meetings, setMeetings, refetchMeetings } = useSidebar();
-  const { betaFeatures } = useConfig();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [trashed, setTrashed] = useState(() => (meetingId ? isTrashed(meetingId) : false));
   useEffect(() => {
@@ -585,7 +585,8 @@ function MeetingDetailsContent() {
     recovered && { label: t('metaRecording'), value: recoveredLabel(recovered) },
     { label: t('metaReplies'), value: formatNumber(m.hasMore ? m.total : visible.length) },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
-  const canRetranscribe = Boolean(betaFeatures.importAndRetranscribe && meta.folder_path);
+  // «Распознать заново» есть у каждой встречи с сохранённым звуком (не бета-функция): язык и слова из настроек
+  const canRetranscribe = Boolean(meta.folder_path);
   const summaryReady = m.summary.kind === 'ready' ? m.summary.markdown : null;
   // «Подвести итоги» только когда есть из чего: запись остановлена (во время записи
   // кнопки нет) и в тексте не меньше MIN_SUMMARY_WORDS слов (speech.ts). Иначе модель
@@ -643,6 +644,27 @@ function MeetingDetailsContent() {
       <IconAction label={t('openRecordingFolder')} onClick={openFolder}>
         <FolderOpen />
       </IconAction>
+      {canRetranscribe && !isRecording && (
+        // Меню «Ещё»: «Распознать заново» не главная кнопка страницы
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="icon" className="size-14 [&_svg]:size-6" aria-label={t('rerecMenu')}>
+                  <DotsThree weight="bold" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{t('rerecMenu')}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
+              <ArrowClockwise />
+              {t('rerecTitle')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <IconAction label={t('deleteMeeting')} onClick={() => setConfirmDelete(true)}>
         <Trash />
       </IconAction>
@@ -701,12 +723,14 @@ function MeetingDetailsContent() {
 
       <DeleteMeetingDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={shownTitle} onConfirm={remove} />
       {canRetranscribe && (
-        <RetranscribeDialog
+        <RerecognizeDialog
           open={retranscribe}
           onOpenChange={setRetranscribe}
           meetingId={meta.id}
-          meetingFolderPath={meta.folder_path ?? null}
-          onComplete={() => void m.retry()}
+          folderPath={meta.folder_path ?? null}
+          hasSummary={m.summary.kind === 'ready'}
+          onDone={() => void m.retry()}
+          onUpdateSummary={() => void m.generateSummary()}
         />
       )}
     </Page>

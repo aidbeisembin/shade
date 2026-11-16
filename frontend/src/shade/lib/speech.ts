@@ -87,6 +87,21 @@ export function isHallucination(text: string): boolean {
  * («Thank you.» на 0:00, «Продолжение следует...», «Субтитры …», «♪») скрывается
  * в транскрипте; в базе она остаётся как есть.
  */
+/**
+ * Служебные метки распознавания в тексте реплики: `<unk>` (Parakeet вместо незнакомого знака),
+ * `<pad>`, `<s>`, `</s>`. Новые реплики ядро чистит само (src-tauri audio/transcript_quality.rs);
+ * это страховка для тех, что записаны раньше. Метка внутри слова склеивает его части
+ * («Вс<unk>ё» → «Всё»), между словами просто пропадает.
+ */
+export function stripSpecialTokens(text: string): string {
+  if (!/<\/?(unk|pad|s|blank|eos|bos)>|\[unk\]/i.test(text)) return text;
+  return text
+    .replace(/<\/?(unk|pad|s|blank|eos|bos)>|\[unk\]/gi, '')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 export function isShownText(text: string | null | undefined): boolean {
   return !isHallucination(text ?? '');
 }
