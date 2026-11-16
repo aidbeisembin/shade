@@ -549,6 +549,13 @@ impl WhisperEngine {
     
     /// Transcribe audio with streaming support for partial results and adaptive quality
     pub async fn transcribe_audio_with_confidence(&self, audio_data: Vec<f32>, language: Option<String>) -> Result<(String, f32, bool)> {
+        self.transcribe_audio_with_prompt(audio_data, language, None).await
+    }
+
+    /// То же, что `transcribe_audio_with_confidence`, плюс подсказка-словарь (`initial_prompt`):
+    /// имена, термины и названия продуктов, которые Whisper должен писать так же.
+    /// `None` или пустая подсказка: поведение прежнее.
+    pub async fn transcribe_audio_with_prompt(&self, audio_data: Vec<f32>, language: Option<String>, initial_prompt: Option<String>) -> Result<(String, f32, bool)> {
         let ctx_lock = self.current_context.read().await;
         let ctx = ctx_lock.as_ref()
             .ok_or_else(|| anyhow!("No model loaded. Please load a model first."))?;
@@ -574,6 +581,9 @@ impl WhisperEngine {
         };
         params.set_language(language_code);
         params.set_translate(should_translate);
+        if let Some(prompt) = initial_prompt.as_deref().map(str::trim).filter(|p| !p.is_empty()) {
+            params.set_initial_prompt(prompt);
+        }
 
         // CRITICAL: Disable timestamp tokens to prevent whisper.cpp chunking heuristics
         // The "single timestamp ending - skip entire chunk" optimization incorrectly discards

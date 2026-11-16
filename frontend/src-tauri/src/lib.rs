@@ -430,19 +430,100 @@ async fn start_recording_with_devices_and_meeting<R: Runtime>(
     }
 }
 
+/// Язык и слова, которые меняли во время записи: применятся со следующей встречи
+/// (запись идёт с тем, с чем началась). Хранится рядом с действующим значением.
+static PENDING_LANGUAGE: std::sync::LazyLock<StdMutex<Option<String>>> =
+    std::sync::LazyLock::new(|| StdMutex::new(None));
+static PENDING_VOCABULARY: std::sync::LazyLock<StdMutex<Option<Vec<String>>>> =
+    std::sync::LazyLock::new(|| StdMutex::new(None));
+
 #[tauri::command]
 async fn set_language_preference(language: String) -> Result<(), String> {
+    if audio::recording_commands::is_recording_sync() {
+        log_info!("Language preference changed during recording, applies from the next meeting: {}", language);
+        *PENDING_LANGUAGE
+            .lock()
+            .map_err(|e| format!("Failed to set language preference: {}", e))? = Some(language);
+        return Ok(());
+    }
     let mut lang_pref = LANGUAGE_PREFERENCE
         .lock()
         .map_err(|e| format!("Failed to set language preference: {}", e))?;
     log_info!("Setting language preference to: {}", language);
     *lang_pref = language;
+    if let Ok(mut p) = PENDING_LANGUAGE.lock() {
+        *p = None;
+    }
     Ok(())
 }
 
-// Internal helper function to get language preference (for use within Rust code)
+// Internal helper function to get language preference (for use within Rust code):
+// действующее значение, то есть то, с чем началась идущая запись
 pub fn get_language_preference_internal() -> Option<String> {
     LANGUAGE_PREFERENCE.lock().ok().map(|lang| lang.clone())
+}
+
+/// Язык по настройке на сейчас, включая отложенное изменение: для «Распознать заново»
+/// и других пакетных задач, которые идут не от записи.
+pub fn get_language_setting_now() -> Option<String> {
+    if let Some(p) = PENDING_LANGUAGE.lock().ok().and_then(|p| p.clone()) {
+        return Some(p);
+    }
+    get_language_preference_internal()
+}
+
+/// Начало новой записи: отложенные язык и слова становятся действующими.
+pub fn apply_pending_recognition_prefs() {
+    if let Some(lang) = PENDING_LANGUAGE.lock().ok().and_then(|mut p| p.take()) {
+        if let Ok(mut l) = LANGUAGE_PREFERENCE.lock() {
+            log_info!("Applying language preference from the previous recording session: {}", lang);
+            *l = lang;
+        }
+    }
+    if let Some(words) = PENDING_VOCABULARY.lock().ok().and_then(|mut p| p.take()) {
+        if let Ok(mut v) = VOCABULARY_HINT.lock() {
+            *v = words;
+        }
+    }
+}
+
+// «Частые слова» (Shade): имена, термины, названия продуктов. Источник правды интерфейс
+// (localStorage `shade.speech.words`), он присылает список при запуске и при правке.
+// Нужен распознаванию, которое умеет подсказку (Whisper), и чистке (написание слов).
+static VOCABULARY_HINT: std::sync::LazyLock<StdMutex<Vec<String>>> =
+    std::sync::LazyLock::new(|| StdMutex::new(Vec::new()));
+
+#[tauri::command]
+async fn set_vocabulary_hint(words: String) -> Result<(), String> {
+    let parsed = audio::transcript_quality::parse_dictionary(&words);
+    // В журнал только число слов: список принадлежит человеку
+    log_info!("Setting vocabulary hint: {} terms", parsed.len());
+    if audio::recording_commands::is_recording_sync() {
+        *PENDING_VOCABULARY
+            .lock()
+            .map_err(|e| format!("Failed to set vocabulary hint: {}", e))? = Some(parsed);
+        return Ok(());
+    }
+    *VOCABULARY_HINT
+        .lock()
+        .map_err(|e| format!("Failed to set vocabulary hint: {}", e))? = parsed;
+    if let Ok(mut p) = PENDING_VOCABULARY.lock() {
+        *p = None;
+    }
+    Ok(())
+}
+
+/// Слова из «Частые слова» (может быть пусто): действующие для идущей записи.
+pub fn get_vocabulary_internal() -> Vec<String> {
+    VOCABULARY_HINT.lock().map(|v| v.clone()).unwrap_or_default()
+}
+
+/// Слова на сейчас, включая отложенную правку (пакетные задачи).
+pub fn get_vocabulary_setting_now() -> Vec<String> {
+    if let Some(v) = PENDING_VOCABULARY.lock().ok().and_then(|p| p.clone()) {
+        return v;
+    }
+    get_vocabulary_internal()
 }
 
 pub fn run() {
@@ -783,6 +864,7 @@ pub fn run() {
             audio::recording_preferences::get_audio_backend_info,
             // Language preference commands
             set_language_preference,
+            set_vocabulary_hint,
             // Notification system commands
             notifications::commands::get_notification_settings,
             notifications::commands::set_notification_settings,

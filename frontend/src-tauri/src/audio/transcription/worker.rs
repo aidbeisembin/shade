@@ -395,9 +395,29 @@ pub fn start_transcription_task<R: Runtime>(
     })
 }
 
+/// Распознавание куска речи и чистка текста (Shade): служебные метки `<unk>`, реплики на
+/// языке вне языка встречи, «галлюцинации» тишины, написание слов из словаря
+/// (`audio::transcript_quality`). Пустой текст значит «в текст встречи не попадает».
+async fn transcribe_chunk_with_provider<R: Runtime>(
+    engine: &TranscriptionEngine,
+    chunk: AudioChunk,
+    app: &AppHandle<R>,
+) -> std::result::Result<(String, Option<f32>, bool), TranscriptionError> {
+    let chunk_id = chunk.chunk_id;
+    let (text, confidence, is_partial) = transcribe_chunk_raw(engine, chunk, app).await?;
+    if text.trim().is_empty() {
+        return Ok((text, confidence, is_partial));
+    }
+    let fin = crate::audio::transcript_quality::finalize_live(&text, confidence);
+    if fin.dropped {
+        info!("Chunk {}: reply left out of the meeting text by the quality filter", chunk_id);
+    }
+    Ok((fin.text, confidence, is_partial))
+}
+
 /// Transcribe audio chunk using the appropriate provider (Whisper, Parakeet, or trait-based)
 /// Returns: (text, confidence Option, is_partial)
-async fn transcribe_chunk_with_provider<R: Runtime>(
+async fn transcribe_chunk_raw<R: Runtime>(
     engine: &TranscriptionEngine,
     chunk: AudioChunk,
     app: &AppHandle<R>,
@@ -439,9 +459,14 @@ async fn transcribe_chunk_with_provider<R: Runtime>(
         TranscriptionEngine::Whisper(whisper_engine) => {
             // Get language preference from global state
             let language = crate::get_language_preference_internal();
+            // Подсказка-словарь «Частые слова»: имена и термины Whisper пишет так же
+            let prompt = crate::audio::transcript_quality::build_initial_prompt(
+                &crate::get_vocabulary_internal(),
+                &crate::audio::transcript_quality::MeetingLang::from_pref(language.as_deref()),
+            );
 
             match whisper_engine
-                .transcribe_audio_with_confidence(speech_samples, language)
+                .transcribe_audio_with_prompt(speech_samples, language, prompt)
                 .await
             {
                 Ok((text, confidence, is_partial)) => {

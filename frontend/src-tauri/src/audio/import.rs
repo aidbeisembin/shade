@@ -596,6 +596,8 @@ async fn run_import<R: Runtime>(
             (text, conf)
         };
 
+        // Чистка (Shade): метки <unk>, язык вне языка встречи, галлюцинации
+        let text = crate::audio::transcript_quality::finalize_batch(&text, language.as_deref(), None).text;
         let trimmed = text.trim();
         if !trimmed.is_empty() {
             debug!(

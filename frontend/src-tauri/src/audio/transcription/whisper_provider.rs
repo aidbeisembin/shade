@@ -24,9 +24,13 @@ impl TranscriptionProvider for WhisperProvider {
         audio: Vec<f32>,
         language: Option<String>,
     ) -> std::result::Result<TranscriptResult, TranscriptionError> {
+        let prompt = crate::audio::transcript_quality::build_initial_prompt(
+            &crate::get_vocabulary_internal(),
+            &crate::audio::transcript_quality::MeetingLang::from_pref(language.as_deref()),
+        );
         match self
             .engine
-            .transcribe_audio_with_confidence(audio, language)
+            .transcribe_audio_with_prompt(audio, language, prompt)
             .await
         {
             Ok((text, confidence, is_partial)) => Ok(TranscriptResult {

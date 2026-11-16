@@ -4,6 +4,7 @@ use crate::audio::decoder::decode_audio_file;
 use crate::audio::vad::get_speech_chunks_with_progress;
 use super::common::{create_transcript_segments, split_segment_at_silence, write_transcripts_json};
 use super::constants::AUDIO_EXTENSIONS;
+use crate::audio::transcript_quality::{build_initial_prompt, finalize_text, MeetingLang};
 use crate::config::{DEFAULT_WHISPER_MODEL, DEFAULT_PARAKEET_MODEL};
 use crate::parakeet_engine::ParakeetEngine;
 use crate::state::AppState;
@@ -52,6 +53,10 @@ impl Drop for RetranscriptionGuard {
 /// natural sentence/topic pause (500ms-2s)
 const VAD_REDEMPTION_TIME_MS: u32 = 2000;
 
+/// Начало текста ошибки, когда нужная модель не скачана: `model-missing:<имя модели>`.
+/// Интерфейс по этому коду показывает «Скачать модель», а не английский текст ядра.
+pub const MODEL_MISSING_PREFIX: &str = "model-missing:";
+
 /// Progress update emitted during retranscription
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetranscriptionProgress {
@@ -75,6 +80,18 @@ pub struct RetranscriptionResult {
 pub struct RetranscriptionError {
     pub meeting_id: String,
     pub error: String,
+}
+
+/// Остановили ли распознавание (проверяется между этапами, до записи в базу).
+fn ensure_not_cancelled() -> Result<()> {
+    check_cancel(RETRANSCRIPTION_CANCELLED.load(Ordering::SeqCst))
+}
+
+fn check_cancel(cancelled: bool) -> Result<()> {
+    if cancelled {
+        return Err(anyhow!("Retranscription cancelled"));
+    }
+    Ok(())
 }
 
 /// Check if retranscription is currently in progress
@@ -297,6 +314,20 @@ async fn run_retranscription<R: Runtime>(
         return Err(anyhow!("No speech detected in audio file"));
     }
 
+    // Язык встречи и словарь (Shade): язык из вызова, иначе из настройки на сейчас
+    let language_pref: Option<String> = language.clone().or_else(crate::get_language_setting_now);
+    let meeting_lang = MeetingLang::from_pref(language_pref.as_deref());
+    // Whisper получает значение настройки как есть (`ru`, `en`, `auto`, `auto-translate`, код языка)
+    let whisper_language = language_pref.clone();
+    let vocabulary = crate::get_vocabulary_setting_now();
+    let initial_prompt = build_initial_prompt(&vocabulary, &meeting_lang);
+    info!(
+        "Retranscription: language {:?}, vocabulary terms {}, provider {}",
+        whisper_language,
+        vocabulary.len(),
+        if use_parakeet { "parakeet" } else { "whisper" }
+    );
+
     emit_progress(&app, &meeting_id, "transcribing", 25, "Loading transcription engine...");
 
     // Initialize the appropriate engine once (not per-segment)
@@ -339,6 +370,7 @@ async fn run_retranscription<R: Runtime>(
     // Process each speech segment with progress updates
     let mut all_transcripts: Vec<(String, f64, f64)> = Vec::new(); // (text, start_ms, end_ms)
     let mut total_confidence = 0.0f32;
+    let mut dropped_by_filter = 0usize;
 
     for (i, segment) in processable_segments.iter().enumerate() {
         // Check for cancellation before each segment
@@ -379,10 +411,20 @@ async fn run_retranscription<R: Runtime>(
         } else {
             let engine = whisper_engine.as_ref().unwrap();
             let (text, conf, _) = engine
-                .transcribe_audio_with_confidence(segment.samples.clone(), language.clone())
+                .transcribe_audio_with_prompt(segment.samples.clone(), whisper_language.clone(), initial_prompt.clone())
                 .await
                 .map_err(|e| anyhow!("Whisper transcription failed on segment {}: {}", i, e))?;
             (text, conf)
+        };
+
+        // Чистка (Shade): метки <unk>, язык вне языка встречи, галлюцинации, слова словаря.
+        // Отброшенное в текст встречи не попадает, в журнал идёт причина без текста.
+        let text = {
+            let fin = finalize_text(&text, &meeting_lang, &vocabulary, None);
+            if fin.dropped {
+                dropped_by_filter += 1;
+            }
+            fin.text
         };
 
         // Skip empty transcripts
@@ -412,10 +454,15 @@ async fn run_retranscription<R: Runtime>(
         transcribed_count, processable_count, avg_confidence
     );
 
-    // Check for cancellation
-    if RETRANSCRIPTION_CANCELLED.load(Ordering::SeqCst) {
-        return Err(anyhow!("Retranscription cancelled"));
+    // Остановили: до записи в базу ничего не изменено
+    ensure_not_cancelled()?;
+
+    // При сомнении данные сохраняются: если нового текста нет, прежний остаётся нетронутым
+    if all_transcripts.is_empty() {
+        warn!("Retranscription produced no text ({} left out by the filter), old transcript kept", dropped_by_filter);
+        return Err(anyhow!("No text recognized, old transcript kept"));
     }
+    info!("Retranscription: {} segments left out of the text by the language/quality filter", dropped_by_filter);
 
     emit_progress(&app, &meeting_id, "saving", 80, "Saving transcripts...");
 
@@ -427,38 +474,11 @@ async fn run_retranscription<R: Runtime>(
         .try_state::<AppState>()
         .ok_or_else(|| anyhow!("App state not available"))?;
 
-    // Wrap delete+insert+update in a transaction to prevent data loss
-    let pool = app_state.db_manager.pool();
-    let mut conn = pool.acquire().await.map_err(|e| anyhow!("DB error: {}", e))?;
-    let mut tx = sqlx::Connection::begin(&mut *conn)
-        .await
-        .map_err(|e| anyhow!("Failed to start transaction: {}", e))?;
+    // Копия прежнего текста рядом с записью: после успеха старый текст в базе заменён, а на диске остаётся
+    keep_previous_transcript(&folder_path)?;
 
-    sqlx::query("DELETE FROM transcripts WHERE meeting_id = ?")
-        .bind(&meeting_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| anyhow!("Failed to delete existing transcripts: {}", e))?;
-
-    for segment in &segments {
-        sqlx::query(
-            "INSERT INTO transcripts (id, meeting_id, transcript, timestamp, audio_start_time, audio_end_time, duration)
-             VALUES (?, ?, ?, ?, ?, ?, ?)"
-        )
-        .bind(&segment.id)
-        .bind(&meeting_id)
-        .bind(&segment.text)
-        .bind(&segment.timestamp)
-        .bind(segment.audio_start_time)
-        .bind(segment.audio_end_time)
-        .bind(segment.duration)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| anyhow!("Failed to insert transcript: {}", e))?;
-    }
-
-    tx.commit().await
-        .map_err(|e| anyhow!("Failed to commit transaction: {}", e))?;
+    // Одна транзакция: прежний текст исчезает только вместе с тем, как новый записан целиком
+    replace_transcripts(app_state.db_manager.pool(), &meeting_id, &segments).await?;
 
     info!(
         "Updated {} transcripts for meeting {} in transaction",
@@ -497,6 +517,64 @@ async fn run_retranscription<R: Runtime>(
         duration_seconds,
         language,
     })
+}
+
+/// Имя копии прежнего текста в папке встречи (одна, последняя).
+pub const PREVIOUS_TRANSCRIPT_FILE: &str = "transcripts.previous.json";
+
+/// Перед заменой текста откладывает `transcripts.json` как `transcripts.previous.json`.
+/// Файла нет (старые встречи): ничего не делает. Не удалось скопировать: ошибка, текст не заменяется.
+pub(crate) fn keep_previous_transcript(folder: &Path) -> Result<()> {
+    let current = folder.join("transcripts.json");
+    if !current.exists() {
+        return Ok(());
+    }
+    std::fs::copy(&current, folder.join(PREVIOUS_TRANSCRIPT_FILE))
+        .map(|_| ())
+        .map_err(|e| anyhow!("Could not keep a copy of the previous transcript: {}", e))
+}
+
+/// Заменяет текст встречи новым одной транзакцией. Любая ошибка посередине (диск, база, дубль
+/// id) откатывает всё: прежние реплики остаются как были. Пустой новый текст не принимается.
+pub(crate) async fn replace_transcripts(
+    pool: &sqlx::SqlitePool,
+    meeting_id: &str,
+    segments: &[crate::api::TranscriptSegment],
+) -> Result<()> {
+    if segments.is_empty() {
+        return Err(anyhow!("No text recognized, old transcript kept"));
+    }
+    let mut conn = pool.acquire().await.map_err(|e| anyhow!("DB error: {}", e))?;
+    let mut tx = sqlx::Connection::begin(&mut *conn)
+        .await
+        .map_err(|e| anyhow!("Failed to start transaction: {}", e))?;
+
+    sqlx::query("DELETE FROM transcripts WHERE meeting_id = ?")
+        .bind(meeting_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| anyhow!("Failed to delete existing transcripts: {}", e))?;
+
+    for segment in segments {
+        sqlx::query(
+            "INSERT INTO transcripts (id, meeting_id, transcript, timestamp, audio_start_time, audio_end_time, duration)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(&segment.id)
+        .bind(meeting_id)
+        .bind(&segment.text)
+        .bind(&segment.timestamp)
+        .bind(segment.audio_start_time)
+        .bind(segment.audio_end_time)
+        .bind(segment.duration)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| anyhow!("Failed to insert transcript: {}", e))?;
+    }
+
+    tx.commit().await
+        .map_err(|e| anyhow!("Failed to commit transaction: {}", e))?;
+    Ok(())
 }
 
 /// Emit progress event
@@ -554,8 +632,21 @@ async fn get_or_init_whisper<R: Runtime>(
 
                 // Discover available models first (populates the internal cache)
                 info!("Discovering available Whisper models...");
-                if let Err(discover_err) = e.discover_models().await {
-                    warn!("Error during model discovery (continuing anyway): {}", discover_err);
+                match e.discover_models().await {
+                    Ok(models) => {
+                        // Модель не скачана: понятная причина с кодом, интерфейс предложит скачать
+                        let present = models
+                            .iter()
+                            .find(|m| m.name == target_model)
+                            .map(|m| matches!(m.status, crate::whisper_engine::whisper_engine::ModelStatus::Available))
+                            .unwrap_or(false);
+                        if !present {
+                            return Err(anyhow!("{}{}", MODEL_MISSING_PREFIX, target_model));
+                        }
+                    }
+                    Err(discover_err) => {
+                        warn!("Error during model discovery (continuing anyway): {}", discover_err);
+                    }
                 }
 
                 match e.load_model(&target_model).await {
@@ -1050,5 +1141,108 @@ mod tests {
         assert_eq!(metadata["summary_language"], "fr");
         assert_eq!(metadata["custom_field"], "preserve me");
         assert!(metadata.get("detected_summary_language").is_none());
+    }
+}
+
+
+#[cfg(test)]
+mod shade_tests {
+    use super::*;
+    use crate::api::TranscriptSegment;
+    use crate::database::manager::DatabaseManager;
+    use tempfile::TempDir;
+
+    async fn pool_with_meeting(dir: &TempDir) -> sqlx::SqlitePool {
+        let pool = DatabaseManager::new(dir.path().join("t.sqlite").to_str().unwrap(), "none")
+            .await
+            .unwrap()
+            .pool()
+            .clone();
+        sqlx::query("INSERT INTO meetings (id, title, created_at, updated_at) VALUES ('m1', 'Встреча', 'x', 'x')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        pool
+    }
+
+    fn seg(id: &str, text: &str) -> TranscriptSegment {
+        TranscriptSegment {
+            id: id.into(),
+            text: text.into(),
+            timestamp: "2026-11-16T10:00:00Z".into(),
+            audio_start_time: Some(0.0),
+            audio_end_time: Some(1.0),
+            duration: Some(1.0),
+        }
+    }
+
+    async fn texts(pool: &sqlx::SqlitePool) -> Vec<String> {
+        sqlx::query_scalar::<_, String>("SELECT transcript FROM transcripts WHERE meeting_id = 'm1' ORDER BY id")
+            .fetch_all(pool)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn new_text_replaces_old_in_one_step() {
+        let dir = TempDir::new().unwrap();
+        let pool = pool_with_meeting(&dir).await;
+        replace_transcripts(&pool, "m1", &[seg("a", "старый один"), seg("b", "старый два")]).await.unwrap();
+        replace_transcripts(&pool, "m1", &[seg("c", "новый")]).await.unwrap();
+        assert_eq!(texts(&pool).await, vec!["новый"]);
+    }
+
+    // «Распознать заново» прервано посередине записи в базу: прежний текст на месте
+    #[tokio::test]
+    async fn failure_midway_keeps_old_text() {
+        let dir = TempDir::new().unwrap();
+        let pool = pool_with_meeting(&dir).await;
+        replace_transcripts(&pool, "m1", &[seg("a", "старый один"), seg("b", "старый два")]).await.unwrap();
+        // Вторая вставка с тем же id падает, первая уже была записана внутри транзакции
+        let broken = [seg("x", "новый один"), seg("x", "новый два")];
+        assert!(replace_transcripts(&pool, "m1", &broken).await.is_err());
+        assert_eq!(texts(&pool).await, vec!["старый один", "старый два"]);
+    }
+
+    // Нового текста нет (тишина, всё отброшено чисткой): прежний остаётся
+    #[tokio::test]
+    async fn empty_result_keeps_old_text() {
+        let dir = TempDir::new().unwrap();
+        let pool = pool_with_meeting(&dir).await;
+        replace_transcripts(&pool, "m1", &[seg("a", "старый")]).await.unwrap();
+        let err = replace_transcripts(&pool, "m1", &[]).await.unwrap_err().to_string();
+        assert!(err.contains("old transcript kept"));
+        assert_eq!(texts(&pool).await, vec!["старый"]);
+    }
+
+    // Прежний текст лежит на диске копией, пока новый не принят
+    #[test]
+    fn previous_transcript_is_kept_on_disk() {
+        let dir = TempDir::new().unwrap();
+        // нет файла (старая встреча): тихо
+        keep_previous_transcript(dir.path()).unwrap();
+        assert!(!dir.path().join(PREVIOUS_TRANSCRIPT_FILE).exists());
+        std::fs::write(dir.path().join("transcripts.json"), "{\"old\":1}").unwrap();
+        keep_previous_transcript(dir.path()).unwrap();
+        assert_eq!(std::fs::read_to_string(dir.path().join(PREVIOUS_TRANSCRIPT_FILE)).unwrap(), "{\"old\":1}");
+        // повторное распознавание: копия обновляется, а не множится
+        std::fs::write(dir.path().join("transcripts.json"), "{\"old\":2}").unwrap();
+        keep_previous_transcript(dir.path()).unwrap();
+        assert_eq!(std::fs::read_to_string(dir.path().join(PREVIOUS_TRANSCRIPT_FILE)).unwrap(), "{\"old\":2}");
+    }
+
+    // Остановка: флаг отмены проверяется до записи в базу; код ошибки читает интерфейс
+    #[test]
+    fn cancellation_message_is_stable() {
+        let err = check_cancel(true).unwrap_err().to_string();
+        assert!(err.to_lowercase().contains("cancelled"));
+        assert!(check_cancel(false).is_ok());
+    }
+
+    // Модель не скачана: код ошибки с именем модели, по нему интерфейс предлагает скачать
+    #[test]
+    fn missing_model_code_carries_model_name() {
+        let msg = format!("{}{}", MODEL_MISSING_PREFIX, "large-v3-turbo-q5_0");
+        assert_eq!(msg, "model-missing:large-v3-turbo-q5_0");
     }
 }

@@ -45,6 +45,12 @@ pub(crate) mod common;
 // Shared constants
 pub mod constants;
 
+// Качество текста распознавания: служебные метки, язык реплики, словарь (Shade)
+pub mod transcript_quality;
+
+#[cfg(test)]
+mod quality_bench;
+
 // Retranscription module (re-process stored audio with different settings)
 pub mod retranscription;
 
