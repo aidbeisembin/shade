@@ -159,6 +159,6 @@
 | `src-tauri/src/audio/transcription/worker.rs`, `whisper_provider.rs` | Живая запись: язык и подсказка из настроек, чистка текста каждого куска перед событием `transcript-update` (`finalize_live`) | Чужие языки и `<unk>` не попадают в текст встречи |
 | `src-tauri/src/audio/retranscription.rs` | Язык и подсказка из настроек, чистка, не заменять текст пустым результатом, замена текста вынесена в `replace_transcripts` (та же транзакция), код ошибки `model-missing:<имя>`, копия прежнего текста `transcripts.previous.json` рядом с записью (новый необязательный файл), тесты | «Распознать заново» |
 | `src-tauri/src/audio/import.rs` | Чистка текста импортированной записи (`finalize_batch`) | `<unk>` не должен попадать ни одним путём |
-| `src-tauri/src/lib.rs` | Команда `set_vocabulary_hint`; язык и слова, изменённые во время записи, откладываются до следующей (`apply_pending_recognition_prefs`); `get_language_setting_now`, `get_vocabulary_setting_now` | Смена языка во время записи применяется со следующей встречи |
+| `src-tauri/src/lib.rs` | Команда `set_vocabulary_hint`; язык и слова лежат в `RECOGNITION_PREFS` (чистая логика `RecognitionPrefs` в `transcript_quality.rs`, с тестом): изменённые во время записи откладываются до следующей (`apply_pending_recognition_prefs`); `get_language_setting_now`, `get_vocabulary_setting_now` | Смена языка во время записи применяется со следующей встречи |
 | `src-tauri/src/audio/recording_commands.rs` | `is_recording_sync`; `finalize_recording_start` применяет отложенные язык и слова | То же |
 

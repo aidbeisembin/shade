@@ -352,6 +352,77 @@ pub fn check(raw: &str, meeting: &MeetingLang, dictionary: &HashSet<String>, con
     Verdict { text, lang, words: n, keep, reasons }
 }
 
+/// Язык и «Частые слова», с которыми идёт распознавание. Изменение во время записи не
+/// применяется сразу, а ждёт начала следующей записи: идущая запись остаётся с тем,
+/// с чем началась. Чистая логика; живое хранилище в `lib.rs`.
+#[derive(Debug, Clone)]
+pub struct RecognitionPrefs {
+    language: String,
+    vocabulary: Vec<String>,
+    pending_language: Option<String>,
+    pending_vocabulary: Option<Vec<String>>,
+}
+
+impl RecognitionPrefs {
+    /// До первой синхронизации с интерфейсом: язык «определять и переводить», слов нет
+    /// (как было у ядра оригинала).
+    pub fn new() -> Self {
+        RecognitionPrefs {
+            language: "auto-translate".to_string(),
+            vocabulary: Vec::new(),
+            pending_language: None,
+            pending_vocabulary: None,
+        }
+    }
+
+    /// `recording`: запись идёт. Тогда значение откладывается.
+    pub fn set_language(&mut self, language: String, recording: bool) {
+        if recording {
+            self.pending_language = Some(language);
+        } else {
+            self.language = language;
+            self.pending_language = None;
+        }
+    }
+
+    pub fn set_vocabulary(&mut self, words: Vec<String>, recording: bool) {
+        if recording {
+            self.pending_vocabulary = Some(words);
+        } else {
+            self.vocabulary = words;
+            self.pending_vocabulary = None;
+        }
+    }
+
+    /// Начало новой записи: отложенное становится действующим.
+    pub fn begin_recording(&mut self) {
+        if let Some(l) = self.pending_language.take() {
+            self.language = l;
+        }
+        if let Some(v) = self.pending_vocabulary.take() {
+            self.vocabulary = v;
+        }
+    }
+
+    /// Для идущей записи: то, с чем она началась.
+    pub fn language_live(&self) -> String {
+        self.language.clone()
+    }
+
+    pub fn vocabulary_live(&self) -> Vec<String> {
+        self.vocabulary.clone()
+    }
+
+    /// Для задач не от записи («Распознать заново», импорт): настройка на сейчас, с отложенной правкой.
+    pub fn language_now(&self) -> String {
+        self.pending_language.clone().unwrap_or_else(|| self.language.clone())
+    }
+
+    pub fn vocabulary_now(&self) -> Vec<String> {
+        self.pending_vocabulary.clone().unwrap_or_else(|| self.vocabulary.clone())
+    }
+}
+
 /// Итог чистки реплики перед тем, как она станет текстом встречи.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Finalized {
@@ -604,6 +675,32 @@ mod tests {
         assert_eq!(MeetingLang::from_pref(None), MeetingLang::Auto);
         assert_eq!(MeetingLang::RuMixed.whisper_code().as_deref(), Some("ru"));
         assert_eq!(MeetingLang::Auto.whisper_code(), None);
+    }
+
+    // Смена языка и слов во время записи: идущая запись как была, со следующей встречи новое
+    #[test]
+    fn language_and_words_change_applies_from_next_meeting() {
+        let mut p = RecognitionPrefs::new();
+        p.set_language("ru".into(), false);
+        p.set_vocabulary(vec!["Figma".into()], false);
+        p.begin_recording();
+        // идёт запись: меняют язык и слова
+        p.set_language("en".into(), true);
+        p.set_vocabulary(vec!["Slack".into()], true);
+        assert_eq!(p.language_live(), "ru");
+        assert_eq!(p.vocabulary_live(), vec!["Figma"]);
+        // «Распознать заново» в это время видит новое
+        assert_eq!(p.language_now(), "en");
+        assert_eq!(p.vocabulary_now(), vec!["Slack"]);
+        // следующая запись начинается с новым
+        p.begin_recording();
+        assert_eq!(p.language_live(), "en");
+        assert_eq!(p.vocabulary_live(), vec!["Slack"]);
+        // без записи значение применяется сразу и снимает отложенное
+        p.set_language("auto".into(), true);
+        p.set_language("ru".into(), false);
+        p.begin_recording();
+        assert_eq!(p.language_live(), "ru");
     }
 
     #[test]
