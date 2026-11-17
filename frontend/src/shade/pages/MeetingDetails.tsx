@@ -244,16 +244,16 @@ function SummaryBlock({
     }
   }, [summary.kind]);
 
-  // Итоги: спокойная нейтральная полоса (не акцент экрана, решение владельца 2026-11-17).
+  // Итоги: спокойная белая полоса, как плитка транскрипта (не акцент экрана, решение владельца 2026-11-17).
   // Пока итоги готовятся: та же полоса, что у готовых (та же высота, без прыжка), в круге
   // Spinner, а на месте текста итогов Skeleton на нейтральной плитке, без мигания. Единственный
   // эффект экрана: свечение «думает» у нижнего края транскрипта (VoiceGlow, docs/ui/foundations.md «Эффекты»)
   if (summary.kind === 'processing') {
     return (
       <section className="flex flex-col gap-2" role="status" aria-live="polite" aria-busy="true">
-        <div className="flex items-center gap-2 rounded-tile bg-muted p-3">
+        <div className="flex items-center gap-2 rounded-tile bg-card p-3">
           <div className="flex min-h-12 flex-1 items-center gap-3 pr-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-input" aria-hidden>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden>
               <Spinner />
             </span>
             <span className="min-w-0">
@@ -284,15 +284,15 @@ function SummaryBlock({
   return (
     // Полоса-заголовок нейтральная; раскрытый текст на плитке под ней
     <section className="flex flex-col gap-2" aria-labelledby="summary-title">
-      <div className="flex items-center gap-2 rounded-tile bg-muted p-3">
+      <div className="flex items-center gap-2 rounded-tile bg-card p-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="summary-body"
-          className="flex min-h-12 flex-1 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-input/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-h-12 flex-1 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-input" aria-hidden>
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden>
             <Sparkle className="size-5 text-muted-foreground" />
           </span>
           <span id="summary-title" className="text-lg font-bold tracking-tight">
