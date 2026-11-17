@@ -145,6 +145,22 @@ export function displayTitle(title: string | null | undefined, now = new Date())
   return tf('autoMeetingTitle', { date, time: clock(d) });
 }
 
+/**
+ * Название для подписи под заголовком («Встреча сохранена» / подпись): у автоматического «Meeting …»
+ * без слова «Встреча», оно уже стоит в заголовке: «17 ноября, 18:33». Своё название как есть.
+ */
+export function displayTitleBrief(title: string | null | undefined, now = new Date()): string {
+  const raw = (title ?? '').trim();
+  const m = raw.match(AUTO_TITLE);
+  if (!m) return displayTitle(title, now);
+  const [, dd, mm, yy, hh, mi] = m;
+  const d = new Date(2000 + Number(yy), Number(mm) - 1, Number(dd), Number(hh), Number(mi));
+  if (Number.isNaN(d.getTime())) return raw;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const date = noYearSuffix(d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) }));
+  return `${date}, ${clock(d)}`;
+}
+
 /** Название придумано приложением, а не человеком. */
 export function isAutoTitle(title: string | null | undefined): boolean {
   return AUTO_TITLE.test((title ?? '').trim());

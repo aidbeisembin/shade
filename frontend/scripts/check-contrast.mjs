@@ -84,6 +84,48 @@ for (const [theme, tokens] of Object.entries(themes)) {
   }
 }
 
+// Знаки уведомлений (ui/notice.tsx): иконка 20 px на круге-подложке «тон текста на --glass-btn»
+// поверх подложки карточки (--popover), и крестик рядом (X 14 px, тон подписи на 70 %). Круг должен
+// отличаться от карточки (в тёмной раньше совпадал: bg-muted = --popover), знак читаться (не ниже Lc 45: крупный значок, не текст).
+const glassAlpha = {
+  light: Number(CSS.match(/:root \{\s*--glass-btn: ([\d.]+);/)?.[1]),
+  dark: Number(CSS.match(/\.dark \{\s*--glass-btn: ([\d.]+);/)?.[1]),
+};
+const closeAll = [...CSS.matchAll(/--close-glyph-alpha:\s*([\d.]+);/g)].map((m) => Number(m[1]));
+const closeAlpha = { light: closeAll[0], dark: closeAll[1] };
+const mix = (base, top, a) => base.map((v, i) => Math.round(v * (1 - a) + top[i] * a));
+for (const [theme, tokens] of Object.entries(themes)) {
+  const alpha = glassAlpha[theme];
+  if (!(alpha > 0)) {
+    lines.push(`FAIL ${theme.padEnd(5)} --glass-btn не найден в globals.css`);
+    failed++;
+    continue;
+  }
+  const card = tokens.popover;
+  const circle = mix(card, tokens.foreground, alpha);
+  // Отличим ли круг от карточки: разница светлоты L* (APCA для почти равных тонов даёт 0, не годится)
+  const lstar = (c) => {
+    const y = luminance(c);
+    return y > 216 / 24389 ? 116 * Math.cbrt(y) - 16 : (24389 / 27) * y;
+  };
+  const sep = Math.abs(lstar(circle) - lstar(card));
+  const sepOk = sep >= 4;
+  if (!sepOk) failed++;
+  lines.push(`${sepOk ? 'ok  ' : 'FAIL'} ${theme.padEnd(5)} круг знака ${hex(circle)} на карточке ${hex(card)}  ΔL* ${sep.toFixed(1).padStart(4)} (от 4)`);
+  const glyphs = [
+    ['primary-ink', tokens['primary-ink'], 'знак «готово»'],
+    ['destructive-ink', tokens['destructive-ink'], 'знак ошибки'],
+    ['muted-foreground', tokens['muted-foreground'], 'знак по умолчанию'],
+    [`muted-foreground на ${Math.round(closeAlpha[theme] * 100)} %`, mix(circle, tokens['muted-foreground'], closeAlpha[theme]), 'крестик'],
+  ];
+  for (const [name, color, what] of glyphs) {
+    const lc = Math.abs(apca(color, circle));
+    const ok = lc >= 45;
+    if (!ok) failed++;
+    lines.push(`${ok ? 'ok  ' : 'FAIL'} ${theme.padEnd(5)} ${hex(color)} на круге ${hex(circle)}  Lc ${lc.toFixed(1).padStart(5)} (от 45)  ${what} --${name}`);
+  }
+}
+
 // Цвет текста на заливке тема не меняет
 for (const [fg] of PAIRS) {
   if (hex(themes.light[fg] ?? []) !== hex(themes.dark[fg] ?? [])) {

@@ -33,7 +33,7 @@ import { isDiscarded, isKept, marksSnapshot, onMarksChange, purgeDiscarded, setE
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { cn } from '@/shade/lib/utils';
 import { friendlyError, type FriendlyError } from '@/shade/lib/meeting';
-import { dateGroup, displayTitle, shownTitle, type DateGroup } from '@/shade/lib/format';
+import { dateGroup, displayTitle, displayTitleBrief, shownTitle, type DateGroup } from '@/shade/lib/format';
 import { t, tDays, tf, tp, trashDays, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { useImportDialog } from '@/contexts/ImportDialogContext';
@@ -242,7 +242,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
     try {
       await restoreMeeting(m.id);
       onRestored();
-      shadeToast.success(t('restored'), { description: displayTitle(m.title) });
+      shadeToast.success(t('restored'), { description: displayTitleBrief(m.title) });
     } catch (error) {
       shadeToast.error(t('restoreFailed'), { description: String(error) });
     } finally {
@@ -252,7 +252,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
   const eraseOne = async (m: TrashedMeeting) => {
     try {
       await deleteForever(m.id);
-      shadeToast.success(t('deletedForever'), { description: displayTitle(m.title) });
+      shadeToast.success(t('deletedForever'), { description: displayTitleBrief(m.title) });
     } catch (error) {
       shadeToast.error(t('deleteFailed'), { description: String(error) });
       throw error;
