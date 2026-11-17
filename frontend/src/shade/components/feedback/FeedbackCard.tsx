@@ -9,10 +9,8 @@
 'use client';
 
 import * as React from 'react';
-import { Star } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { CloseButton } from '@/shade/components/ui/close-button';
-import { NoticeMark } from '@/shade/components/ui/notice';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { StarRating } from '@/shade/components/feedback/StarRating';
 import { RollText } from '@/shade/components/feedback/RollText';
@@ -103,10 +101,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
           {outcome ? (
             <OutcomePlaque outcome={outcome} />
           ) : (
-            <div className="flex min-w-0 items-start gap-3">
-              <NoticeMark tone="success">
-                <Star weight="fill" />
-              </NoticeMark>
+            <div className="flex min-w-0 items-start">
               <div className="flex min-w-0 flex-1 flex-col">
                 {titleKey && <RollText as="h2" id={titleId} text={t(titleKey)} className="h-5 text-[15px] font-semibold leading-5" />}
 

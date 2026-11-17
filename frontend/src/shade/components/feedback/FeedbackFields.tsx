@@ -1,5 +1,5 @@
 // Общие части отзыва для карточки в доке (FeedbackCard) и формы в Настройках (FeedbackMorph):
-// поле текста со счётчиком, строка «что уйдёт», плашка итога, высота на пружине, кнопка GitHub.
+// поле текста со счётчиком, плашка итога, высота на пружине, кнопка GitHub.
 'use client';
 
 import * as React from 'react';
@@ -36,7 +36,7 @@ export interface FeedbackTextProps {
   labelledBy?: string;
 }
 
-/** Поле «Что улучшить?»: до MAX_TEXT знаков (вставка длиннее обрезается), счётчик у предела, строка «что уйдёт». */
+/** Поле «Что улучшить?»: до MAX_TEXT знаков (вставка длиннее обрезается), счётчик у предела. */
 export const FeedbackText = React.forwardRef<HTMLTextAreaElement, FeedbackTextProps>(
   ({ value, onChange, onSubmit, onCancel, disabled, autoFocus, labelledBy }, ref) => {
     useLang();
@@ -51,7 +51,7 @@ export const FeedbackText = React.forwardRef<HTMLTextAreaElement, FeedbackTextPr
           autoFocus={autoFocus}
           disabled={disabled}
           aria-labelledby={labelledBy}
-          aria-describedby={noteId}
+          aria-describedby={left <= COUNTER_FROM ? noteId : undefined}
           aria-keyshortcuts="Meta+Enter Control+Enter Escape"
           placeholder={t('feedbackPlaceholder')}
           className={FIELD}
@@ -67,14 +67,11 @@ export const FeedbackText = React.forwardRef<HTMLTextAreaElement, FeedbackTextPr
             }
           }}
         />
-        <p id={noteId} className="text-xs leading-4 text-muted-foreground [text-wrap:pretty]">
-          {t('feedbackDisclosure')}
-          {left <= COUNTER_FROM && (
-            <span className={cn('ml-1 tabular', left <= 0 && 'text-destructive-ink')} aria-live="polite">
-              {tp('feedbackCharsLeft', Math.max(0, left))}
-            </span>
-          )}
-        </p>
+        {left <= COUNTER_FROM && (
+          <p id={noteId} className={cn('text-xs leading-4 text-muted-foreground tabular', left <= 0 && 'text-destructive-ink')} aria-live="polite">
+            {tp('feedbackCharsLeft', Math.max(0, left))}
+          </p>
+        )}
       </div>
     );
   },
