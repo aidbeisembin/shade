@@ -17,7 +17,7 @@ import {
 } from './policy';
 import { START, canSend, flowReducer, type Flow } from './flow';
 import { MAX_TEXT, clampText, validatePayload, type FeedbackPayload } from './contract';
-import { MAX_ATTEMPTS, QUEUE_KEY, flushQueue, macosFromUserAgent, readQueue, sendFeedback, type SendDeps } from './send';
+import { FEEDBACK_FALLBACK_URL, FEEDBACK_URL, MAX_ATTEMPTS, QUEUE_KEY, flushQueue, macosFromUserAgent, readQueue, sendFeedback, type SendDeps } from './send';
 import { starKey } from './stars';
 import { setReducedMotion, simulate, spring } from '../motion/spring';
 import { LABEL_ROLL, STAR_FILL, STAR_POP, STAR_POP_FROM, STAR_POP_VELOCITY, overshootOf } from '../motion/shade-springs';
@@ -224,6 +224,56 @@ describe('отправка и очередь', () => {
     const d = deps({ status: 400 });
     expect(await sendFeedback(payload, d)).toBe('failed');
     expect(readQueue(d.storage)).toHaveLength(0);
+  });
+
+  // Основной адрес aidbeisembin.com/shade, запасной домен Vercel (таблица случаев PR)
+  function byUrl(answers: Record<string, number | 'network'>) {
+    const urls: string[] = [];
+    const d = deps({
+      fetch: async (url: string) => {
+        urls.push(url);
+        const a = answers[url];
+        if (a === 'network' || a === undefined) throw new TypeError('Failed to fetch');
+        return { status: a };
+      },
+    });
+    return { d, urls };
+  }
+
+  test('основной отвечает: запасной не трогается', async () => {
+    const { d, urls } = byUrl({ [FEEDBACK_URL]: 200 });
+    expect(await sendFeedback(payload, d)).toBe('sent');
+    expect(urls).toEqual([FEEDBACK_URL]);
+  });
+
+  test('основной недоступен (сеть, CORS, тайм-аут): ушло на запасной', async () => {
+    const { d, urls } = byUrl({ [FEEDBACK_URL]: 'network', [FEEDBACK_FALLBACK_URL]: 200 });
+    expect(await sendFeedback(payload, d)).toBe('sent');
+    expect(urls).toEqual([FEEDBACK_URL, FEEDBACK_FALLBACK_URL]);
+    expect(readQueue(d.storage)).toHaveLength(0);
+  });
+
+  test('основной ещё не пересылается на функцию (404): ушло на запасной, не потерялось', async () => {
+    const { d, urls } = byUrl({ [FEEDBACK_URL]: 404, [FEEDBACK_FALLBACK_URL]: 200 });
+    expect(await sendFeedback(payload, d)).toBe('sent');
+    expect(urls).toEqual([FEEDBACK_URL, FEEDBACK_FALLBACK_URL]);
+  });
+
+  test('ответ функции на основном окончательный: 400 и 503 на запасной не уходят', async () => {
+    const reject = byUrl({ [FEEDBACK_URL]: 400, [FEEDBACK_FALLBACK_URL]: 200 });
+    expect(await sendFeedback(payload, reject.d)).toBe('failed');
+    expect(reject.urls).toEqual([FEEDBACK_URL]);
+    const busy = byUrl({ [FEEDBACK_URL]: 503, [FEEDBACK_FALLBACK_URL]: 200 });
+    expect(await sendFeedback(payload, busy.d)).toBe('queued');
+    expect(busy.urls).toEqual([FEEDBACK_URL]);
+  });
+
+  test('оба адреса недоступны: в очереди; из очереди тоже пробуется запасной', async () => {
+    const { d, urls } = byUrl({});
+    expect(await sendFeedback(payload, d)).toBe('queued');
+    expect(urls).toEqual([FEEDBACK_URL, FEEDBACK_FALLBACK_URL]);
+    const back = byUrl({ [FEEDBACK_URL]: 'network', [FEEDBACK_FALLBACK_URL]: 200 });
+    expect(await flushQueue({ ...back.d, storage: d.storage })).toEqual({ sent: 1, left: 0, dropped: 0 });
   });
 
   test('хранилища нет: отправка работает, очередь молча теряется', async () => {
