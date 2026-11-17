@@ -32,7 +32,6 @@ import { RecordingSettings } from '@/components/RecordingSettings';
 import { TranscriptSettings } from '@/components/TranscriptSettings';
 import { SummaryModelSettings } from '@/components/SummaryModelSettings';
 import { BetaSettings } from '@/components/BetaSettings';
-import AnalyticsConsentSwitch from '@/components/AnalyticsConsentSwitch';
 import { LANGS, setLang, useLang, type Lang } from '@/shade/lib/lang';
 import { LanguageHint, LanguageSelect } from '@/shade/components/LanguageSelect';
 import { SpeechWords } from '@/shade/components/SpeechWords';
@@ -282,11 +281,6 @@ function GeneralTab() {
       </Section>
       <Section title={t('settingsSectionStorage')}>
         <StorageRow />
-      </Section>
-      <Section title={t('settingsSectionPrivacy')}>
-        <Legacy className="shade-legacy-flat">
-          <AnalyticsConsentSwitch />
-        </Legacy>
       </Section>
       <Section title={t('feedbackSection')}>
         <FeedbackRows />

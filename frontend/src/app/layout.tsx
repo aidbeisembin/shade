@@ -7,7 +7,6 @@ import { Inter, Source_Sans_3 } from 'next/font/google'
 import Sidebar from '@/components/Sidebar'
 import { SidebarProvider } from '@/components/Sidebar/SidebarProvider'
 import MainContent from '@/components/MainContent'
-import AnalyticsProvider from '@/components/AnalyticsProvider'
 import { Toaster, toast } from 'sonner'
 import "sonner/dist/styles.css"
 import { useState, useEffect, useCallback } from 'react'
@@ -330,7 +329,6 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: windowShowScript }} />
         {/* Shade: встреча открывается на главной, без перехода между страницами */}
         <InPlaceMeetingRouter enabled={isShadeUI}>
-        <AnalyticsProvider>
           <RecordingStateProvider key={appKey}>
             <TranscriptProvider>
               <ConfigProvider>
@@ -407,7 +405,6 @@ export default function RootLayout({
               </ConfigProvider>
             </TranscriptProvider>
           </RecordingStateProvider>
-        </AnalyticsProvider>
         </InPlaceMeetingRouter>
 
         {isShadeUI ? (
