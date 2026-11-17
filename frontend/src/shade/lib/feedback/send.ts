@@ -8,13 +8,18 @@
 //   queued  нет сети, тайм-аут, 429, 5xx (в том числе 503 «функция не настроена»): отзыв
 //           в очереди, человеку «Не получилось отправить, попробуем позже»;
 //   failed  функция отвергла тело (4xx кроме 429): повтор не поможет, в очередь не кладём.
-// Отправка статистики (аналитика оригинала) с этим каналом не связана.
+// Статистику Shade не собирает: это единственный канал, и только по кнопке «Отправить».
 
 import { MAX_BODY_BYTES, type FeedbackPayload } from './contract';
 
-/** Домен продакшена проекта Vercel «shade» (Settings → Domains). Он же в CSP connect-src (tauri.conf.json). */
-export const FEEDBACK_ORIGIN = 'https://meetily-tau.vercel.app';
-export const FEEDBACK_URL = `${FEEDBACK_ORIGIN}/api/feedback`;
+/**
+ * Куда уходит отзыв. Единственное место с адресами; те же домены в CSP connect-src (tauri.conf.json).
+ * Основной: портфолио владельца пересылает /shade/* на проект Vercel «shade». Запасной: прямой домен
+ * проекта Vercel, пока основной не настроен или если он пропадёт.
+ */
+export const FEEDBACK_URL = 'https://aidbeisembin.com/shade/api/feedback';
+export const FEEDBACK_FALLBACK_URL = 'https://meetily-tau.vercel.app/api/feedback';
+export const FEEDBACK_URLS = [FEEDBACK_URL, FEEDBACK_FALLBACK_URL] as const;
 export const QUEUE_KEY = 'shade.feedback.queue.v1';
 /** Попыток из очереди (по одной на запуск), потом отзыв выбрасывается. */
 export const MAX_ATTEMPTS = 3;
@@ -41,28 +46,43 @@ export interface SendDeps {
 
 type Attempt = 'sent' | 'retry' | 'reject';
 
-async function attempt(payload: FeedbackPayload, deps: SendDeps): Promise<Attempt> {
-  if (!deps.online()) return 'retry';
-  const body = JSON.stringify(payload);
-  if (new TextEncoder().encode(body).length > MAX_BODY_BYTES) return 'reject';
+/** Код ответа или 'network': нет сети, CSP, CORS, тайм-аут. */
+async function post(url: string, body: string, deps: SendDeps): Promise<number | 'network'> {
   const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), deps.timeoutMs ?? SEND_TIMEOUT_MS) : null;
   try {
-    const res = await deps.fetch(FEEDBACK_URL, {
+    const res = await deps.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
       signal: ctrl?.signal,
     });
-    if (res.status >= 200 && res.status < 300) return 'sent';
-    if (res.status === 429 || res.status >= 500) return 'retry';
-    return 'reject';
+    return res.status;
   } catch {
-    // Нет сети, CSP, тайм-аут: повторим при следующем запуске
-    return 'retry';
+    return 'network';
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+/**
+ * Основной адрес, при сетевой ошибке запасной. 404 и 405 основного тоже ведут на запасной: так
+ * отвечает адрес, который ещё не пересылается на функцию, и отзыв не должен из-за этого пропасть.
+ * Ответ функции (2xx, 4xx, 429, 5xx) окончательный: та же функция за запасным ответила бы так же.
+ */
+async function attempt(payload: FeedbackPayload, deps: SendDeps): Promise<Attempt> {
+  if (!deps.online()) return 'retry';
+  const body = JSON.stringify(payload);
+  if (new TextEncoder().encode(body).length > MAX_BODY_BYTES) return 'reject';
+  for (const url of FEEDBACK_URLS) {
+    const status = await post(url, body, deps);
+    if (status === 'network' || status === 404 || status === 405) continue;
+    if (status >= 200 && status < 300) return 'sent';
+    if (status === 429 || status >= 500) return 'retry';
+    return 'reject';
+  }
+  // Оба адреса недоступны: повторим при следующем запуске
+  return 'retry';
 }
 
 export function readQueue(storage: SendDeps['storage']): QueuedFeedback[] {

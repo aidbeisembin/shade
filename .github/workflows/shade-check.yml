@@ -70,6 +70,45 @@ jobs:
       - name: Migration script (bash scripts/test-migrate-from-aid.sh)
         run: bash scripts/test-migrate-from-aid.sh
 
+  core:
+    name: core (macOS, ffmpeg, Parakeet)
+    # Ядро собирается на macOS: build.rs скачивает закреплённый ffmpeg, сверяет SHA-256 архива
+    # и бинарника и запускает ffmpeg -version; затем тесты загрузки модели Parakeet (источник,
+    # суммы, повреждённый файл, недоступный источник, уже скачанная модель). Репозиторий
+    # публичный, раннер macOS бесплатный. Решение: docs/case/decisions.md, 2026-11-17.
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # tauri::generate_context! встраивает папку интерфейса, а tauri-build проверяет externalBin.
+      # Интерфейс собирает задача frontend, помощник llama здесь не нужен: заглушки.
+      - name: Stubs for frontendDist and llama-helper
+        run: |
+          mkdir -p frontend/out frontend/src-tauri/binaries
+          echo '<!doctype html><title>stub</title>' > frontend/out/index.html
+          stub=frontend/src-tauri/binaries/llama-helper-aarch64-apple-darwin
+          printf '#!/bin/sh\nexit 0\n' > "$stub" && chmod +x "$stub"
+
+      - name: Core build and Parakeet tests (cargo test -p shade --lib parakeet_engine)
+        env:
+          CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
+        run: cargo test -p shade --lib parakeet_engine
+
+      - name: Pinned ffmpeg is the one in the build
+        working-directory: frontend/src-tauri
+        run: |
+          bin=binaries/ffmpeg-aarch64-apple-darwin
+          expected=$(grep -A3 'macos/arm64/' build/ffmpeg.rs | sed -n 's/.*binary_sha256: "\([0-9a-f]*\)".*/\1/p')
+          actual=$(shasum -a 256 "$bin" | cut -d' ' -f1)
+          echo "expected $expected"; echo "actual   $actual"
+          test -n "$expected" && test "$expected" = "$actual"
+          "./$bin" -hide_banner -version | head -1
+
   brand:
     name: check-brand
     runs-on: ubuntu-latest

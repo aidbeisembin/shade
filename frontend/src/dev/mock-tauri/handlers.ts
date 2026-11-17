@@ -373,31 +373,6 @@ export const handlers: Record<string, Handler> = {
     console.warn(`[mock-tauri] open_external_url: внешние ссылки в режиме заглушек не открываются (${a?.url})`);
     return null;
   },
-
-  // ---------- аналитика: всё отключено ----------
-  init_analytics: NULL,
-  disable_analytics: NULL,
-  is_analytics_enabled: FALSE,
-  is_analytics_session_active: FALSE,
-  start_analytics_session: ok('mock-session'),
-  end_analytics_session: NULL,
-  identify_user: NULL,
-  track_event: NULL,
-  track_analytics_disabled: NULL,
-  track_analytics_enabled: NULL,
-  track_analytics_transparency_viewed: NULL,
-  track_custom_prompt_used: NULL,
-  track_daily_active_user: NULL,
-  track_feature_used: NULL,
-  track_meeting_deleted: NULL,
-  track_meeting_started: NULL,
-  track_model_changed: NULL,
-  track_recording_started: NULL,
-  track_recording_stopped: NULL,
-  track_settings_changed: NULL,
-  track_summary_generation_completed: NULL,
-  track_summary_regenerated: NULL,
-  track_user_first_launch: NULL,
 };
 
 // ---------------- плагины Tauri ----------------

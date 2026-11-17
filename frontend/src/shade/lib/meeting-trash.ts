@@ -14,11 +14,10 @@
 // Восстановление возвращает папку на прежнее место и снимает метку: строки базы
 // (транскрипт, итоги, название) не удалялись. Окончательное удаление — по сроку при запуске,
 // «Удалить насовсем» или «Очистить корзину» — в одном месте (eraseEntry): строка базы
-// (api_delete_meeting) и папка по одной метке. Analytics.trackMeetingDeleted только здесь.
+// (api_delete_meeting) и папка по одной метке.
 'use client';
 
 import { invoke } from '@tauri-apps/api/core';
-import Analytics from '@/lib/analytics';
 import { forgetDetails } from './meeting-details-cache';
 import { listTrash, moveRecordingToTrash, removeTrashFolder, restoreRecordingFromTrash, TRASH_TTL_DAYS, type TrashEntry } from './recording-trash';
 import { t } from '@/shade/strings';
@@ -158,7 +157,6 @@ async function eraseEntry(id: string | null, dir: string | null): Promise<boolea
       }
     }
     forgetDetails(id);
-    void Analytics.trackMeetingDeleted(id);
   }
   if (dir) {
     try {

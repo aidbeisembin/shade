@@ -906,35 +906,6 @@ html body[data-scroll-locked] {
   -webkit-user-drag: none;
 }
 
-/* Приватность в настройках: AnalyticsConsentSwitch оригинала сведён к строкам
-   плитки. Без рамок, подложек и иконки в круге; пояснение серым 14 px, ссылка Risd. */
-.shade-legacy.shade-legacy-flat h3 {
-  display: none;
-}
-.shade-legacy.shade-legacy-flat .border {
-  border-width: 0;
-}
-.shade-legacy.shade-legacy-flat .bg-gray-50,
-.shade-legacy.shade-legacy-flat .bg-blue-50 {
-  background-color: transparent;
-  padding-left: 0;
-  padding-right: 0;
-}
-.shade-legacy.shade-legacy-flat .bg-blue-50 > svg {
-  display: none;
-}
-.shade-legacy.shade-legacy-flat .text-blue-700 {
-  color: hsl(var(--muted-foreground));
-  font-size: 14px;
-}
-.shade-legacy.shade-legacy-flat .text-blue-600 {
-  color: hsl(var(--primary-ink));
-  text-decoration: none;
-}
-.shade-legacy.shade-legacy-flat .text-blue-600:hover {
-  text-decoration: underline;
-}
-
 /* Переключатели оригинала (36×20 с тенью и рамкой) в мосте приводятся к
    переключателю Shade: 44×24, без тени, бегунок 20 px со сдвигом 20 px */
 .shade-legacy [role='switch'] {

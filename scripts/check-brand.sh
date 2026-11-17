@@ -11,8 +11,10 @@
 # CLAUDE.md, «Принцип работы»):
 #   - файлы целиком (EXCLUDE_FILES, EXCLUDE_DIRS);
 #   - docs/FORK.md только ниже заголовка «## История» (HISTORY_FILES);
-#   - строки-данные (ALLOWED_LITERALS): внешние адреса и имена хранилищ, которые нельзя
-#     переименовать без переноса данных или без действий владельца. Литерал вырезается из
+#   - строки-данные (ALLOWED_LITERALS): ключи и пути хранилищ, которые нельзя переименовать
+#     без переноса данных, и один внешний адрес, который может сменить только владелец (домен
+#     проекта Vercel). Сервер модели, аналитика и ffmpeg исходного проекта сюда не вернутся:
+#     Shade от них не зависит (docs/case/decisions.md, 2026-11-17). Литерал вырезается из
 #     строки, остаток проверяется: второе упоминание в той же строке не пройдёт.
 
 set -euo pipefail
@@ -33,13 +35,10 @@ HISTORY_FILES=(
   "docs/FORK.md"                    # история проекта: имена допустимы в разделе «## История»
 )
 ALLOWED_LITERALS=(
-  "meetily-tau.vercel.app"                        # домен функции отзывов в Vercel; сменить может только владелец (новый домен проекта)
-  "meetily.towardsgeneralintelligence.com"        # сервер, с которого ядро скачивает модель Parakeet
-  "github.com/Zackriya-Solutions/ffmpeg-binaries" # откуда сборка ядра берёт ffmpeg (build/ffmpeg.rs)
+  "meetily-tau.vercel.app"                        # запасной адрес отзывов (прямой домен проекта Vercel); уйдёт, когда владелец сменит домен проекта
   '.join("Meetily")'                              # запасной путь моделей в ядре: путь данных
   "MeetilyRecoveryDB"                             # имя базы IndexedDB восстановления записи: ключ хранилища
   "meetily.meetingDetails.transcriptPaneRatio"    # ключ localStorage исходного интерфейса
-  "meetily_user_id"                               # ключ sessionStorage аналитики
   "/var/meetily/meeting_minutes.db"               # путь базы старой установки для импорта: данные
 )
 

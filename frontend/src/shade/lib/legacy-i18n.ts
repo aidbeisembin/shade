@@ -212,7 +212,7 @@ const EXACT: Record<string, string> = {
   '＋ Add language': '＋ Добавить язык',
   'Click any language to set it as your default. Max 5 quick-switch options.': 'Нажмите на язык, чтобы закрепить его. Не больше пяти языков.',
 
-  // ---------- настройки: бета и аналитика ----------
+  // ---------- настройки: бета ----------
   'Beta Features': 'Бета-функции',
   'These features are still being tested. You may encounter issues, and we appreciate your feedback.':
     'Эти функции ещё проверяются и могут работать нестабильно.',
@@ -221,19 +221,6 @@ const EXACT: Record<string, string> = {
   'Import Audio & Retranscribe': 'Импорт аудио и повторное распознавание',
   'Import audio files to transcribe or retranscribe existing meetings with different language settings.':
     'Распознать аудиофайл с диска или заново распознать встречу с другим языком.',
-  'Usage Analytics': 'Анонимная статистика',
-  'Usage analytics is off by default. You can turn it on to share anonymous product and performance data; no personal content is collected.':
-    'По умолчанию выключена. Если включить, приложение отправляет обезличенные данные об использовании. Содержимое встреч не отправляется.',
-  'Enable Analytics': 'Отправлять статистику',
-  'Off unless you choose to enable it': 'Выключено, пока вы не включите',
-  'Your User ID': 'Ваш идентификатор',
-  'Share this ID when reporting issues to help us investigate your issue logs': 'Сообщите его, если пишете о проблеме',
-  'Copy User ID': 'Скопировать идентификатор',
-  'Your meetings, transcripts, and recordings remain completely private and local.': 'Встречи, транскрипты и записи остаются на этом компьютере.',
-  'View Privacy Policy': 'Политика конфиденциальности',
-  'What Analytics Collects': 'Что собирает статистика',
-  'Keep Analytics Enabled': 'Оставить включённой',
-  'Confirm: Disable Analytics': 'Выключить статистику',
 
   // ---------- импорт и повторное распознавание ----------
   'Import Audio File': 'Импорт аудио',
