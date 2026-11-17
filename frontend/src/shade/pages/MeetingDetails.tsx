@@ -17,7 +17,6 @@ import {
   Check,
   CaretDown,
   ClipboardText,
-  DotsThree,
   FolderOpen,
   MicrophoneSlash,
   Sparkle,
@@ -59,8 +58,6 @@ import { cn } from '@/shade/lib/utils';
 import { t, tf, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { usePermissionCheck } from '@/hooks/usePermissionCheck';
-import { RerecognizeDialog } from '@/shade/components/RerecognizeDialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shade/components/ui/dropdown-menu';
 import { useLang } from '@/shade/lib/lang';
 import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
 import { useFeedbackOffer } from '@/shade/lib/feedback/store';
@@ -163,14 +160,10 @@ const CAUSE: Record<Cause, StringKey> = {
  */
 function SilentRecording({
   folder,
-  canRetranscribe,
-  onRetranscribe,
   onOpenFolder,
   onDelete,
 }: {
   folder: string | null;
-  canRetranscribe: boolean;
-  onRetranscribe: () => void;
   onOpenFolder: () => void;
   onDelete: () => void;
 }) {
@@ -207,17 +200,10 @@ function SilentRecording({
       </h2>
       <p className="mt-1 max-w-xl text-[15px] text-muted-foreground">{cause ? t(CAUSE[cause]) : t('loading')}</p>
       <div className="mt-5 flex flex-wrap gap-2">
-        {needModel ? (
+        {needModel && (
           <Button asChild size="main" className={ON_ROLE_MAIN}>
             <Link href="/settings?tab=transcription">{t('downloadModel')}</Link>
           </Button>
-        ) : (
-          canRetranscribe && (
-            <Button size="main" className={ON_ROLE_MAIN} onClick={onRetranscribe}>
-              <ArrowClockwise />
-              {t('retranscribe')}
-            </Button>
-          )
         )}
         <Button variant="ghost" size="main" className={ON_ROLE_SOFT} onClick={onOpenFolder}>
           <FolderOpen />
@@ -242,7 +228,7 @@ function SummaryBlock({
   summary: SummaryState;
   /** Название в шапке: заголовок итогов, который его повторяет, не показывается. */
   title: string;
-  /** Нет у короткой встречи и во время записи: «Сделать заново» не показывается. */
+  /** «Повторить» после ошибки итогов; нет у короткой встречи и во время записи. Готовые итоги заново не делаются: кнопки «Сделать заново» нет (решение владельца 2026-11-17). */
   onRetry?: () => void;
 }) {
   useLang();
@@ -258,32 +244,24 @@ function SummaryBlock({
     }
   }, [summary.kind]);
 
-  // Итоги и всё, что делает ИИ: полоса Indigo, текст #111 в обеих темах.
+  // Итоги: спокойная белая полоса, как плитка транскрипта (не акцент экрана, решение владельца 2026-11-17).
   // Пока итоги готовятся: та же полоса, что у готовых (та же высота, без прыжка), в круге
-  // Spinner, а на месте текста итогов Skeleton на нейтральной плитке, без мигания. Единственный
+  // Spinner; плитки-заглушки (Skeleton) под ней нет: итоги показываются, когда готовы. Единственный
   // эффект экрана: свечение «думает» у нижнего края транскрипта (VoiceGlow, docs/ui/foundations.md «Эффекты»)
   if (summary.kind === 'processing') {
     return (
       <section className="flex flex-col gap-2" role="status" aria-live="polite" aria-busy="true">
-        <div className="shade-role shade-role-indigo flex items-center gap-2 rounded-tile p-3">
+        <div className="flex items-center gap-2 rounded-tile bg-card p-3">
           <div className="flex min-h-12 flex-1 items-center gap-3 pr-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-black/10" aria-hidden>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden>
               <Spinner />
             </span>
-            <span className="min-w-0">
-              <span className="block text-lg font-bold tracking-tight">{t('summaryProcessing')}</span>
-              <span className="block truncate text-sm text-muted-foreground">{t('summaryProcessingHint')}</span>
+            {/* Одной строкой, как у готовых итогов: значок, название и подсказка на одной линии по центру */}
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="shrink-0 text-lg font-bold tracking-tight">{t('summaryProcessing')}</span>
+              <span className="min-w-0 truncate text-sm text-muted-foreground">{t('summaryProcessingHint')}</span>
             </span>
           </div>
-        </div>
-        <div className={cn(TILE, 'space-y-3')} aria-hidden>
-          <Skeleton className="h-5 w-1/3 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-[760px] rounded-lg" />
-          <Skeleton className="h-4 w-11/12 max-w-[700px] rounded-lg" />
-          <Skeleton className="h-4 w-3/4 max-w-[560px] rounded-lg" />
-          <Skeleton className="mt-5 h-5 w-1/4 rounded-lg" />
-          <Skeleton className="h-4 w-5/6 max-w-[640px] rounded-lg" />
-          <Skeleton className="h-4 w-2/3 max-w-[500px] rounded-lg" />
         </div>
       </section>
     );
@@ -296,35 +274,27 @@ function SummaryBlock({
   if (summary.kind !== 'ready') return null;
 
   return (
-    // Indigo только у полосы-заголовка; раскрытый текст на нейтральной плитке под ней,
-    // чтобы длинные итоги не заливали экран сиреневым
+    // Полоса-заголовок нейтральная; раскрытый текст на плитке под ней
     <section className="flex flex-col gap-2" aria-labelledby="summary-title">
-      <div className="shade-role shade-role-indigo flex items-center gap-2 rounded-tile p-3">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls="summary-body"
-          className="flex min-h-12 flex-1 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-black/10" aria-hidden>
-            <Sparkle className="size-5" />
-          </span>
-          <span id="summary-title" className="text-lg font-bold tracking-tight">
-            {t('summary')}
-          </span>
-          <span className="hidden text-sm text-muted-foreground sm:inline">{t('summaryOpenHint')}</span>
-          {/* Вниз, когда свёрнуто, вверх, когда раскрыто: залитый треугольник вправо читается как «воспроизвести» */}
-          <CaretDown className={cn('ml-auto size-4 transition-transform', open && 'rotate-180')} aria-hidden />
-          <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
-        </button>
-        {onRetry && (
-          <Button variant="ghost" className={cn('h-12 px-5', ON_ROLE_SOFT)} onClick={onRetry}>
-            <ArrowClockwise />
-            {t('summaryRedo')}
-          </Button>
-        )}
-      </div>
+      {/* Вся полоса одна кнопка: наведение красит весь фон (белый становится чуть серым), а не только область внутри */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="summary-body"
+        className="group flex min-h-[72px] w-full items-center gap-3 rounded-tile bg-card p-3 pr-6 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-input" aria-hidden>
+          <Sparkle className="size-5 text-muted-foreground" />
+        </span>
+        <span id="summary-title" className="text-lg font-bold tracking-tight">
+          {t('summary')}
+        </span>
+        <span className="hidden text-sm text-muted-foreground sm:inline">{t('summaryOpenHint')}</span>
+        {/* Шеврон `bold` (не залитый треугольник), серый, как остальной второстепенный текст. Вниз, когда свёрнуто, вверх, когда раскрыто */}
+        <CaretDown weight="bold" className={cn('ml-auto size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+        <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
+      </button>
       {open && (
         <article
           id="summary-body"
@@ -492,7 +462,7 @@ function MeetingDetailsContent() {
   const router = useRouter();
   const m = useMeeting(meetingId);
   const { meetings, setMeetings, refetchMeetings } = useSidebar();
-  // «Подвести итоги» (в том числе «Сделать заново»): когда итоги будут готовы, название создаётся вместе
+  // «Подвести итоги» (и «Повторить» после ошибки): когда итоги будут готовы, название создаётся вместе
   // с ними, если его не задал человек (title-service.ts). Следим по ядру, страница может быть уже закрыта
   const generate = () => {
     void m.generateSummary();
@@ -510,7 +480,6 @@ function MeetingDetailsContent() {
     void loadTrash().then(sync);
     return onTrashChange(sync);
   }, [meetingId]);
-  const [retranscribe, setRetranscribe] = useState(false);
 
   const meta = m.meeting.kind === 'ready' ? m.meeting.meta : null;
   // Запись оборвал сбой, встречу восстановили при запуске (lib/crash-recovery.ts)
@@ -602,20 +571,18 @@ function MeetingDetailsContent() {
     recovered && { label: t('metaRecording'), value: recoveredLabel(recovered) },
     { label: t('metaReplies'), value: formatNumber(m.hasMore ? m.total : visible.length) },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
-  // «Распознать заново» есть у каждой встречи с сохранённым звуком (не бета-функция): язык и слова из настроек
-  const canRetranscribe = Boolean(meta.folder_path);
   const summaryReady = m.summary.kind === 'ready' ? m.summary.markdown : null;
   // «Подвести итоги» только когда есть из чего: запись остановлена (во время записи
   // кнопки нет) и в тексте не меньше MIN_SUMMARY_WORDS слов (speech.ts). Иначе модель
   // заполнила бы разделы заглушками «Ничего не отмечено». Итоги, сделанные раньше, видны
-  // при любой длине, но «Сделать заново» у короткой встречи нет
+  // при любой длине
   // Хук вызван выше, до ранних return (иначе порядок хуков меняется между загрузкой и готовой встречей)
   const isRecording = recordingNow;
   const enoughText = m.hasMore || countWords(m.segments.map((x) => x.text).join(' ')) >= MIN_SUMMARY_WORDS;
   const canSummarize = !empty && enoughText && !isRecording;
   const showSummary = !empty && (m.summary.kind === 'ready' || m.summary.kind === 'processing' || (m.summary.kind === 'failed' && canSummarize));
   // «Подвести итоги» в шапке, только пока итогов нет: ход генерации, ошибка
-  // и «Сделать заново» показываются в блоке итогов над транскриптом
+  // и «Повторить» показываются в блоке итогов над транскриптом
   const showGenerate = canSummarize && m.summary.kind === 'empty';
 
   const rename = async (title: string) => {
@@ -645,8 +612,8 @@ function MeetingDetailsContent() {
   const actions = (
     <>
       {showGenerate && (
-        // 56 px, Indigo: роль итогов и ИИ
-        <Button variant="indigo" size="main" onClick={generate}>
+        // 56 px, нейтральная: итоги не главный акцент экрана
+        <Button variant="secondary" size="main" onClick={generate}>
           <Sparkle />
           {t('generateSummary')}
         </Button>
@@ -662,27 +629,6 @@ function MeetingDetailsContent() {
       <IconAction label={t('openRecordingFolder')} onClick={openFolder}>
         <FolderOpen />
       </IconAction>
-      {canRetranscribe && !isRecording && (
-        // Меню «Ещё»: «Распознать заново» не главная кнопка страницы
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" size="icon" className="size-14 [&_svg]:size-6" aria-label={t('rerecMenu')}>
-                  <DotsThree weight="bold" />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>{t('rerecMenu')}</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent>
-            <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
-              <ArrowClockwise />
-              {t('rerecTitle')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
       <IconAction label={t('deleteMeeting')} onClick={() => setConfirmDelete(true)}>
         <Trash />
       </IconAction>
@@ -707,8 +653,6 @@ function MeetingDetailsContent() {
       {empty ? (
         <SilentRecording
           folder={meta.folder_path ?? null}
-          canRetranscribe={canRetranscribe}
-          onRetranscribe={() => setRetranscribe(true)}
           onOpenFolder={openFolder}
           onDelete={() => setConfirmDelete(true)}
         />
@@ -740,17 +684,6 @@ function MeetingDetailsContent() {
       )}
 
       <DeleteMeetingDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={shownTitle} onConfirm={remove} />
-      {canRetranscribe && (
-        <RerecognizeDialog
-          open={retranscribe}
-          onOpenChange={setRetranscribe}
-          meetingId={meta.id}
-          folderPath={meta.folder_path ?? null}
-          hasSummary={m.summary.kind === 'ready'}
-          onDone={() => void m.retry()}
-          onUpdateSummary={generate}
-        />
-      )}
     </Page>
   );
 }
