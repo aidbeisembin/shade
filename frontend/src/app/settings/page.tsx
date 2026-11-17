@@ -1,6 +1,6 @@
 'use client';
 
-// Переходник настроек: экран Shade или оригинальные настройки Meetily (NEXT_PUBLIC_UI=original).
+// Переходник настроек: экран Shade или исходные настройки (NEXT_PUBLIC_UI=original).
 // Оригинал грузится лениво, чтобы его разметка не попадала в бандл shade.
 
 import dynamic from 'next/dynamic';

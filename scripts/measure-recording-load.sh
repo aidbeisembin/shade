@@ -4,13 +4,13 @@
 # тон вместо микрофона, реплика раз в 8 с). Распознавание и захват звука в замер не входят.
 #
 # Использование: scripts/measure-recording-load.sh [секунды=1800] [файл.csv=/tmp/shade-load.csv]
-# Требуется собранный тестовый бинарник: cargo test -p meetily --lib crash_recovery --no-run
+# Требуется собранный тестовый бинарник: cargo test -p shade --lib crash_recovery --no-run
 set -uo pipefail
 SECONDS_TOTAL="${1:-1800}"
 OUT="${2:-/tmp/shade-load.csv}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE
-BIN="$(cd "$ROOT" && cargo test -p meetily --lib crash_recovery --no-run 2>&1 | sed -n 's/.*(\(target\/debug\/deps\/app_lib-[0-9a-f]*\)).*/\1/p' | tail -1)"
+BIN="$(cd "$ROOT" && cargo test -p shade --lib crash_recovery --no-run 2>&1 | sed -n 's/.*(\(target\/debug\/deps\/app_lib-[0-9a-f]*\)).*/\1/p' | tail -1)"
 [ -n "$BIN" ] || { echo "тестовый бинарник не найден" >&2; exit 1; }
 HOME_DIR="$(mktemp -d)"
 SHADE_CRASH_CHILD=1 SHADE_PROGRESS="$HOME_DIR/progress.txt" SHADE_CHILD_MS=500 SHADE_CHILD_SEG_EVERY=16 HOME="$HOME_DIR" \

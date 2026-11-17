@@ -1,48 +1,36 @@
 # Shade
 
-Приватный ассистент встреч для Mac: запись, расшифровка и итоги прямо на компьютере, без облака.
-
-Основан на [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT); проект не связан с его авторами.
+Приватные заметки встреч для Mac: запись, расшифровка и итоги прямо на компьютере.
 
 ## Что умеет
 
-- Запись микрофона и системного звука одновременно, с микшированием.
-- Расшифровка на устройстве моделями Whisper или Parakeet.
-- Итоги встречи встроенной локальной моделью или выбранным провайдером: Ollama, Claude, Groq, OpenRouter, OpenAI или свой совместимый с OpenAI адрес. При облачном провайдере текст встречи уходит этому провайдеру.
-- Корзина встреч на 30 дней, импорт аудиофайлов и повторная расшифровка (бета).
-- Ускорение на GPU: Metal и CoreML на macOS.
+- Записывает микрофон и системный звук одновременно: Zoom, Meet, Teams и любые другие созвоны.
+- Расшифровывает речь на устройстве моделями Whisper или Parakeet, ускорение Metal на Apple Silicon.
+- По кнопке подводит итоги встроенной локальной моделью или выбранным вами провайдером.
+- Ищет по тексту встреч, удалённое держит в корзине, импортирует аудиофайлы.
 
-Архитектура: настольное приложение на [Tauri](https://tauri.app/) с ядром на Rust и интерфейсом на Next.js. Подробнее: [docs/architecture.md](docs/architecture.md). Каталог `backend/` это архив старого сервера на Python, он не поддерживается.
+## Приватность
 
-## Данные
+Записи, расшифровки и итоги хранятся только на вашем Mac и никуда не отправляются. Наружу что-то уходит, только когда вы сами это выбрали: облачный провайдер итогов или отзыв по кнопке «Отправить». Подробно: [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
-- Папка приложения: `~/Library/Application Support/io.github.katanana23.shade/` (база встреч, модели, настройки).
-- Записи по умолчанию: `~/Movies/Shade`, корзина внутри: `Корзина Shade`.
-- Перенос данных из сборок под прежним именем: `scripts/migrate-from-aid.sh` (подробно в начале скрипта).
+- Данные приложения: `~/Library/Application Support/io.github.katanana23.shade/`.
+- Записи: `~/Movies/Shade`, корзина внутри, в папке `Корзина Shade`.
+
+## Установка
+
+Скоро. Готовой сборки пока нет, Shade можно собрать из исходников.
 
 ## Сборка из исходников
 
-Готовых сборок нет. Сборка на macOS:
+Нужны macOS на Apple Silicon, Xcode Command Line Tools, Rust, Node.js 22 и pnpm.
 
 ```bash
 git clone https://github.com/katanana23/shade
-cd shade
-git checkout shade
-cd frontend
+cd shade/frontend
 pnpm install --frozen-lockfile
-./clean_build.sh
+pnpm tauri:build
 ```
 
-Требования и сборка на других системах: [docs/BUILDING.md](docs/BUILDING.md), [docs/building_in_linux.md](docs/building_in_linux.md).
+Разработка интерфейса в браузере на заглушках: `pnpm dev`, затем `http://localhost:3118/?mock=full`. Подробно: [docs/dev.md](docs/dev.md), участие: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Участие
-
-Изменения направляйте pull request-ом в ветку `shade`; `main` зеркалит оригинал. Правила веток и правок ядра: [docs/FORK.md](docs/FORK.md).
-
-## Лицензия
-
-MIT, текст лицензии и копирайт оригинала сохранены в [LICENSE.md](LICENSE.md). Лицензия MIT не даёт прав на товарный знак оригинала.
-
-## Благодарности
-
-[Whisper.cpp](https://github.com/ggerganov/whisper.cpp), [Screenpipe](https://github.com/mediar-ai/screenpipe), [transcribe-rs](https://crates.io/crates/transcribe-rs): из них заимствована часть кода оригинала. NVIDIA за модель Parakeet и [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) за её конвертацию в ONNX.
+Built on open-source components, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

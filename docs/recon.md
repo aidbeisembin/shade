@@ -1,7 +1,9 @@
-# Разведка перед редизайном интерфейса Meetily
+# Разведка перед редизайном исходного интерфейса
 
-Дата: 2026-10-06. Ветка: `claude/inspiring-rubin-4j7kwa`, состояние кода на коммите `a2cb62e` (Release v0.4.1).
+Дата: 2026-10-06. Предмет: интерфейс и ядро исходного проекта, на котором основан Shade (далее «оригинал»). Ветка: `claude/inspiring-rubin-4j7kwa`, состояние кода на коммите `a2cb62e` (Release v0.4.1).
 Код при разведке не менялся. Цифры получены grep-ом по исходникам. Где в тексте стоит «оценка», это прикидка, а не замер.
+
+> Это снимок на 2026-10-06, он не обновляется. 17.11.2026 из репозитория удалены архив `backend/`, скрипты и документация сборки оригинала, его workflow и картинки в корне `docs/`; упоминания о них ниже оставлены как часть снимка. Как работать сейчас: [`dev.md`](dev.md).
 
 ---
 
@@ -13,7 +15,7 @@
 |---|---|---|
 | Интерфейс | `frontend/src` | Next.js 14 (App Router, `output: 'export'`, то есть статическая сборка в `frontend/out`), React 18, TypeScript. 117 `.tsx` и 54 `.ts` |
 | Rust-ядро | `frontend/src-tauri/src` | Tauri 2: захват звука, Whisper/Parakeet, SQLite (sqlx), LLM-клиенты (Ollama, Claude, Groq, OpenRouter, OpenAI, встроенная модель через сайдкар `llama-helper`), трей, уведомления, аналитика (PostHog) |
-| Архив | `backend/` | Старый Python/FastAPI. Не поддерживается, при редизайне не трогаем |
+| Архив | `backend/` (удалён 17.11.2026) | Старый Python/FastAPI. Не поддерживался, при редизайне не трогали |
 
 Окно задано в `frontend/src-tauri/tauri.conf.json`: 1100×700, тема `Light`, системные рамки окна.
 В dev-режиме Tauri открывает `http://localhost:3118` (`pnpm dev`), в релизе берёт статику из `../out`.
@@ -26,7 +28,7 @@
   - Две вызываемые команды в ядре не зарегистрированы: `api_get_auto_generate_setting` (в `lib.rs:723` закомментирована) и `builtin_ai_get_models_directory`. Такой вызов всегда падает с ошибкой. Для редизайна это неважно, но при мокировании их надо учитывать.
 - **События** (ядро → интерфейс): `listen('имя', cb)` из `@tauri-apps/api/event`. Ядро отправляет около 50 разных событий. Интерфейс подписан примерно на 30 из них, плюс системные `tauri://drag-*`. Есть одно событие интерфейс → интерфейс: `model-config-updated` (отправляется через `emit` из настроек).
 - **Плагины Tauri**, которые интерфейс использует напрямую: `plugin-store` (файл `preferences.json`: флаги уведомлений, аналитика, настройки записи), `plugin-os` (определение платформы), `plugin-updater` и `plugin-process` (обновления), `plugin-notification`.
-- **Хранилище в браузере**: `localStorage`/`sessionStorage` (бета-флаги, ширина панелей, флаг автозапуска записи из трея) и IndexedDB `MeetilyRecoveryDB` (резервная копия транскрипта на время записи, `services/indexedDBService.ts`). Всего около 100 обращений.
+- **Хранилище в браузере**: `localStorage`/`sessionStorage` (бета-флаги, ширина панелей, флаг автозапуска записи из трея) и IndexedDB с резервной копией транскрипта (база с именем оригинала, резервная копия транскрипта на время записи, `services/indexedDBService.ts`). Всего около 100 обращений.
 
 Схема потока такая. Пользователь нажимает «Запись» → `start_recording_with_devices_and_meeting` → ядро шлёт `recording-started`, затем поток `transcript-update` → интерфейс складывает их в `TranscriptContext` → при остановке приходят `recording-stop-complete` и `transcription-complete` → встреча сохраняется в SQLite → сайдбар перечитывает `api_get_meetings`.
 
@@ -41,9 +43,9 @@
 | Настройки, 5 вкладок: General, Recordings, Transcription, Summary, Beta | `app/settings/page.tsx` + `PreferenceSettings`, `RecordingSettings`, `TranscriptSettings` (с `WhisperModelManager`, `ParakeetModelManager`), `SummaryModelSettings` (с `ModelSettingsModal`, 1408 строк), `BetaSettings` | `get/set_recording_preferences`, `get_default_recordings_folder_path`, `open_*_folder`, `get/set_notification_settings`, `whisper_*`, `parakeet_*`, `builtin_ai_*`, `get_ollama_models`, `pull/delete_ollama_model`, `get_{openai,anthropic,groq,openrouter}_models`, `api_*_custom_openai_config`, `api_test_custom_openai_connection`, `get/set_audio_backend`, `track_*` | `model-download-progress`, `parakeet-model-download-*`, `builtin-ai-download-progress`, `ollama-model-download-*` |
 | Онбординг, 4 шага: Welcome, SetupOverview, DownloadProgress, Permissions | `components/onboarding/*`, `contexts/OnboardingContext.tsx` | `get_onboarding_status`, `save_onboarding_status_cmd`, `complete_onboarding`, `check_first_launch`, `parakeet_init/download_model/...`, `builtin_ai_download_model/...`, `trigger_microphone_permission`, `trigger_system_audio_permission_command`, `open_system_settings`, `check_default_legacy_database`, `import_and_initialize_database`, `initialize_fresh_database` | прогресс загрузок моделей |
 | Импорт аудио (бета, диалог и оверлей) | `components/ImportAudio/*`, `hooks/useImportAudio.ts` | `select_and_validate_audio_command`, `validate_audio_file_command`, `start_import_audio_command`, `cancel_import_command` | `import-progress`, `import-complete`, `import-error` |
-| Восстановление после сбоя | `components/TranscriptRecovery/*`, `hooks/useTranscriptRecovery.ts` | `has_audio_checkpoints`, `cleanup_checkpoints`, `get_meeting_folder_path`, `api_save_transcript` | — |
-| Импорт старой базы | `components/DatabaseImport/*` | `detect_legacy_database`, `select_legacy_database_path`, `check_homebrew_database`, `import_and_initialize_database`, `initialize_fresh_database` | — |
-| Мусор: заглушка-демо | `app/notes/[id]/page.tsx` | нет, захардкоженные примеры заметок 2024 года | — |
+| Восстановление после сбоя | `components/TranscriptRecovery/*`, `hooks/useTranscriptRecovery.ts` | `has_audio_checkpoints`, `cleanup_checkpoints`, `get_meeting_folder_path`, `api_save_transcript` | нет |
+| Импорт старой базы | `components/DatabaseImport/*` | `detect_legacy_database`, `select_legacy_database_path`, `check_homebrew_database`, `import_and_initialize_database`, `initialize_fresh_database` | нет |
+| Мусор: заглушка-демо | `app/notes/[id]/page.tsx` | нет, захардкоженные примеры заметок 2024 года | нет |
 
 Поперёк всех экранов работают: `lib/analytics.ts` (около 20 команд `track_*`, `init_analytics` и т. п.), `UpdateCheckProvider`/`UpdateDialog` (`plugin-updater`) и `ConsoleToggle` (`show/hide/toggle_console`).
 
@@ -57,7 +59,7 @@ Next.js-маршрутов три: `/` (главная), `/meeting-details?id=�
 ### 2.2. Состояния по экранам
 
 **Запись** (`RecordingStateContext`, перечисление `RecordingStatus`):
-- `IDLE`: пустой транскрипт с текстом «Welcome to meetily!» (`TranscriptView.tsx:373`, `VirtualizedTranscriptView.tsx:260`) и круглая плавающая кнопка записи внизу.
+- `IDLE`: пустой транскрипт с приветствием и названием оригинала (`TranscriptView.tsx:373`, `VirtualizedTranscriptView.tsx:260`) и круглая плавающая кнопка записи внизу.
 - `STARTING`, `RECORDING`, `STOPPING`, `PROCESSING_TRANSCRIPTS`, `SAVING`, `COMPLETED`, `ERROR`. Пауза в это перечисление не входит, её хранит отдельный флаг (события `recording-paused` / `recording-resumed`).
 - Во время записи анимируются 3 полоски (на главной это случайные высоты, к реальному уровню они не привязаны), горит индикатор `speech-detected`, есть пауза и стоп.
 - После остановки панель записи прячется и показывается оверлей «Processing / Saving» (`StatusOverlays.tsx`).
@@ -73,7 +75,7 @@ Next.js-маршрутов три: `/` (главная), `/meeting-details?id=�
 
 **Детали встречи**:
 - Загрузка (спиннер), ошибка (красный текст с кнопкой), «No meeting selected».
-- Разделённый вид с перетаскиваемой границей, ширина хранится в `localStorage` под ключом `meetily.meetingDetails.transcriptPaneRatio`. На узком окне вкладки «Transcript / Summary».
+- Разделённый вид с перетаскиваемой границей, ширина хранится в `localStorage` под ключом с именем оригинала (`MeetingDetailsSplitView.tsx:6`). На узком окне вкладки «Transcript / Summary».
 - Транскрипт виртуализирован (`@tanstack/react-virtual`), догружается постранично, у сегмента есть индикатор уверенности (`ConfidenceIndicator`).
 - Резюме: пустое состояние `EmptyStateSummary` (кнопка генерации, предупреждение «Please select a model in Settings first»), идёт генерация (опрос статуса), готово (редактор BlockNote), ошибка, отмена.
 - Кнопки: копировать транскрипт или резюме, открыть папку встречи, перегенерировать, выбрать шаблон, язык резюме, ретранскрибировать (бета).
@@ -149,21 +151,21 @@ Next.js-маршрутов три: `/` (главная), `/meeting-details?id=�
 
 ## 5. Что нельзя трогать при редизайне
 
-- **Всё Rust-ядро** `frontend/src-tauri/src/**`: звук (`audio/`, `audio_v2/`), движки (`whisper_engine/`, `parakeet_engine/`), `summary/`, `database/`, `api/`, `lib.rs` и регистрация команд, `tray.rs`, `notifications/`. Отдельно не трогать захардкоженные в ядре тексты и имена (заголовки уведомлений «Meetily», подсказка в трее, пути к папкам): это ядро, хотя выглядит как UI.
+- **Всё Rust-ядро** `frontend/src-tauri/src/**`: звук (`audio/`, `audio_v2/`), движки (`whisper_engine/`, `parakeet_engine/`), `summary/`, `database/`, `api/`, `lib.rs` и регистрация команд, `tray.rs`, `notifications/`. Отдельно не трогать захардкоженные в ядре тексты и имена (заголовки уведомлений с названием оригинала, подсказка в трее, пути к папкам): это ядро, хотя выглядит как UI.
 - **Имена и сигнатуры команд и событий.** Интерфейс должен вызывать те же 145 команд с теми же аргументами (camelCase на стороне JS, Tauri сам переводит в snake_case) и слушать те же события с теми же полями.
 - **Форматы данных**: `Transcript` / `TranscriptUpdate` (`types/index.ts`, поля `audio_start_time`, `audio_end_time`, `sequence_id` и др.), `SummaryProcessResponse`, формат резюме (три варианта: legacy-секции, `markdown`, `summary_json` в блоках BlockNote, `lib/summary-content.ts`), `MeetingMetadata`.
 - **Схема базы и миграции** `frontend/src-tauri/migrations/*.sql` (10 файлов, от `20250916100000_initial_schema.sql` до `20251229000000_add_gemini_api_key.sql`). Таблицы `meetings`, `transcripts` (с `speaker`, `audio_*`), `summary_processes`, `transcript_chunks`, `meeting_notes`, `settings`, `transcript_settings`, таблицы лицензий. Новые колонки не добавлять, старые миграции не редактировать.
 - **Шаблоны резюме** `frontend/src-tauri/templates/*.json`: попадают в бандл как ресурсы и по формату завязаны на `summary/templates/types.rs`.
-- **Ключи хранилищ**, по которым живут данные пользователя: `preferences.json` (plugin-store), IndexedDB `MeetilyRecoveryDB`, ключи `localStorage` (бета-флаги и т. п.). Переименование потеряет настройки и данные восстановления.
-- **Идентификатор приложения** `com.meetily.ai`, `productName`, ключ и адрес обновлений в `tauri.conf.json`. От них зависят путь к данным пользователя, подпись и автообновление.
+- **Ключи хранилищ**, по которым живут данные пользователя: `preferences.json` (plugin-store), база IndexedDB восстановления (`services/indexedDBService.ts`), ключи `localStorage` (бета-флаги и т. п.). Переименование потеряет настройки и данные восстановления.
+- **Идентификатор приложения** (`identifier` оригинала), `productName`, ключ и адрес обновлений в `tauri.conf.json`. От них зависят путь к данным пользователя, подпись и автообновление.
 - **Конфигурация сборки**: `Cargo.toml`, `build.rs`, `tauri.conf.json` (CSP, capabilities, `externalBin`), `next.config.js` (алиасы ProseMirror, `output: 'export'`), `pnpm.overrides` в `package.json`.
-- **Архив `backend/`.**
+- **Архив `backend/`** (удалён 17.11.2026).
 
 ---
 
 ## 6. Сборка на macOS
 
-**Инструменты** (по `docs/BUILDING.md` и `build-macos.yml`):
+**Инструменты** (по документации сборки оригинала и его workflow сборки macOS):
 - Xcode Command Line Tools (`xcode-select --install`): clang, Swift, фреймворки AVFoundation и ScreenCaptureKit.
 - Homebrew, затем `brew install cmake node pnpm`. По документации pnpm нужен ровно `9.15.9` (`npm install -g pnpm@9.15.9`).
 - Rust через rustup, stable. CI собирает под `aarch64-apple-darwin`.
@@ -173,16 +175,16 @@ Next.js-маршрутов три: `/` (главная), `/meeting-details?id=�
 **Команды запуска** (из `frontend/`):
 ```bash
 pnpm install --frozen-lockfile
-./dev-gpu.sh          # рекомендуемый путь: собирает сайдкар llama-helper (Metal), кладёт в src-tauri/binaries, запускает tauri dev
+./dev-gpu.sh          # (удалён 17.11.2026) рекомендуемый путь: собирает сайдкар llama-helper (Metal), кладёт в src-tauri/binaries, запускает tauri dev
 # или вручную:
 #   cargo build -p llama-helper --features metal   (из корня репозитория)
 #   скопировать target/debug/llama-helper в frontend/src-tauri/binaries/llama-helper-aarch64-apple-darwin
 #   pnpm tauri:dev
-./build-gpu.sh        # релизная сборка (.app / .dmg)
+./build-gpu.sh        # (удалён 17.11.2026) релизная сборка (.app / .dmg)
 ./clean_run.sh        # чистый перезапуск (удаляет node_modules, .next, out)
 pnpm dev              # только интерфейс в браузере на :3118, без Rust (см. раздел 4)
 ```
-Подвох: `tauri.conf.json` объявляет `externalBin: binaries/llama-helper, binaries/ffmpeg`, а папки `src-tauri/binaries` в репозитории нет. Голый `pnpm tauri:dev` без предварительной сборки `llama-helper` упадёт на проверке сайдкара. Поэтому для первой сборки лучше `./dev-gpu.sh`. В разделе macOS документации этот шаг не упомянут.
+Подвох: `tauri.conf.json` объявляет `externalBin: binaries/llama-helper, binaries/ffmpeg`, а папки `src-tauri/binaries` в репозитории нет. Голый `pnpm tauri:dev` без предварительной сборки `llama-helper` упадёт на проверке сайдкара. Поэтому для первой сборки тогда советовали `./dev-gpu.sh`. В разделе macOS документации этот шаг не упомянут.
 
 **Время и нагрузка первой сборки (оценка, не замер):**
 - В `Cargo.lock` 855 пакетов. Кроме них из C/C++ через CMake компилируются whisper.cpp (с Metal и CoreML) и llama.cpp (в сайдкаре).
@@ -200,7 +202,7 @@ pnpm dev              # только интерфейс в браузере на
 | Ссылка из резюме на момент транскрипта | **Нет** (только текстом) | Шаблон `standard_meeting.json` просит модель вставлять в таблицу задач колонки «Reference Transcript Segment» и «Segment Time stamp», но это обычный текст в markdown. Клик по нему ничего не делает. Плеера в UI нет: `AudioPlayer.tsx` пустой, `useAudioPlayer.ts` нигде не используется, у сегментов транскрипта нет обработчиков клика. Данные для связки уже есть: `audio_start_time` / `audio_end_time` у каждого сегмента и команда `read_audio_file` |
 | Правка расшифровки | **Нет** | Транскрипт показывается только для чтения (`VirtualizedTranscriptView`). Команды для обновления отдельного сегмента в ядре нет: grep по `update_transcript` пустой. Есть только ретранскрибация целиком (бета). Редактировать можно лишь резюме (BlockNote с сохранением `api_save_meeting_summary`) и название встречи |
 | Задачи с исполнителем | **Частично, только текстом** | Шаблоны просят таблицы с колонкой `Owner` (`standard_meeting`, `daily_standup`, `retrospective`, `project_sync`). Это markdown внутри резюме. Отдельной сущности «задача», статуса, фильтра и экспорта нет. Колонка `transcripts.action_items` в базе есть, но это наследие старого бэкенда, в UI она не используется |
-| Шаблоны по типу встречи | **Есть** | 6 встроенных шаблонов в `src-tauri/templates/`: standard_meeting, daily_standup, project_sync, retrospective, sales_marketing_client_call, psychatric_session (опечатка в имени файла). Можно добавлять свои в `~/Library/Application Support/Meetily/templates/`. Выбор в деталях встречи через `useTemplates` → `api_list_templates`. Автовыбора по типу встречи нет |
+| Шаблоны по типу встречи | **Есть** | 6 встроенных шаблонов в `src-tauri/templates/`: standard_meeting, daily_standup, project_sync, retrospective, sales_marketing_client_call, psychatric_session (опечатка в имени файла). Можно добавлять свои в папку `templates` внутри папки данных с именем оригинала (в Shade это `~/Library/Application Support/Shade/templates/`). Выбор в деталях встречи через `useTemplates` → `api_list_templates`. Автовыбора по типу встречи нет |
 | Поиск по встречам | **Есть, базовый** | Поле в сайдбаре: по названию (на клиенте) и по тексту транскриптов (`api_search_transcripts`). Результат только оставляет совпавшие встречи в списке. Подсветки и перехода к найденному месту нет, хотя бэкенд возвращает `matchContext` и `timestamp` |
 | Индикатор приватности | **Нет** | Нет значка вроде «всё локально / данные уходят в облако». Есть только: тост «Inform all participants this meeting is being recorded», подпись «Built-in AI (Offline, No API needed)» в выпадающем списке провайдеров и переключатель аналитики со ссылкой на Privacy Policy. При этом приложение умеет слать аналитику в PostHog (`us.i.posthog.com`; по умолчанию выключено, `analyticsOptedIn: false` в `AnalyticsProvider.tsx`), а при облачном провайдере (Claude, Groq, OpenRouter, OpenAI) транскрипт уходит наружу. Для индикатора это и есть два главных сигнала: провайдер резюме локальный или облачный, аналитика включена или нет |
 
@@ -208,41 +210,43 @@ pnpm dev              # только интерфейс в браузере на
 
 ## 8. Лицензия и бренд
 
-**Лицензия**: MIT, `LICENSE.md`, «Copyright (c) 2024 Zackriya Solutions». Код можно менять, переименовывать и распространять, в том числе коммерчески, при условии, что текст лицензии и копирайт сохраняются в копиях. Важно: MIT не даёт прав на товарный знак. Название «Meetily» и логотип лучше заменить в форке, который будет распространяться. Права на сам знак в репозитории не описаны (см. «Что не удалось определить»).
+**Лицензия**: MIT. Код можно менять, переименовывать и распространять, в том числе коммерчески, при условии, что текст лицензии и копирайт сохраняются в копиях. Текст лицензии и копирайт оригинала: `THIRD_PARTY_NOTICES.md`. Важно: MIT не даёт прав на товарный знак. Название и логотип оригинала лучше заменить в форке, который будет распространяться. Права на сам знак в репозитории не описаны (см. «Что не удалось определить»).
 
-**Где зашито название «Meetily» в интерфейсе (`frontend/src`, 39 вхождений):**
+**Где было зашито название оригинала в интерфейсе (`frontend/src`, 39 вхождений на 2026-10-06):**
 - `components/Sidebar/index.tsx:693`: подпись в сайдбаре
-- `components/Logo.tsx:21,25,39,41,47`: alt, aria-label, заголовок «About Meetily»
-- `components/Info.tsx:22,32`: «About Meetily»
-- `components/About.tsx:26,57,63,98`: ссылка `meetily.zackriya.com`, alt логотипа, «What makes Meetily different»
-- `components/TranscriptView.tsx:373`, `VirtualizedTranscriptView.tsx:260`: «Welcome to meetily!»
+- `components/Logo.tsx:21,25,39,41,47`: alt, aria-label, заголовок «About …»
+- `components/Info.tsx:22,32`: «About …»
+- `components/About.tsx:26,57,63,98`: ссылка на сайт оригинала, alt логотипа, абзац о его отличиях
+- `components/TranscriptView.tsx:373`, `VirtualizedTranscriptView.tsx:260`: приветствие в пустом транскрипте
 - `components/PreferenceSettings.tsx:166`, `PermissionWarning.tsx:101,127`
 - `components/onboarding/steps/WelcomeStep.tsx:27`, `SetupOverviewStep.tsx:49`, `PermissionsStep.tsx:117`, `DownloadProgressStep.tsx:494`, `OnboardingFlow.tsx:35` (комментарий)
-- `components/DatabaseImport/HomebrewDatabaseDetector.tsx:15,16,100,104`, `LegacyDatabaseImport.tsx:45,122,124,138` (там же пути `/opt/homebrew/var/meetily/...`, их не менять)
+- `components/DatabaseImport/HomebrewDatabaseDetector.tsx:15,16,100,104`, `LegacyDatabaseImport.tsx:45,122,124,138` (там же пути старой базы Homebrew `/opt/homebrew/var/…`, их не менять)
 - `hooks/useRecordingStart.ts:18`: текст ошибки
-- `app/metadata.ts:4`, `app/metadata.tsx:4`: `title: 'Meetily'`
-- Технические ключи (не менять, иначе потеряются данные): `MeetingDetailsSplitView.tsx:6` (`meetily.meetingDetails...`), `services/indexedDBService.ts:34` (`MeetilyRecoveryDB`), `lib/analytics.ts:188,191` (`meetily_user_id`)
-- `components/BluetoothPlaybackWarning.tsx:84`: битая ссылка `github.com/your-org/meetily/...`
-- `components/AnalyticsConsentSwitch.tsx:150`: ссылка на Privacy Policy в репозитории `Zackriya-Solutions/meeting-minutes`
+- `app/metadata.ts:4`, `app/metadata.tsx:4`: `title`
+- Технические ключи (не менять, иначе потеряются данные): `MeetingDetailsSplitView.tsx:6` (ширина панели), `services/indexedDBService.ts:34` (база восстановления), `lib/analytics.ts:188,191` (`user_id`)
+- `components/BluetoothPlaybackWarning.tsx:84`: битая ссылка на GitHub
+- `components/AnalyticsConsentSwitch.tsx:150`: ссылка на Privacy Policy в репозитории оригинала
 
 **В ядре и конфигурации** (видно пользователю, но это зона «не трогать» или отдельного решения):
-- `src-tauri/tauri.conf.json`: `productName: "meetily"`, `identifier: "com.meetily.ai"`, заголовок окна `"meetily"`, адрес обновлений на GitHub Zackriya-Solutions
-- `src-tauri/Cargo.toml`: `name = "meetily"`, `authors = ["Sujith S"]`
-- `package.json`: `"name": "meetily"`
-- `src-tauri/src/tray.rs:26`: подсказка трея «Meetily»
+- `src-tauri/tauri.conf.json`: `productName`, `identifier`, заголовок окна, адрес обновлений на GitHub оригинала
+- `src-tauri/Cargo.toml`: имя пакета и автор
+- `package.json`: `"name"`
+- `src-tauri/src/tray.rs:26`: подсказка трея
 - `src-tauri/src/notifications/types.rs:122–174`, `notifications/commands.rs:335,385`: заголовок системных уведомлений
-- Папки данных: `recording_preferences.rs` (`meetily-recordings`), `whisper_engine.rs:154`, `parakeet_engine.rs:294`, `model_manager.rs:148`, `templates/loader.rs:27` (`Meetily/…`)
-- `parakeet_engine.rs:127`: адрес скачивания моделей `meetily.towardsgeneralintelligence.com`
+- Папки данных: `recording_preferences.rs` (папка записей), `whisper_engine.rs:154`, `parakeet_engine.rs:294`, `model_manager.rs:148`, `templates/loader.rs:27`
+- `parakeet_engine.rs:127`: адрес скачивания моделей на сервере оригинала
 - `whisper_engine.rs:1144,1657`: User-Agent
 - `console_utils.rs`: имя процесса для `log stream`
+
+Что из этого сделано в Shade: [`isolation.md`](isolation.md), раздел 4.
 
 **Логотипы и иконки:**
 - `frontend/public/logo.png`, `logo-collapsed.png` (в `Logo.tsx`), `icon_128x128.png` (в `About.tsx`), `icon_32x32@2x.png`; остатки шаблона Next.js: `next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg`
 - `frontend/src/app/favicon.ico`
 - `frontend/src-tauri/icons/`: 25 файлов (`icon.icns`, `app_icon.icns`, `app_icon.ico`, `icon.png`, `Square*Logo.png`, `StoreLogo.png`, `icon_*`). Иконка трея берётся отсюда же
-- Документация и README: `docs/logo1.png`, `logo2.png`, `logo3.png`, `Meetily-6.png`, скриншоты и GIF в `docs/`
+- Логотипы, скриншоты и GIF оригинала в корне `docs/` (удалены 17.11.2026)
 
-**Прочие упоминания** (не UI): `README.md`, `CONTRIBUTING.md`, `PRIVACY_POLICY.md`, `docs/*.md`, `frontend/README.md`, `frontend/API.md`, скрипты `build*.{sh,bat,ps1}`, `dev-gpu.*`, workflow-файлы `.github/workflows/*.yml` (имена артефактов `meetily-macos-...`), `scripts/`.
+**Прочие упоминания** (не UI): `README.md`, `CONTRIBUTING.md`, `PRIVACY_POLICY.md`, `docs/*.md`, `frontend/README.md`, `frontend/API.md`, скрипты `build*.{sh,bat,ps1}`, `dev-gpu.*`, workflow-файлы `.github/workflows/*.yml` (имена артефактов), `scripts/`.
 
 ---
 
@@ -254,7 +258,7 @@ pnpm dev              # только интерфейс в браузере на
 - Задать свою палитру, радиусы и тени в `globals.css` / `tailwind.config.js`, подключить шрифт (желательно локальный файл вместо `next/font/google`, чтобы сборка не зависела от сети).
 - Заменить прямые `gray-*` / `blue-*` / `red-*` на семантические токены (`bg-background`, `text-muted-foreground`, `bg-primary`, `text-destructive`, плюс новые `success` / `warning`). Механическая замена по 14 самым частым классам покроет большую часть.
 - Решить, нужна ли тёмная тема. Если нужна, это отдельная задача: сейчас она не включается нигде, а окно в `tauri.conf.json` жёстко светлое.
-- Иконки и логотипы (`public/`, `favicon.ico`), тексты с «Meetily» в интерфейсе (без технических ключей).
+- Иконки и логотипы (`public/`, `favicon.ico`), тексты с названием оригинала в интерфейсе (без технических ключей).
 - Тема BlockNote и sonner под новые токены.
 
 Почему риск низкий: меняются только className, CSS и картинки, логика и вызовы не затрагиваются. Что может сломаться: вёрстка BlockNote (там `!important`-хаки), видимость состояний (disabled, focus), контраст. Проверять глазами в браузере на моках, затем один раз в сборке Tauri. Объём (оценка): 4–7 рабочих дней.
@@ -286,9 +290,9 @@ pnpm dev              # только интерфейс в браузере на
 ## Что не удалось определить
 
 1. **Реальное время и нагрузку сборки на macOS.** Цифры в разделе 6 являются оценкой по числу зависимостей и опыту похожих проектов. Разведка шла на Linux-контейнере без macOS, сборка не запускалась, `node_modules` не ставились.
-2. **Как интерфейс выглядит вживую.** Приложение не запускалось. Состояния описаны по коду; скриншоты в `docs/*.png` могут быть устаревшими.
+2. **Как интерфейс выглядит вживую.** Приложение не запускалось. Состояния описаны по коду; скриншоты оригинала в корне `docs/` могли быть устаревшими (удалены 17.11.2026).
 3. **Точные формы ответов** части команд (`api_list_templates`, `get_audio_devices`, `get_recording_state`, `get_onboarding_status`, модели Whisper/Parakeet). Примеры в разделе 4 сведены по типам интерфейса; перед написанием мока их надо сверить с Rust-структурами.
 4. **Проходит ли `@tauri-apps/plugin-os` в браузере только с `mockIPC`.** Плагин читает глобальный объект при импорте; нужна ли дополнительная подкладка, видно только на практике.
-5. **Права на товарный знак «Meetily»** и разрешено ли использовать логотип. В репозитории это не описано, MIT этого не покрывает.
+5. **Права на товарный знак оригинала** и разрешено ли использовать логотип. В репозитории это не описано, MIT этого не покрывает.
 6. **Работают ли сейчас две незарегистрированные команды** (`api_get_auto_generate_setting`, `builtin_ai_get_models_directory`): видимо, ошибка просто глотается в `catch`, но последствия для UI не проверялись.
 7. **Можно ли убрать Remirror из зависимостей.** В `src` он не импортируется, но транзитивные зависимости и влияние на сборку BlockNote не проверялись.

@@ -255,9 +255,13 @@ export const ru = {
   openLinkFailed: 'Не удалось открыть ссылку',
   saveFailed: 'Не удалось сохранить',
   version: 'Версия',
-  licenseTitle: 'Shade основан на Meetily (MIT, Zackriya Solutions)',
-  licenseHint: 'Открытый исходный код. Текст лицензии оригинала сохранён без изменений.',
-  license: 'Лицензия',
+  licensesTitle: 'Лицензии открытого ПО',
+  licensesHint: 'Shade использует код открытых проектов. Здесь их авторы и лицензии.',
+  licensesShow: 'Показать',
+  licensesIntro: 'Тексты лицензий приведены без изменений, на английском.',
+  licensesEmpty: 'Список лицензий не загрузился. Он лежит в файле THIRD_PARTY_NOTICES.md в репозитории Shade.',
+  noticeCore: 'Ядро записи и распознавания речи, итоги и хранение встреч, часть компонентов интерфейса.',
+  noticeKokonut: 'Механика формы отзыва в Настройках.',
 
   // приватность
   privacy: 'Приватность',
@@ -764,9 +768,13 @@ export const en: Mirror<RuDict> = {
   openLinkFailed: 'Could not open the link',
   saveFailed: 'Could not save',
   version: 'Version',
-  licenseTitle: 'Shade is based on Meetily (MIT, Zackriya Solutions)',
-  licenseHint: 'Open source. The original license text is kept unchanged.',
-  license: 'License',
+  licensesTitle: 'Open source licenses',
+  licensesHint: 'Shade uses code from open source projects. Their authors and licenses are listed here.',
+  licensesShow: 'Show',
+  licensesIntro: 'License texts are shown unchanged.',
+  licensesEmpty: 'The license list did not load. It is in THIRD_PARTY_NOTICES.md in the Shade repository.',
+  noticeCore: 'Recording and speech recognition core, summaries, meeting storage and some interface components.',
+  noticeKokonut: 'Motion of the feedback form in Settings.',
 
   // приватность
   privacy: 'Privacy',

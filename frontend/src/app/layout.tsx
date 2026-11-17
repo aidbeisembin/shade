@@ -48,7 +48,7 @@ import { installNavDebug } from '@/shade/lib/nav-debug'
 import { showWindow, windowBootScript, windowShowScript } from '@/shade/lib/window-boot'
 import { applySystemLanguageDefault } from '@/shade/lib/system-language'
 
-// Интерфейс: shade (новый, по умолчанию) или original (оригинальный Meetily).
+// Интерфейс: shade (новый, по умолчанию) или original (исходный интерфейс).
 // Условие записано прямо в if: webpack вычисляет его при сборке и не тянет
 // в бандл стили второго интерфейса.
 if (process.env.NEXT_PUBLIC_UI === 'original') {
