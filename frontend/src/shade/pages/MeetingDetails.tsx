@@ -16,7 +16,6 @@ import {
   ArrowClockwise,
   Check,
   CaretDown,
-  ClipboardText,
   FolderOpen,
   MicrophoneSlash,
   Sparkle,
@@ -24,6 +23,7 @@ import {
   Warning,
 } from '@phosphor-icons/react';
 import { Spinner } from '@/shade/components/ui/spinner';
+import { CopyIcon } from '@/shade/components/CopyIcon';
 import { BackButton } from '@/shade/components/BackButton';
 import { isDiscarded } from '@/shade/lib/recording-marks';
 import { isTrashed, loadTrash, onTrashChange, restoreMeeting } from '@/shade/lib/meeting-trash';
@@ -282,7 +282,7 @@ function SummaryBlock({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="summary-body"
-        className="group flex min-h-[72px] w-full items-center gap-3 rounded-tile bg-card p-3 pr-6 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex min-h-[72px] w-full items-center gap-3 rounded-tile bg-card p-3 pr-6 text-left transition-colors hover:bg-[color-mix(in_srgb,hsl(var(--card))_96%,hsl(var(--foreground)))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-input" aria-hidden>
           <Sparkle className="size-5 text-muted-foreground" />
@@ -359,7 +359,7 @@ function CopyButton({ disabled, getText }: { disabled: boolean; getText: () => P
       aria-label={disabled ? `${t('copy')}: ${t('nothingToCopy')}` : undefined}
       className="min-w-[180px]"
     >
-      {state === 'busy' ? <Spinner tone="inherit" /> : state === 'done' ? <Check weight="bold" /> : <ClipboardText />}
+      {state === 'busy' ? <Spinner tone="inherit" /> : state === 'done' ? <Check weight="bold" /> : <CopyIcon />}
       <span aria-live="polite">{state === 'done' ? t('copiedShort') : t('copy')}</span>
     </Button>
   );
