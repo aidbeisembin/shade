@@ -29,7 +29,7 @@
 | **Схемы адресов (deep-link), автозапуск** | Не используются: плагинов `deep-link` и `autostart` нет | `src-tauri/Cargo.toml` (список плагинов) | Если понадобятся, давать свои имена |
 | **Разрешения macOS** (микрофон, запись экрана, системный звук) | TCC хранит разрешения по bundle id и подписи; подпись ad-hoc (`signingIdentity: "-"`) | `src-tauri/Info.plist`, `src-tauri/entitlements.plist`, `tauri.conf.json` | Свой `identifier`. Ad-hoc подпись меняется при каждой сборке, macOS может спрашивать повторно |
 | **Автообновление** | `plugins.updater` в `tauri.conf.json` | `src-tauri/tauri.conf.json` (`plugins.updater`, `bundle.createUpdaterArtifacts`); `src-tauri/src/lib.rs:469`; `src/hooks/useUpdateCheck.ts:20-46` | Адрес и ключ исходного проекта убраны (`endpoints: []`, `pubkey: ""`, `createUpdaterArtifacts: false`) |
-| **Аналитика** (PostHog) | `user_id` в `analytics.json` (plugin-store); запасной вариант в `sessionStorage` | `src/lib/analytics.ts:168-196`; `src-tauri/src/analytics/commands.rs:10-21` | По умолчанию выключена (`analyticsOptedIn: false`). Ключ проекта PostHog исходного проекта не трогали; если аналитика не нужна, его стоит убрать отдельной правкой ядра |
+| **Аналитика** | Удалена 17.11.2026 (раздел 10). Старый `analytics.json` (plugin-store) у пользователей остаётся, его никто не читает | Нет | Нечего изолировать |
 
 ## 2. Модели: путь и запасной путь
 
@@ -37,7 +37,7 @@
 
 В коде остался запасной путь: `dirs::data_dir()` плюс папка с именем исходного проекта плюс `models` (`whisper_engine/whisper_engine.rs:154`, `parakeet_engine/parakeet_engine.rs:294`, `summary/summary_engine/model_manager.rs:148`). Он срабатывает, только когда ядро не передало папку; в обычной работе не используется. Это путь данных, его не переименовывать.
 
-Адрес скачивания Parakeet ведёт на сервер исходного проекта (`parakeet_engine.rs:127`). Это внешний сервис, а не путь данных; решение по нему отдельное.
+Parakeet скачивается с Hugging Face (`istupakov/parakeet-tdt-0.6b-v*-onnx`, закреплённый коммит), у каждого файла в коде размер и SHA-256 (`parakeet_engine.rs`, `PARAKEET_V3_ARTIFACTS`, `PARAKEET_V2_ARTIFACTS`). Раздел 10.
 
 ## 3. Сосуществование с исходным приложением
 
@@ -84,10 +84,9 @@
 
 ### Что сознательно не менялось
 
-- **Технические ключи хранилищ окна** с именем исходного проекта: ключ ширины панели транскрипта (`src/components/MeetingDetails/MeetingDetailsSplitView.tsx:6`), имя базы IndexedDB с резервной копией транскрипта (`src/services/indexedDBService.ts:34`), ключ `user_id` в `sessionStorage` (`src/lib/analytics.ts:188,191`). Переименование потеряло бы данные.
+- **Технические ключи хранилищ окна** с именем исходного проекта: ключ ширины панели транскрипта (`src/components/MeetingDetails/MeetingDetailsSplitView.tsx:6`), имя базы IndexedDB с резервной копией транскрипта (`src/services/indexedDBService.ts:34`). Переименование потеряло бы данные.
 - **Пути старой базы Homebrew** с именем исходного проекта (`src/components/DatabaseImport/HomebrewDatabaseDetector.tsx:15-16`, `src/contexts/OnboardingContext.tsx:180`): это адреса, где лежит база прежней установки, их нельзя менять.
-- **Запасной путь моделей** и **адрес скачивания Parakeet**: раздел 2.
-- **Ключ PostHog** исходного проекта (`analytics/commands.rs:12`): внешний сервис, решение отдельное.
+- **Запасной путь моделей**: раздел 2.
 - Права в `capabilities` (`updater:default`, `process:default`). Проверка обновлений падает с ошибкой «нет адресов», ошибка тихо глотается в `useUpdateCheck.ts:41-43`.
 
 ### Как проверить, что данные на своих местах
@@ -151,4 +150,19 @@
 
 | Файл | Что | Зачем |
 |---|---|---|
-| `src-tauri/tauri.conf.json` | В `app.security.csp.connect-src` добавлен `https://meetily-tau.vercel.app` | Окно отправляет отзыв обычным `fetch` в функцию `api/feedback` проекта Vercel «shade» (продакшен-домен проекта). Плагина `http` в ядре нет, поэтому запрос идёт из окна, и без строки CSP его блокирует WebView. Если домен проекта сменится, менять здесь и `FEEDBACK_ORIGIN` в `src/shade/lib/feedback/send.ts` (`docs/ui/feedback.md`) |
+| `src-tauri/tauri.conf.json` | В `app.security.csp.connect-src` добавлен `https://meetily-tau.vercel.app` | Окно отправляет отзыв обычным `fetch` в функцию `api/feedback` проекта Vercel «shade» (продакшен-домен проекта). Плагина `http` в ядре нет, поэтому запрос идёт из окна, и без строки CSP его блокирует WebView. Если домен проекта сменится, менять здесь и `FEEDBACK_URLS` в `src/shade/lib/feedback/send.ts` (`docs/ui/feedback.md`). С 17.11.2026 доменов два, раздел 10 |
+
+## 10. Правки ядра: без инфраструктуры исходного проекта
+
+Разрешение владельца 2026-11-17: источники загрузки, удаление аналитики, сборка. Форматы и пути пользовательских данных не менялись; удалены только команды аналитики. Решение и причины: `docs/case/decisions.md`, 2026-11-17. Коммиты `fix(core): …` этой ветки.
+
+| Файл | Что | Зачем |
+|---|---|---|
+| `src-tauri/src/parakeet_engine/parakeet_engine.rs` | Источник v3 на Hugging Face (закреплённый коммит); `ArtifactSpec.sha256` у каждого файла v2 и v3; сумма считается после скачивания и у файла нужного размера, найденного во время загрузки; неверная: файл удаляется и качается заново один раз, затем ошибка. Обзор моделей по-прежнему по размерам. Тесты: `cargo test -p shade --lib parakeet_engine` | Сервер исходного проекта может пропасть; файл с неверной суммой не должен стать моделью |
+| `src-tauri/build/ffmpeg.rs` | Адрес, SHA-256 архива и бинарника для каждой платформы (сборки Мартина Ридля, Windows: Gyan); кэш берётся только при совпадении суммы; поддержка `.tar.xz` убрана (все архивы `.zip`) | Релизы чужого репозитория могут пропасть или поменяться |
+| `src-tauri/Cargo.toml` | Удалён `posthog-rs`; `sha2` в зависимостях приложения (уже был в сборочных); из сборочных удалены `tar`, `xz2` | Аналитики нет; суммы моделей |
+| `src-tauri/src/analytics/` (удалён), `src-tauri/src/lib.rs` | Модуль и 25 команд `init_analytics`, `track_*`, `is_analytics_enabled` и др. сняты с регистрации | Shade не собирает статистику |
+| `src-tauri/src/audio/recording_commands.rs` | Убран блок «Step 3.5»: сбор длительностей и устройств и `track_meeting_ended` при остановке | То же |
+| `src-tauri/src/lib_old_complex.rs` (удалён) | Мёртвый файл, не подключался ни одним `mod`; в нём был адрес PostHog | Чистота |
+| `src-tauri/tauri.conf.json` | `connect-src`: `https://aidbeisembin.com` (основной адрес отзывов) рядом с прежним доменом Vercel | Основной адрес на домене владельца, прежний запасной |
+
