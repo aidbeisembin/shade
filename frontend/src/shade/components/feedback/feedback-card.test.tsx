@@ -88,7 +88,7 @@ test('повторный клик «Отправить»: один запрос,
   expect(r.root.findAll((n) => n.props.role === 'status')).toHaveLength(1);
 });
 
-test('5 звёзд: оценка уходит сразу, карточка сворачивается в «Спасибо!» и уходит сама', async () => {
+test('5 звёзд: оценка уходит сразу, карточка сжимается в «Спасибо, отзыв отправлен» и уходит с ней', async () => {
   // Кадров в тестах нет: таймер вместо requestAnimationFrame, время движка ×20
   g.requestAnimationFrame = (cb: (t: number) => void) => setTimeout(() => cb(performance.now()), 8) as unknown as number;
   (g.document as Record<string, unknown>).addEventListener = () => undefined;
@@ -105,18 +105,20 @@ test('5 звёзд: оценка уходит сразу, карточка св�
     expect(calls).toHaveLength(1);
     expect(JSON.parse(calls[0].body)).toMatchObject({ rating: 5, text: '' });
     expect(r.root.findAll((n) => typeof n.type === 'string' && textOf(n).includes('GitHub'))).toHaveLength(0);
-    // Свернулась: заголовок «Спасибо!», звёзды скрыты от чтения с экрана, итог объявлен
-    const status = () => textOf(r.root.find((n) => n.props.role === 'status'));
-    expect(await waitFor(() => status() !== '')).toBe(true);
-    const card = r.root.find((n) => n.type === 'section');
-    expect(card.props['data-folded']).toBe(true);
-    expect(textOf(card)).toContain('Спасибо!');
-    expect(textOf(r.root.find((n) => n.props.role === 'status'))).toBe('Отзыв отправлен');
+    // Звезда допрыгала, ответ пришёл: плашка с галочкой вместо звёзд, итог объявлен
+    const card = () => r.root.find((n) => n.type === 'section');
+    expect(await waitFor(() => card().props['data-plaque'] === 'sent')).toBe(true);
+    expect(radios(r.root)).toHaveLength(0);
+    expect(textOf(r.root.find((n) => n.props.role === 'status'))).toBe('СпасибоОтзыв отправлен');
     expect(readPrompt().ratedAt).not.toBeNull();
     // Через THANKS_HOLD_MS (1,6 с движка) карточка уходит; закрытие не считается отказом
     expect(await waitFor(() => done === 1)).toBe(true);
     expect(readPrompt().dismissals).toBe(0);
     expect(calls).toHaveLength(1);
+    // Уходит с плашкой: шаг «закрыто» звёзды не возвращает (раньше они мелькали при уходе)
+    expect(card().props['data-step']).toBe('closed');
+    expect(card().props['data-plaque']).toBe('sent');
+    expect(radios(r.root)).toHaveLength(0);
   } finally {
     // Снять таймеры и пружины, дать циклу движка остановиться, потом убрать подставной rAF
     await act(async () => r?.unmount());

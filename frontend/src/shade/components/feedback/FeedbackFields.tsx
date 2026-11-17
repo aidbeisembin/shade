@@ -1,5 +1,5 @@
 // Общие части отзыва для карточки в доке (FeedbackCard) и формы в Настройках (FeedbackMorph):
-// поле текста со счётчиком, плашка итога, высота на пружине, ссылка на GitHub.
+// поле текста со счётчиком, плашка итога, высота и ширина на пружине, ссылка на GitHub.
 'use client';
 
 import * as React from 'react';
@@ -86,7 +86,11 @@ export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?
   const title = ok ? t('feedbackSent') : outcome === 'queued' ? t('feedbackQueued') : t('feedbackFailed');
   return (
     <div role="status" className="flex min-w-0 items-center gap-3">
-      <NoticeMark tone={ok ? 'success' : 'giants'} className={compact ? 'size-8 [&_svg]:size-4' : undefined}>
+      {/* Отправлено: зелёная галочка на зелёной подложке (--ok), не лаймом: так читается «готово» */}
+      <NoticeMark
+        tone={ok ? 'success' : 'giants'}
+        className={cn(ok && 'bg-[hsl(var(--ok)/0.14)] text-[hsl(var(--ok))]', compact && 'size-8 [&_svg]:size-4')}
+      >
         {ok ? <Check weight="bold" /> : <Warning />}
       </NoticeMark>
       <div className="min-w-0">
@@ -144,4 +148,47 @@ export function useSpringHeight<O extends HTMLElement, I extends HTMLElement>() 
     };
   }, [s]);
   return { outer, inner };
+}
+
+/**
+ * Ширина карточки на той же пружине MORPH: в плашке итога карточка сжимается по содержимому
+ * (fit), в остальных шагах занимает место до max. Содержимое сразу раскладывается под итоговую
+ * ширину (content), рамка (frame) догоняет его на пружине, край обрезает. Пружина только при
+ * смене fit; окно и язык меняют ширину сразу. Нет DOM (тесты): ничего не делает.
+ */
+export function useSpringWidth<F extends HTMLElement>(content: React.RefObject<HTMLElement>, fit: boolean, max: number) {
+  const frame = React.useRef<F>(null);
+  const prevFit = React.useRef<boolean | null>(null);
+  const [s] = React.useState(() =>
+    spring(-1, {
+      ...MORPH,
+      precision: 0.5,
+      onUpdate: (w) => {
+        if (frame.current && w >= 0) frame.current.style.width = `${w.toFixed(1)}px`;
+      },
+    }),
+  );
+  useIsoLayoutEffect(() => {
+    const box = frame.current;
+    const el = content.current;
+    const host = box?.parentElement;
+    if (!box || !el || !host) return;
+    const measure = (animate: boolean) => {
+      const room = Math.min(max, host.clientWidth);
+      el.style.maxWidth = `${room}px`;
+      el.style.width = fit ? 'max-content' : `${room}px`;
+      const w = el.offsetWidth;
+      if (s.target >= 0 && Math.abs(w - s.target) < 0.5) return;
+      if (animate && s.target >= 0) s.to(w);
+      else s.set(w);
+    };
+    measure(prevFit.current !== null && prevFit.current !== fit);
+    prevFit.current = fit;
+    const ro = new ResizeObserver(() => measure(false));
+    ro.observe(host);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fit, max, s]);
+  React.useEffect(() => () => s.stop(), [s]);
+  return frame;
 }
