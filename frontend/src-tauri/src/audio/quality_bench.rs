@@ -3,7 +3,7 @@
 //! Запуск (звук и текст встречи только локально, в репозиторий и в отчёт идут одни цифры):
 //! ```text
 //! SHADE_BENCH_DIR=/tmp/shade-measure \
-//! SHADE_BENCH_PARAKEET=~/Library/Application\ Support/io.github.katanana23.shade/models \
+//! SHADE_BENCH_PARAKEET=~/Library/Application\ Support/com.aidbeisembin.shade/models \
 //! CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE \
 //! cargo test --release -p shade --lib quality_bench::bench_real_meeting -- --ignored --nocapture
 //! ```

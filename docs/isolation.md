@@ -33,7 +33,7 @@
 
 ## 2. Модели: путь и запасной путь
 
-Модели (Whisper, Parakeet, встроенная LLM) лежат в `~/Library/Application Support/io.github.katanana23.shade/models/`, путь берётся из `app_data_dir()`, то есть от `identifier`. Код путей моделей не менялся.
+Модели (Whisper, Parakeet, встроенная LLM) лежат в `~/Library/Application Support/com.aidbeisembin.shade/models/`, путь берётся из `app_data_dir()`, то есть от `identifier`. Код путей моделей не менялся.
 
 В коде остался запасной путь: `dirs::data_dir()` плюс папка с именем исходного проекта плюс `models` (`whisper_engine/whisper_engine.rs:154`, `parakeet_engine/parakeet_engine.rs:294`, `summary/summary_engine/model_manager.rs:148`). Он срабатывает, только когда ядро не передало папку; в обычной работе не используется. Это путь данных, его не переименовывать.
 
@@ -52,7 +52,7 @@ Parakeet скачивается с Hugging Face (`istupakov/parakeet-tdt-0.6b-v*
 | Файл | Строка | Было | Стало |
 |---|---|---|---|
 | `frontend/src-tauri/tauri.conf.json` | 3 | имя исходного проекта | `"productName": "Shade"` |
-| `frontend/src-tauri/tauri.conf.json` | 5 | `identifier` исходного проекта | `"identifier": "io.github.katanana23.shade"` |
+| `frontend/src-tauri/tauri.conf.json` | 5 | `identifier` исходного проекта | `"identifier": "com.aidbeisembin.shade"` (с 17.11.2026, раздел 11; до этого `io.github.katanana23.shade`) |
 | `frontend/src-tauri/tauri.conf.json` | 15 | имя исходного проекта | `"title": "Shade"` |
 | `frontend/src-tauri/tauri.conf.json` | 91 | `"createUpdaterArtifacts": true` | `"createUpdaterArtifacts": false` |
 | `frontend/src-tauri/tauri.conf.json` | 115 | ключ исходного проекта | `"pubkey": ""` |
@@ -91,7 +91,7 @@ Parakeet скачивается с Hugging Face (`istupakov/parakeet-tdt-0.6b-v*
 
 ### Как проверить, что данные на своих местах
 
-1. `ls ~/Library/Application\ Support/` → есть `io.github.katanana23.shade/` и, после первого сохранения шаблона или настроек уведомлений, `Shade/`.
+1. `ls ~/Library/Application\ Support/` → есть `com.aidbeisembin.shade/` и, после первого сохранения шаблона или настроек уведомлений, `Shade/`.
 2. Сделать запись → файлы в `~/Movies/Shade/`.
 
 ## 5. Правки ядра сверх патча идентичности (запись, восстановление, сохранение)
@@ -166,3 +166,17 @@ Parakeet скачивается с Hugging Face (`istupakov/parakeet-tdt-0.6b-v*
 | `src-tauri/src/lib_old_complex.rs` (удалён) | Мёртвый файл, не подключался ни одним `mod`; в нём был адрес PostHog | Чистота |
 | `src-tauri/tauri.conf.json` | `connect-src`: `https://aidbeisembin.com` (основной адрес отзывов) рядом с прежним доменом Vercel | Основной адрес на домене владельца, прежний запасной |
 
+## 11. Правки ядра: идентификатор `com.aidbeisembin.shade`
+
+Разрешение владельца 2026-11-17: только `identifier` в `tauri.conf.json`, поле `repository` в `Cargo.toml` и комментарии с путями. Команды, события, форматы данных, миграции базы и ключи хранилищ не менялись. Коммит `fix(core): идентификатор com.aidbeisembin.shade`.
+
+| Файл | Что | Зачем |
+|---|---|---|
+| `src-tauri/tauri.conf.json` | `identifier`: `io.github.katanana23.shade` → `com.aidbeisembin.shade` | Перевёрнутый домен владельца `aidbeisembin.com`. Прежний ник GitHub освобождён и может достаться кому угодно |
+| `src-tauri/src/config.rs` | Комментарий у констант папок данных: ссылка на `scripts/migrate-identifier.sh` | Смена `identifier` отрывает данные; перенос внешним скриптом |
+| `src-tauri/src/audio/quality_bench.rs` | Путь к моделям в комментарии с примером запуска | Папка данных теперь по новому `identifier` |
+| `src-tauri/Cargo.toml` | `repository` → `https://github.com/aidbeisembin/shade` | Новый ник GitHub (коммит со ссылками) |
+
+Вместе с `identifier` переезжают папки `~/Library/Application Support/<identifier>`, `Caches/<identifier>`, `WebKit/<identifier>` (localStorage окна), а также, если есть, `Logs`, `HTTPStorages`, `Saved Application State`, `Preferences/<identifier>.plist`. Перенос: `scripts/migrate-identifier.sh` (`docs/FORK.md`, раздел 2). Совместимости со старым `identifier` в коде нет. Разрешения macOS (микрофон, звук системы) привязаны к bundle id: их нужно дать заново.
+
+Проверка CI: в задании `migrate-from-aid` добавлен шаг `bash scripts/test-migrate-identifier.sh` (`.github/workflows/shade-check.yml`).
