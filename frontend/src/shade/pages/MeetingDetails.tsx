@@ -17,7 +17,6 @@ import {
   Check,
   CaretDown,
   ClipboardText,
-  DotsThree,
   FolderOpen,
   MicrophoneSlash,
   Sparkle,
@@ -59,8 +58,6 @@ import { cn } from '@/shade/lib/utils';
 import { t, tf, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { usePermissionCheck } from '@/hooks/usePermissionCheck';
-import { RerecognizeDialog } from '@/shade/components/RerecognizeDialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/shade/components/ui/dropdown-menu';
 import { useLang } from '@/shade/lib/lang';
 import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
 import { useFeedbackOffer } from '@/shade/lib/feedback/store';
@@ -163,14 +160,10 @@ const CAUSE: Record<Cause, StringKey> = {
  */
 function SilentRecording({
   folder,
-  canRetranscribe,
-  onRetranscribe,
   onOpenFolder,
   onDelete,
 }: {
   folder: string | null;
-  canRetranscribe: boolean;
-  onRetranscribe: () => void;
   onOpenFolder: () => void;
   onDelete: () => void;
 }) {
@@ -207,17 +200,10 @@ function SilentRecording({
       </h2>
       <p className="mt-1 max-w-xl text-[15px] text-muted-foreground">{cause ? t(CAUSE[cause]) : t('loading')}</p>
       <div className="mt-5 flex flex-wrap gap-2">
-        {needModel ? (
+        {needModel && (
           <Button asChild size="main" className={ON_ROLE_MAIN}>
             <Link href="/settings?tab=transcription">{t('downloadModel')}</Link>
           </Button>
-        ) : (
-          canRetranscribe && (
-            <Button size="main" className={ON_ROLE_MAIN} onClick={onRetranscribe}>
-              <ArrowClockwise />
-              {t('retranscribe')}
-            </Button>
-          )
         )}
         <Button variant="ghost" size="main" className={ON_ROLE_SOFT} onClick={onOpenFolder}>
           <FolderOpen />
@@ -258,16 +244,16 @@ function SummaryBlock({
     }
   }, [summary.kind]);
 
-  // Итоги и всё, что делает ИИ: полоса Indigo, текст #111 в обеих темах.
+  // Итоги: спокойная нейтральная полоса (не акцент экрана, решение владельца 2026-11-17).
   // Пока итоги готовятся: та же полоса, что у готовых (та же высота, без прыжка), в круге
   // Spinner, а на месте текста итогов Skeleton на нейтральной плитке, без мигания. Единственный
   // эффект экрана: свечение «думает» у нижнего края транскрипта (VoiceGlow, docs/ui/foundations.md «Эффекты»)
   if (summary.kind === 'processing') {
     return (
       <section className="flex flex-col gap-2" role="status" aria-live="polite" aria-busy="true">
-        <div className="shade-role shade-role-indigo flex items-center gap-2 rounded-tile p-3">
+        <div className="flex items-center gap-2 rounded-tile bg-muted p-3">
           <div className="flex min-h-12 flex-1 items-center gap-3 pr-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-black/10" aria-hidden>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-input" aria-hidden>
               <Spinner />
             </span>
             <span className="min-w-0">
@@ -296,19 +282,18 @@ function SummaryBlock({
   if (summary.kind !== 'ready') return null;
 
   return (
-    // Indigo только у полосы-заголовка; раскрытый текст на нейтральной плитке под ней,
-    // чтобы длинные итоги не заливали экран сиреневым
+    // Полоса-заголовок нейтральная; раскрытый текст на плитке под ней
     <section className="flex flex-col gap-2" aria-labelledby="summary-title">
-      <div className="shade-role shade-role-indigo flex items-center gap-2 rounded-tile p-3">
+      <div className="flex items-center gap-2 rounded-tile bg-muted p-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="summary-body"
-          className="flex min-h-12 flex-1 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-h-12 flex-1 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-input/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-black/10" aria-hidden>
-            <Sparkle className="size-5" />
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-input" aria-hidden>
+            <Sparkle className="size-5 text-muted-foreground" />
           </span>
           <span id="summary-title" className="text-lg font-bold tracking-tight">
             {t('summary')}
@@ -319,7 +304,7 @@ function SummaryBlock({
           <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
         </button>
         {onRetry && (
-          <Button variant="ghost" className={cn('h-12 px-5', ON_ROLE_SOFT)} onClick={onRetry}>
+          <Button variant="ghost" className="h-12 bg-input px-5 hover:bg-input/70" onClick={onRetry}>
             <ArrowClockwise />
             {t('summaryRedo')}
           </Button>
@@ -510,7 +495,6 @@ function MeetingDetailsContent() {
     void loadTrash().then(sync);
     return onTrashChange(sync);
   }, [meetingId]);
-  const [retranscribe, setRetranscribe] = useState(false);
 
   const meta = m.meeting.kind === 'ready' ? m.meeting.meta : null;
   // Запись оборвал сбой, встречу восстановили при запуске (lib/crash-recovery.ts)
@@ -602,8 +586,6 @@ function MeetingDetailsContent() {
     recovered && { label: t('metaRecording'), value: recoveredLabel(recovered) },
     { label: t('metaReplies'), value: formatNumber(m.hasMore ? m.total : visible.length) },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
-  // «Распознать заново» есть у каждой встречи с сохранённым звуком (не бета-функция): язык и слова из настроек
-  const canRetranscribe = Boolean(meta.folder_path);
   const summaryReady = m.summary.kind === 'ready' ? m.summary.markdown : null;
   // «Подвести итоги» только когда есть из чего: запись остановлена (во время записи
   // кнопки нет) и в тексте не меньше MIN_SUMMARY_WORDS слов (speech.ts). Иначе модель
@@ -645,8 +627,8 @@ function MeetingDetailsContent() {
   const actions = (
     <>
       {showGenerate && (
-        // 56 px, Indigo: роль итогов и ИИ
-        <Button variant="indigo" size="main" onClick={generate}>
+        // 56 px, нейтральная: итоги не главный акцент экрана
+        <Button variant="secondary" size="main" onClick={generate}>
           <Sparkle />
           {t('generateSummary')}
         </Button>
@@ -662,27 +644,6 @@ function MeetingDetailsContent() {
       <IconAction label={t('openRecordingFolder')} onClick={openFolder}>
         <FolderOpen />
       </IconAction>
-      {canRetranscribe && !isRecording && (
-        // Меню «Ещё»: «Распознать заново» не главная кнопка страницы
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" size="icon" className="size-14 [&_svg]:size-6" aria-label={t('rerecMenu')}>
-                  <DotsThree weight="bold" />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>{t('rerecMenu')}</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent>
-            <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
-              <ArrowClockwise />
-              {t('rerecTitle')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
       <IconAction label={t('deleteMeeting')} onClick={() => setConfirmDelete(true)}>
         <Trash />
       </IconAction>
@@ -707,8 +668,6 @@ function MeetingDetailsContent() {
       {empty ? (
         <SilentRecording
           folder={meta.folder_path ?? null}
-          canRetranscribe={canRetranscribe}
-          onRetranscribe={() => setRetranscribe(true)}
           onOpenFolder={openFolder}
           onDelete={() => setConfirmDelete(true)}
         />
@@ -740,17 +699,6 @@ function MeetingDetailsContent() {
       )}
 
       <DeleteMeetingDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={shownTitle} onConfirm={remove} />
-      {canRetranscribe && (
-        <RerecognizeDialog
-          open={retranscribe}
-          onOpenChange={setRetranscribe}
-          meetingId={meta.id}
-          folderPath={meta.folder_path ?? null}
-          hasSummary={m.summary.kind === 'ready'}
-          onDone={() => void m.retry()}
-          onUpdateSummary={generate}
-        />
-      )}
     </Page>
   );
 }

@@ -565,11 +565,6 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         if (e.payload?.phase !== 'startup') update({ recognitionFailed: true });
       }),
       subscribe('transcript-error', () => update({ recognitionFailed: true })),
-      // «Распознать заново» закончилось: текст встречи новый, название по умолчанию (если оно ещё такое) придумывается по нему
-      subscribe<{ meeting_id?: string }>('retranscription-complete', (e) => {
-        const id = e.payload?.meeting_id;
-        if (id) void titler.titleOne(id, { mode: 'auto' });
-      }),
       subscribe('transcription-warning', () => update({ recognitionFailed: true })),
       // Остановка из трея: tray.rs шлёт recording-stop-complete после stop_recording
       subscribe<boolean>('recording-stop-complete', (e) => {
