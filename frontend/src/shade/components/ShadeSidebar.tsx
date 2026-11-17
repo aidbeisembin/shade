@@ -115,7 +115,7 @@ export function ShadeSidebar() {
   useEffect(() => markTitlebarOverlay(), []);
 
   return (
-    <aside className="flex h-full w-[72px] shrink-0 flex-col items-center rounded-tile bg-card py-3">
+    <aside className="flex h-full w-[72px] shrink-0 flex-col items-center rounded-frame bg-card py-3">
       <nav className="flex flex-1 flex-col items-center gap-2" aria-label={t('navMain')}>
         <BrandLink />
         <RecordingLink pathname={pathname} />
