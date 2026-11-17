@@ -11,7 +11,7 @@ import * as React from 'react';
 import { toast, type ExternalToast } from 'sonner';
 import { Bell, Check, Warning } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
-import { Notice, type NoticeTone } from '@/shade/components/ui/notice';
+import { Notice, NOTICE_ACTION, type NoticeTone } from '@/shade/components/ui/notice';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { t as shadeT } from '@/shade/strings';
 import { translate } from './legacy-i18n';
@@ -99,6 +99,7 @@ function ShadeToast({ id, kind, title, data }: { id: string | number; kind: Kind
         !action ? undefined : isActionObject(action) ? (
           <Button
             size="sm"
+            className={NOTICE_ACTION}
             onClick={(event) => {
               action.onClick(event);
               if (!event.defaultPrevented) close();

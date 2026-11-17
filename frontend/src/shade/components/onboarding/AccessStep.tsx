@@ -106,7 +106,7 @@ function DemoPrompt({ state }: { state: DemoState }) {
         </div>
       </div>
       <span className="shade-ob-prompt-done absolute flex items-center gap-2 text-[17px] font-semibold text-primary-ink">
-        <Check weight="bold" className="size-6" />
+        <Check weight="bold" className="size-5" />
         {t('obGranted')}
       </span>
     </div>
@@ -144,7 +144,7 @@ function AccessCard({
 
   return (
     <div className="flex min-h-[72px] items-center gap-3 rounded-nested bg-muted py-3 pl-4 pr-3">
-      <Icon className="size-6 shrink-0 text-foreground" aria-hidden />
+      <Icon className="size-5 shrink-0 text-foreground" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold leading-6">{t(TITLE[kind])}</p>
         <p

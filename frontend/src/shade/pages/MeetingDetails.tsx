@@ -386,7 +386,7 @@ function IconAction({ label, onClick, children }: { label: string; onClick: () =
         <Button
           variant="secondary"
           size="icon"
-          className="size-14 [&_svg]:size-6"
+          className="size-14 [&_svg]:size-5"
           onClick={onClick}
           aria-label={label}
         >

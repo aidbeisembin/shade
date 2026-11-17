@@ -33,7 +33,7 @@ import { isDiscarded, isKept, marksSnapshot, onMarksChange, purgeDiscarded, setE
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { cn } from '@/shade/lib/utils';
 import { friendlyError, type FriendlyError } from '@/shade/lib/meeting';
-import { dateGroup, displayTitle, shownTitle, type DateGroup } from '@/shade/lib/format';
+import { dateGroup, displayTitle, displayTitleBrief, shownTitle, type DateGroup } from '@/shade/lib/format';
 import { t, tDays, tf, tp, trashDays, type StringKey } from '@/shade/strings';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 import { useImportDialog } from '@/contexts/ImportDialogContext';
@@ -181,7 +181,7 @@ function EmptyFilter({
   return (
     <div className="flex flex-col items-start py-10">
       <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden>
-        <Icon className="size-6" />
+        <Icon className="size-5" />
       </span>
       <h2 className="mt-4 text-[22px] font-bold leading-7 tracking-tight">{title}</h2>
       <p className="mt-1 max-w-md text-[15px] text-muted-foreground">{hint}</p>
@@ -242,7 +242,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
     try {
       await restoreMeeting(m.id);
       onRestored();
-      shadeToast.success(t('restored'), { description: displayTitle(m.title) });
+      shadeToast.success(t('restored'), { description: displayTitleBrief(m.title) });
     } catch (error) {
       shadeToast.error(t('restoreFailed'), { description: String(error) });
     } finally {
@@ -252,7 +252,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
   const eraseOne = async (m: TrashedMeeting) => {
     try {
       await deleteForever(m.id);
-      shadeToast.success(t('deletedForever'), { description: displayTitle(m.title) });
+      shadeToast.success(t('deletedForever'), { description: displayTitleBrief(m.title) });
     } catch (error) {
       shadeToast.error(t('deleteFailed'), { description: String(error) });
       throw error;
@@ -578,7 +578,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
                 <Button
                   variant="secondary"
                   size="icon"
-                  className={cn('shade-search-toggle relative size-14 [&_svg]:size-6', searchOpen && 'is-open', query && !searchOpen && 'has-query')}
+                  className={cn('shade-search-toggle relative size-14 [&_svg]:size-5', searchOpen && 'is-open', query && !searchOpen && 'has-query')}
                   // Не отдаём фокус при нажатии: иначе пустое поле свернётся раньше клика
                   onMouseDown={(e) => searchOpen && e.preventDefault()}
                   onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
@@ -597,7 +597,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
         {betaFeatures.importAndRetranscribe && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="secondary" size="icon" className="size-14 [&_svg]:size-6" onClick={() => openImportDialog()} aria-label={t('importAudio')}>
+              <Button variant="secondary" size="icon" className="size-14 [&_svg]:size-5" onClick={() => openImportDialog()} aria-label={t('importAudio')}>
                 <UploadSimple />
               </Button>
             </TooltipTrigger>
@@ -687,7 +687,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
           {state.kind === 'ready' && search && groups.main.length > 0 && filtered.length === 0 && search.pending === 0 && (
             <div className="flex flex-col items-start py-10">
               <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden>
-                <MagnifyingGlass weight="bold" className="size-6" />
+                <MagnifyingGlass weight="bold" className="size-5" />
               </span>
               <h2 className="mt-4 text-[22px] font-bold leading-7 tracking-tight">{t('nothingFound')}</h2>
               <p className="mt-1 text-[15px] text-muted-foreground">{t('nothingFoundHint')}</p>
