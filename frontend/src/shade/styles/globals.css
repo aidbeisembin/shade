@@ -118,13 +118,13 @@
   }
 
   .dark {
-    /* Тёмная тема: окно чёрное #000000, плитки почти чёрные #0A0A0A, вложенная
-       #1A1A1A. Текст #FFFFFF и #B3B3B3 (9,8:1 на плитке). Плитка и всё на ней
-       как до 2026-11-16, окно чёрное с 2026-11-16 (docs/ui/foundations.md) */
+    /* Тёмная тема: окно чёрное #000000, плитки почти чёрные #121212 (чуть светлее
+       окна, чтобы край читался), вложенная #212121. Текст #FFFFFF и #B3B3B3 (9:1 на
+       плитке). Окно чёрное с 2026-11-16, плитка #121212 с 2026-11-17 (docs/ui/foundations.md) */
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
 
-    --card: 0 0% 4%;
+    --card: 0 0% 7%;
     --card-foreground: 0 0% 100%;
     --popover: 0 0% 13%;
     --popover-foreground: 0 0% 100%;
@@ -141,26 +141,26 @@
     --giants-ink: 18 81% 57%;
     --record: 4 74% 49%;
 
-    --secondary: 0 0% 10%;
+    --secondary: 0 0% 13%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 10%;
-    /* Подписи: #B3B3B3, 9,8:1 на почти чёрной плитке */
+    --muted: 0 0% 13%;
+    /* Подписи: #B3B3B3, около 9:1 на почти чёрной плитке */
     --muted-foreground: 0 0% 70%;
 
-    --accent: 0 0% 10%;
+    --accent: 0 0% 13%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 4 74% 49%;
     --destructive-ink: 4 92% 69%;
 
-    --border: 0 0% 14%;
-    --input: 0 0% 15%;
+    --border: 0 0% 17%;
+    --input: 0 0% 18%;
     --ring: 70 94% 73%;
 
     --loader: 0 0% 64%;
-    --skeleton: 0 0% 12%;
+    --skeleton: 0 0% 15%;
 
-    --nav-active: 0 0% 22%;
+    --nav-active: 0 0% 25%;
     --glass-tint: 0 0% 8%;
     --glass-alpha: 0.72;
     --glass-rim: 0.16;
@@ -646,8 +646,8 @@ html body[data-scroll-locked] {
 }
 
 .dark {
-  --nest-card: 0 0% 9%;
-  --nest-muted: 0 0% 14%;
+  --nest-card: 0 0% 12%;
+  --nest-muted: 0 0% 17%;
 }
 
 /* Кнопки-иконки (круглые, без текста: крестик, поиск, импорт, действия встречи,
@@ -667,8 +667,8 @@ html body[data-scroll-locked] {
 }
 
 .dark {
-  --icon-btn-hover: 0 0% 16%;
-  --nest-icon-btn-hover: 0 0% 20%;
+  --icon-btn-hover: 0 0% 19%;
+  --nest-icon-btn-hover: 0 0% 23%;
 }
 
 .shade-nest {
