@@ -34,6 +34,7 @@ import { isMicBlocker } from '@/shade/lib/recording';
 import { MicAccessCard, MicHint, micHintKind, type MicHintKind } from '@/shade/components/MicNotices';
 import { useRecordingOutcome } from '@/shade/lib/recording-outcome';
 import { useNoticeStackAnchor } from '@/shade/lib/notice-stack';
+import { NOTICE_SECONDARY } from '@/shade/components/ui/notice';
 import { formatTimer } from '@/shade/lib/format';
 import { onRecordingLevel, voiceAmount } from '@/shade/lib/recording-level';
 import { cn } from '@/shade/lib/utils';
@@ -130,7 +131,7 @@ function SpeechHint({ heard }: { heard: boolean }) {
             {t('recognitionModel')}: {model} · {t('recognitionLanguage')}: {language}
           </p>
         </div>
-        <Button asChild size="sm" variant="secondary" className="shrink-0">
+        <Button asChild size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')}>
           <Link href="/settings?tab=transcription">
             <Waveform />
             {t('openTranscriptionSettings')}
@@ -148,7 +149,7 @@ function SpeechHint({ heard }: { heard: boolean }) {
           {silenceCause(sound)}
         </p>
       </div>
-      <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => setOpen(true)}>
         <SpeakerHigh />
         {t('soundCheck')}
       </Button>

@@ -163,7 +163,7 @@
     --accent-foreground: 0 0% 100%;
 
     --destructive: 4 74% 49%;
-    --destructive-ink: 4 92% 69%;
+    --destructive-ink: 4 92% 75%;
 
     --border: 0 0% 17%;
     --input: 0 0% 18%;
@@ -369,7 +369,7 @@
   border: 0;
   border-radius: 9999px;
   background: hsl(var(--foreground) / 0.06);
-  color: hsl(var(--muted-foreground) / 0.7);
+  color: hsl(var(--muted-foreground) / var(--close-glyph-alpha));
 }
 
 :root .shade-toaster [data-sonner-toast][data-styled='true'] [data-close-button] svg {
@@ -382,7 +382,7 @@
   /* Как у всех кнопок-иконок (.shade-icon-btn-glass): подложка на тон ближе к тексту, значок прежний */
   background: hsl(var(--foreground) / var(--glass-btn-hover));
   border-color: transparent;
-  color: hsl(var(--muted-foreground) / 0.7);
+  color: hsl(var(--muted-foreground) / var(--close-glyph-alpha));
 }
 
 .shade-toaster [data-sonner-toast][data-styled='true'] [data-close-button]:focus-visible {
@@ -714,11 +714,14 @@ html body[data-scroll-locked] {
 :root {
   --glass-btn: 0.06;
   --glass-btn-hover: 0.12;
+  /* Крестик закрытия: доля тона подписи; в тёмной выше, иначе на круге-подложке он Lc 34 (check:contrast) */
+  --close-glyph-alpha: 0.7;
 }
 
 .dark {
   --glass-btn: 0.11;
   --glass-btn-hover: 0.17;
+  --close-glyph-alpha: 0.9;
 }
 
 .shade-icon-btn-glass {

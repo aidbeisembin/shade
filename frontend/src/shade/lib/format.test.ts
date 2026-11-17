@@ -1,6 +1,6 @@
 // Тесты форматов по языку (Intl): bun test src/shade (pnpm test).
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { dateGroup, displayTitle, formatDateTime, formatDuration, formatFileSize, formatNumber, formatOffset, formatShortDate, formatTime, formatVolume, isAutoTitle } from './format';
+import { dateGroup, displayTitle, displayTitleBrief, formatDateTime, formatDuration, formatFileSize, formatNumber, formatOffset, formatShortDate, formatTime, formatVolume, isAutoTitle } from './format';
 import { resetLangForTests, setLang } from './lang';
 
 const g = globalThis as unknown as Record<string, unknown>;
@@ -94,6 +94,13 @@ describe('названия встреч', () => {
     expect(displayTitle('Meeting 02_11_26_21_34_11', now)).toBe('Встреча 2 ноября, 21:34');
     setLang('en');
     expect(n(displayTitle('Meeting 02_11_26_21_34_11', now))).toBe('Meeting on November 2, 9:34 PM');
+  });
+  test('подпись под заголовком «Встреча сохранена»: без слова «Встреча», оно уже в заголовке', () => {
+    expect(displayTitleBrief('Meeting 02_11_26_21_34_11', now)).toBe('2 ноября, 21:34');
+    setLang('en');
+    expect(n(displayTitleBrief('Meeting 02_11_26_21_34_11', now))).toBe('November 2, 9:34 PM');
+    // своё название человека как есть
+    expect(displayTitleBrief('Weekly product sync', now)).toBe('Weekly product sync');
   });
   test('своё название человека как есть на любом языке', () => {
     expect(displayTitle('Weekly product sync', now)).toBe('Weekly product sync');

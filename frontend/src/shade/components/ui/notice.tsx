@@ -1,7 +1,7 @@
 // Уведомление Shade одно на всех: итог записи у капсулы (NoticeCard в RecordDock),
 // карточки про микрофон (MicNotices) и тосты (ShadeToaster, lib/toasts.tsx).
-// Плотное стекло, радиус плитки, внутри 20 px. Слева знак в круге 44 px на вложенной
-// поверхности (иконка 20 px), через 12 px текст; круг по центру блока текста. Круглый
+// Плотное стекло, радиус плитки, внутри 20 px. Слева знак в круге 44 px на подложке крестика
+// (иконка 20 px), через 12 px текст; круг по центру блока текста. Круглый
 // крестик в правом верхнем углу, 4 px сверху и справа (ui/close-button.tsx), справа у
 // содержимого запас под него. Действие либо в строке справа от текста (широкая карточка
 // у капсулы), либо под текстом по его левому краю (тост).
@@ -12,17 +12,27 @@ import * as React from 'react';
 import { CLOSE_RESERVE, CloseButton } from '@/shade/components/ui/close-button';
 import { cn } from '@/shade/lib/utils';
 
+/** Высота кнопки действия в уведомлении: как круглый крестик рядом (44 px), чтобы они стояли на одной линии одной высоты. */
+export const NOTICE_ACTION = 'h-11';
+
+/** Вторичная кнопка уведомления: та же высота и та же подложка, что у круга знака и крестика (--glass-btn), в обеих темах видна на карточке. */
+export const NOTICE_SECONDARY = `${NOTICE_ACTION} bg-[hsl(var(--foreground)/var(--glass-btn))] hover:bg-[hsl(var(--foreground)/var(--glass-btn-hover))]`;
+
 export type NoticeTone = 'neutral' | 'giants' | 'success' | 'error';
 
+// Подложка знака та же, что у крестика (CLOSE_BUTTON: тон текста на --glass-btn), чтобы круги слева и справа
+// были одним тоном в обеих темах. Раньше был bg-muted: в тёмной он равен подложке карточки (--popover) и круг пропадал.
+const MARK_BG = 'bg-[hsl(var(--foreground)/var(--glass-btn))]';
+
 const MARK_TONE: Record<NoticeTone, string> = {
-  neutral: 'bg-muted text-muted-foreground',
+  neutral: `${MARK_BG} text-muted-foreground`,
   // «Не распознано» и предупреждения: мягкий тон Giants, знак тёмным Giants
   giants: 'bg-[hsl(var(--giants)/0.16)] text-giants-ink',
-  success: 'bg-muted text-primary-ink',
-  error: 'bg-muted text-destructive-ink',
+  success: `${MARK_BG} text-primary-ink`,
+  error: `${MARK_BG} text-destructive-ink`,
 };
 
-/** Знак уведомления: круг 44 px на вложенной поверхности, иконка 20 px. */
+/** Знак уведомления: круг 44 px на подложке как у крестика, иконка 20 px. */
 export function NoticeMark({ tone = 'neutral', children, className }: { tone?: NoticeTone; children: React.ReactNode; className?: string }) {
   return (
     <span
@@ -46,7 +56,7 @@ export interface NoticeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 
   tone?: NoticeTone;
   title: React.ReactNode;
   hint?: React.ReactNode;
-  /** Действия: кнопки. */
+  /** Действия: кнопки; в строке с крестиком ровно его высоты, NOTICE_ACTION (44 px). */
   actions?: React.ReactNode;
   /** inline: в строке перед крестиком; below: под текстом по его левому краю. */
   actionsPlacement?: 'inline' | 'below';

@@ -12,10 +12,11 @@
 
 import { useEffect, useState } from 'react';
 import { Check } from '@phosphor-icons/react';
-import { Notice } from '@/shade/components/ui/notice';
+import { Notice, NOTICE_ACTION, NOTICE_SECONDARY } from '@/shade/components/ui/notice';
+import { cn } from '@/shade/lib/utils';
 import { Button } from '@/shade/components/ui/button';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
-import { displayTitle } from '@/shade/lib/format';
+import { displayTitleBrief } from '@/shade/lib/format';
 import { t, type StringKey } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 
@@ -93,7 +94,7 @@ export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onC
   // Пока открыта «Проверить звук», карточка не уходит: иначе диалог закрылся бы вместе с ней
   useEffect(() => onHold?.('dialog', soundCheck), [onHold, soundCheck]);
 
-  const name = title ? displayTitle(title) : null;
+  const name = title ? displayTitleBrief(title) : null;
   const heading =
     stage === 'transcribing' ? t('finishTranscribing') : stage === 'saving' ? t('finishSaving') : stage === 'saved' ? t('finishSaved') : t(DISCARD_TITLE[reason]);
 
@@ -130,15 +131,15 @@ export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onC
         }
         actions={
           stage === 'saved' && onOpen ? (
-            <Button variant="secondary" className="h-10 shrink-0 px-4 text-sm font-medium" onClick={onOpen}>
+            <Button variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0 px-4 text-sm font-medium')} onClick={onOpen}>
               {t('finishOpen')}
             </Button>
           ) : stage === 'discarded' && reason === 'low-content' && onUndo ? (
-            <Button variant="secondary" className="h-10 shrink-0 px-4 text-sm font-medium" onClick={onUndo}>
+            <Button variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0 px-4 text-sm font-medium')} onClick={onUndo}>
               {t('undoDelete')}
             </Button>
           ) : suspectSound ? (
-            <Button variant="ghost" className="h-10 shrink-0 px-3 text-sm font-medium" onClick={() => setSoundCheck(true)}>
+            <Button variant="ghost" className={cn(NOTICE_ACTION, 'shrink-0 px-3 text-sm font-medium')} onClick={() => setSoundCheck(true)}>
               {t('soundCheck')}
             </Button>
           ) : undefined

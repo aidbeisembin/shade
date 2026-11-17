@@ -30,7 +30,7 @@ import { purgeExpiredTrash, restoreMeeting, trashMeeting } from './meeting-trash
 import { shadeToast } from './toasts';
 import { runCrashRecovery } from './crash-recovery';
 import { stillBusy, titleMany, titler } from './title-service';
-import { displayTitle } from './format';
+import { displayTitleBrief } from './format';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 import { noteMeetingCompleted, noteMeetingUncounted } from '@/shade/lib/feedback/store';
@@ -299,7 +299,7 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         try {
           await restoreMeeting(meetingId);
           noteMeetingCompleted(meetingId);
-          shadeToast.success(t('restored'), { description: title ? displayTitle(title) : undefined });
+          shadeToast.success(t('restored'), { description: title ? displayTitleBrief(title) : undefined });
         } catch (error) {
           shadeToast.error(t('restoreFailed'), { description: String(error) });
         }
@@ -307,7 +307,7 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
       // Идёт новая запись: карточки у кнопки записи не видно, говорим уведомлением
       if (recordingNow.current) {
         shadeToast.info(t('lowContentTitle'), {
-          description: `${t('lowContentHint')}${title ? `: ${displayTitle(title)}` : ''}`,
+          description: `${t('lowContentHint')}${title ? `: ${displayTitleBrief(title)}` : ''}`,
           action: { label: t('undoDelete'), onClick: () => void undo() },
         });
         return;
