@@ -24,4 +24,4 @@ Shade работает на вашем Mac. У Shade нет своего сер�
 
 ## Вопросы
 
-Задайте вопрос в [issues репозитория](https://github.com/katanana23/shade/issues) или через форму отзыва в приложении.
+Задайте вопрос в [issues репозитория](https://github.com/aidbeisembin/shade/issues) или через форму отзыва в приложении.

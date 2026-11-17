@@ -25,7 +25,7 @@
 Нужны macOS на Apple Silicon, Xcode Command Line Tools, Rust, Node.js 22 и pnpm.
 
 ```bash
-git clone https://github.com/katanana23/shade
+git clone https://github.com/aidbeisembin/shade
 cd shade/frontend
 pnpm install --frozen-lockfile
 pnpm tauri:build

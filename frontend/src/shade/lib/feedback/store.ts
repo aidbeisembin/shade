@@ -27,7 +27,7 @@ import { flushQueue, macosFromUserAgent, sendFeedback, type SendDeps, type SendR
 
 export const PROMPT_KEY = 'shade.feedback.prompt.v1';
 export const ASK_KEY = 'shade.feedback.ask';
-export const GITHUB_URL = 'https://github.com/katanana23/shade';
+export const GITHUB_URL = 'https://github.com/aidbeisembin/shade';
 
 const storage = (): Storage | null => {
   try {
