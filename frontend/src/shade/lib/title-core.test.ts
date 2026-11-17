@@ -24,7 +24,7 @@ function world(opts: {
   uiLang?: 'ru' | 'en';
 }) {
   const meetings = new Map(opts.meetings.map((m) => [m.id, { ...m }]));
-  const calls = { generate: [] as Array<{ system: string; user: string; allowCloud: boolean }>, setAuto: [] as Array<{ id: string; expected: string; title: string; override: boolean }>, load: [] as string[], announced: [] as string[] };
+  const calls = { generate: [] as Array<{ system: string; user: string; allowCloud: boolean }>, setAuto: [] as Array<{ id: string; expected: string; title: string }>, load: [] as string[], announced: [] as string[] };
   const logs: TitleLog[] = [];
   const answers = [...(opts.answers ?? [])];
   const summary = [...(opts.summary ?? [])];
@@ -42,12 +42,12 @@ function world(opts: {
       if (a instanceof Error) throw a;
       return a ?? '';
     },
-    setAuto: async (id, expected, title, override) => {
-      calls.setAuto.push({ id, expected, title, override });
+    setAuto: async (id, expected, title) => {
+      calls.setAuto.push({ id, expected, title });
       const m = meetings.get(id);
       let r: SetResult = 'set';
       if (!m) r = 'missing';
-      else if (m.origin === 'manual' && !override) r = 'manual';
+      else if (m.origin === 'manual') r = 'manual';
       else if (m.title !== expected) r = 'changed';
       if (r === 'set' && m) {
         m.title = title;
@@ -55,7 +55,6 @@ function world(opts: {
       }
       return r;
     },
-    listDefaultTitled: async () => [...meetings.values()].filter((m) => m.title === DEFAULT || m.title.startsWith('Meeting ')).map((m) => ({ id: m.id, title: m.title })),
     summaryStatus: async () => (summary.length > 1 ? summary.shift()! : summary[0] ?? ''),
     trashed: (id) => (opts.trashed ?? []).includes(id),
     uiLang: () => opts.uiLang ?? 'ru',
@@ -93,7 +92,7 @@ describe('название: локальная модель', () => {
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out).toEqual({ status: 'set', title: 'Сроки релиза мобильного приложения' });
     expect(w.meetings.get('m1')!.title).toBe('Сроки релиза мобильного приложения');
-    expect(w.calls.setAuto).toEqual([{ id: 'm1', expected: DEFAULT, title: 'Сроки релиза мобильного приложения', override: false }]);
+    expect(w.calls.setAuto).toEqual([{ id: 'm1', expected: DEFAULT, title: 'Сроки релиза мобильного приложения' }]);
     expect(w.calls.announced).toEqual(['m1']);
     expect(w.calls.generate[0].allowCloud).toBe(false);
   });
@@ -164,25 +163,14 @@ describe('название: облачный провайдер', () => {
     await Promise.all([w.titler.watchSummary('m1'), w.titler.watchSummary('m1')]);
     expect(w.calls.generate).toHaveLength(1);
   });
-  test('массовое действие без подтверждения облаку ничего не шлёт; с подтверждением шлёт', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'] });
-    const none = await w.titler.backfill({ confirmedCloud: false });
-    expect(none.set).toBe(0);
-    expect(w.calls.generate).toHaveLength(0);
-    const yes = await w.titler.backfill({ confirmedCloud: true });
-    expect(yes.set).toBe(1);
-    expect(w.calls.generate[0].allowCloud).toBe(true);
-  });
 });
 
 describe('название: ручное главнее', () => {
-  test('переименовал человек: ни автоматика, ни массовое действие, ни итоги не трогают', async () => {
+  test('переименовал человек: ни автоматика, ни итоги не трогают', async () => {
     const make = () => world({ meetings: [meeting({ title: DEFAULT, origin: 'manual' })], answers: ['Сроки релиза мобильной версии'], summary: ['completed'] });
     for (const run of [
       (w: ReturnType<typeof make>) => w.titler.titleOne('m1', { mode: 'auto' }),
-      (w: ReturnType<typeof make>) => w.titler.titleOne('m1', { mode: 'bulk', confirmedCloud: true }),
       (w: ReturnType<typeof make>) => w.titler.watchSummary('m1'),
-      (w: ReturnType<typeof make>) => w.titler.backfill({ confirmedCloud: true }),
     ]) {
       const w = make();
       await run(w);
@@ -223,19 +211,6 @@ describe('название: ручное главнее', () => {
     expect(out.status === 'skipped' && out.reason).toBe('manual');
     expect(w.calls.announced).toHaveLength(0);
     expect(origin.title).toBe(DEFAULT);
-  });
-  test('«Придумать заново» по нажатию меняет и ручное название', async () => {
-    const w = world({ meetings: [meeting({ title: 'Мой план', origin: 'manual' })], answers: ['Сроки релиза мобильной версии'] });
-    const out = await w.titler.titleOne('m1', { mode: 'again' });
-    expect(out).toEqual({ status: 'set', title: 'Сроки релиза мобильной версии' });
-    expect(w.calls.setAuto[0].override).toBe(true);
-    expect(w.meetings.get('m1')!.origin).toBe('auto');
-  });
-  test('«Придумать заново» с плохим ответом оставляет прежнее название', async () => {
-    const w = world({ meetings: [meeting({ title: 'Мой план', origin: 'manual' })], answers: ['Обсуждение'] });
-    const out = await w.titler.titleOne('m1', { mode: 'again' });
-    expect(out.status === 'skipped' && out.reason).toBe('bad-answer');
-    expect(w.meetings.get('m1')!.title).toBe('Мой план');
   });
 });
 
@@ -297,69 +272,6 @@ describe('название: язык встречи', () => {
     const w = world({ meetings: [meeting()], uiLang: 'en', answers: ['Сроки релиза мобильной версии'] });
     await w.titler.titleOne('m1', { mode: 'auto' });
     expect(w.calls.generate[0].user).toContain('по-русски');
-  });
-});
-
-describe('название: массовое действие', () => {
-  const five = () =>
-    [1, 2, 3, 4, 5].map((n) => meeting({ id: `m${n}`, title: `Meeting 1${n}_11_26_15_02_11` })).concat(
-      meeting({ id: 'own', title: 'Мой план', origin: 'manual' }),
-      meeting({ id: 'short', title: 'Meeting 16_11_26_16_00_00', durationSec: 30 }),
-    );
-
-  test('только встречи с названием по умолчанию, от минуты, с текстом; свои и короткие пропускаются', async () => {
-    const w = world({ meetings: five(), answers: ['Сроки релиза мобильной версии'] });
-    const res = await w.titler.backfill({ confirmedCloud: false });
-    expect(res.phase).toBe('done');
-    expect(res.set).toBe(5);
-    expect(res.skipped).toBe(1);
-    expect(res.total).toBe(6);
-    expect(w.meetings.get('own')!.title).toBe('Мой план');
-    expect(w.meetings.get('short')!.title).toBe('Meeting 16_11_26_16_00_00');
-  });
-
-  test('прервано: продолжение берёт только оставшиеся, без дублей запросов', async () => {
-    const w = world({ meetings: five(), answers: ['Сроки релиза мобильной версии'] });
-    const ctl = new AbortController();
-    // остановка после второй встречи: в момент третьего запроса к модели
-    let n = 0;
-    const gen = w.calls.generate.push.bind(w.calls.generate);
-    w.calls.generate.push = ((...a: Parameters<typeof gen>) => {
-      n++;
-      if (n === 3) ctl.abort();
-      return gen(...a);
-    }) as typeof gen;
-    const first = await w.titler.backfill({ confirmedCloud: false, signal: ctl.signal });
-    expect(first.phase).toBe('cancelled');
-    // третья встреча: ответ пришёл после остановки и не записан
-    const named = [...w.meetings.values()].filter((m) => m.origin === 'auto').map((m) => m.id);
-    expect(named).toEqual(['m1', 'm2']);
-    expect(w.meetings.get('m3')!.title.startsWith('Meeting ')).toBe(true);
-
-    const before = w.calls.generate.length;
-    const second = await w.titler.backfill({ confirmedCloud: false });
-    expect(second.phase).toBe('done');
-    expect(second.set).toBe(3);
-    // новых запросов ровно по остальным трём; уже названные не спрашивались снова
-    expect(w.calls.generate.length - before).toBe(3);
-    expect(w.calls.setAuto.filter((s) => s.id === 'm1')).toHaveLength(1);
-    expect(w.calls.setAuto.filter((s) => s.id === 'm2')).toHaveLength(1);
-  });
-
-  test('повторный запуск, пока идёт первый, не удваивает работу', async () => {
-    const w = world({ meetings: five(), answers: ['Сроки релиза мобильной версии'] });
-    const a = w.titler.backfill({ confirmedCloud: false });
-    const b = w.titler.backfill({ confirmedCloud: false });
-    await Promise.all([a, b]);
-    expect(w.calls.setAuto.map((s) => s.id).sort()).toEqual(['m1', 'm2', 'm3', 'm4', 'm5']);
-  });
-
-  test('ни одной подходящей встречи: готово без запросов', async () => {
-    const w = world({ meetings: [meeting({ title: 'Мой план' })], answers: ['Сроки релиза мобильной версии'] });
-    const res = await w.titler.backfill({ confirmedCloud: false });
-    expect(res.total).toBe(0);
-    expect(res.phase).toBe('done');
-    expect(w.calls.generate).toHaveLength(0);
   });
 });
 

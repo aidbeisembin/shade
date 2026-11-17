@@ -12,7 +12,7 @@
 
 'use client';
 
-import { Suspense, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
@@ -21,12 +21,11 @@ import { Button } from '@/shade/components/ui/button';
 import { Page } from '@/shade/components/Page';
 import { BackButton } from '@/shade/components/BackButton';
 import { Skeleton } from '@/shade/components/ui/skeleton';
-import { Spinner } from '@/shade/components/ui/spinner';
 import { Switch } from '@/shade/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shade/components/ui/tabs';
 import { shadeToast } from '@/shade/lib/toasts';
 import { cn } from '@/shade/lib/utils';
-import { t, tf, type StringKey } from '@/shade/strings';
+import { t, type StringKey } from '@/shade/strings';
 import { useConfig, type NotificationSettings } from '@/contexts/ConfigContext';
 import { RecordingSettings } from '@/components/RecordingSettings';
 import { TranscriptSettings } from '@/components/TranscriptSettings';
@@ -36,8 +35,6 @@ import { LANGS, setLang, useLang, type Lang } from '@/shade/lib/lang';
 import { LanguageHint, LanguageSelect } from '@/shade/components/LanguageSelect';
 import { SpeechWords } from '@/shade/components/SpeechWords';
 import { SpeechEngineNotice } from '@/shade/components/SpeechEngineNotice';
-import { providerLabel, usePrivacy } from '@/shade/lib/privacy';
-import { startBackfill, stopBackfill, titler } from '@/shade/lib/title-service';
 import { FeedbackMorph } from '@/shade/components/feedback/FeedbackMorph';
 import { LicensesDialog } from '@/shade/components/LicensesDialog';
 import { GithubButton } from '@/shade/components/feedback/FeedbackFields';
@@ -135,75 +132,6 @@ function NotificationsRow() {
   );
 }
 
-/**
- * «Придумать названия для старых встреч»: по одной в фоне, с прогрессом и остановкой. Модель итогов
- * облачная (или неизвестная): перед запуском одна строка о том, что текст уйдёт этому провайдеру, и
- * кнопка, которая и есть подтверждение. Работа не зависит от экрана: ушли из настроек, она идёт
- * (lib/title-service.ts). Остановка сохраняет сделанное; повторный запуск берёт оставшиеся.
- */
-function TitlesRow() {
-  useLang();
-  const { privacy, loading } = usePrivacy();
-  const s = useSyncExternalStore(titler.subscribe, titler.getState, titler.getState);
-  const [stopping, setStopping] = useState(false);
-  useEffect(() => {
-    if (s.phase !== 'running') setStopping(false);
-  }, [s.phase]);
-
-  const provider = privacy.summary;
-  const configured = provider.provider !== null;
-  const needsConfirm = configured && provider.level !== 'local';
-  const running = s.phase === 'running';
-
-  let status: string | null = null;
-  if (!configured && !loading) status = t('titlesBackfillNoModel');
-  else if (running) status = tf('titlesBackfillProgress', { done: s.done, total: s.total });
-  else if (s.phase === 'cancelled') status = tf('titlesBackfillStopped', { done: s.done, total: s.total });
-  else if (s.phase === 'done') status = s.total === 0 ? t('titlesBackfillNone') : tf('titlesBackfillDone', { set: s.set, skipped: s.skipped });
-
-  return (
-    <Row
-      wide
-      title={t('titlesBackfillTitle')}
-      hint={
-        <>
-          <p>{t('titlesBackfillHint')}</p>
-          {needsConfirm && !running && <p className="mt-1 text-foreground">{tf('titlesBackfillCloud', { provider: providerLabel(provider) })}</p>}
-          {status && (
-            <p className="tabular mt-1 text-foreground" role="status">
-              {status}
-            </p>
-          )}
-          {running && s.total > 0 && (
-            <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={s.total} aria-valuenow={s.done}>
-              <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.round((s.done / s.total) * 100)}%` }} />
-            </div>
-          )}
-        </>
-      }
-    >
-      {running ? (
-        <Button
-          variant="outline"
-          disabled={stopping}
-          onClick={() => {
-            setStopping(true);
-            stopBackfill();
-          }}
-        >
-          {stopping ? <Spinner tone="inherit" /> : null}
-          {t('titlesBackfillStop')}
-        </Button>
-      ) : (
-        <Button variant="outline" disabled={loading || !configured} onClick={() => startBackfill(needsConfirm)}>
-          <Sparkle />
-          {needsConfirm ? t('titlesBackfillConfirm') : s.phase === 'cancelled' ? t('titlesBackfillContinue') : t('titlesBackfillRun')}
-        </Button>
-      )}
-    </Row>
-  );
-}
-
 function StorageRow() {
   useLang();
   const { storageLocations, loadPreferences } = useConfig();
@@ -275,9 +203,6 @@ function GeneralTab() {
       </Section>
       <Section title={t('settingsSectionNotifications')}>
         <NotificationsRow />
-      </Section>
-      <Section title={t('titlesSection')}>
-        <TitlesRow />
       </Section>
       <Section title={t('settingsSectionStorage')}>
         <StorageRow />

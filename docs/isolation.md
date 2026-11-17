@@ -140,7 +140,7 @@ Parakeet скачивается с Hugging Face (`istupakov/parakeet-tdt-0.6b-v*
 
 | Файл | Что | Зачем |
 |---|---|---|
-| `src-tauri/src/summary/title.rs` (новый) | `api_generate_title_text`: один короткий запрос к провайдеру итогов (облако только с `allow_cloud`, иначе отказ `cloud-not-allowed` до сети; таймаут 90 с); `api_set_auto_title(ожидаемое, новое, override_manual)`: запись с проверкой (пометка `manual`, название изменилось за время запроса); `api_mark_title_manual`, `api_get_title_origin`; файл `title.json` `{origin: manual или auto, at}` атомарной записью рядом с `recovered.json`. Тесты: `cargo test -p shade --lib summary::title` | Ручное название главнее; облако только по нажатию |
+| `src-tauri/src/summary/title.rs` (новый) | `api_generate_title_text`: один короткий запрос к провайдеру итогов (облако только с `allow_cloud`, иначе отказ `cloud-not-allowed` до сети; таймаут 90 с); `api_set_auto_title(ожидаемое, новое, override_manual)` (`override_manual` с 2026-11-17 интерфейс не передаёт: «Придумать заново» убрано, параметр оставлен, ядро не менялось): запись с проверкой (пометка `manual`, название изменилось за время запроса); `api_mark_title_manual`, `api_get_title_origin`; файл `title.json` `{origin: manual или auto, at}` атомарной записью рядом с `recovered.json`. Тесты: `cargo test -p shade --lib summary::title` | Ручное название главнее; облако только по нажатию |
 | `src-tauri/src/summary/mod.rs`, `lib.rs` | Подключение модуля, регистрация четырёх команд | |
 | `src-tauri/src/summary/service.rs` | Убрано переименование встречи по заголовку `# …` из текста итогов после «Подвести итоги» | Оно писало поверх названия, заданного человеком; название теперь придумывает отдельный запрос |
 

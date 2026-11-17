@@ -193,8 +193,4 @@ describe('кому положено название', () => {
   test('своё название автоматика не трогает', () => {
     expect(ineligibleReason({ ...base, title: 'Мой план' })).toBe('not-default');
   });
-  test('«Придумать заново» по нажатию: любое название и длина, нужен только текст', () => {
-    expect(ineligibleReason({ ...base, title: 'Мой план', durationSec: 30 }, true)).toBeNull();
-    expect(ineligibleReason({ ...base, words: 3 }, true)).toBe('no-text');
-  });
 });
