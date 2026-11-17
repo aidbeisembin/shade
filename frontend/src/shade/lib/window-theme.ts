@@ -1,7 +1,7 @@
 // Окно Tauri в цвет темы Shade. При растягивании окна WebView не успевает
 // перерисоваться, и по краю видна подложка окна: была белой при тёмной теме.
 // Здесь окну ставятся тема заголовка и цвет фона, равный --background:
-// светлая #FFFFFF, тёмная #000000 (бенто: белый и чёрный фон окна).
+// светлая #ECEEEB, тёмная #000000 (бенто: серое окно в светлой, чёрное в тёмной).
 // Нужны права core:window:allow-set-theme, core:window:allow-set-background-color
 // и core:webview:allow-set-webview-background-color в tauri.conf.json; без них
 // вызовы отклоняются, ошибка пишется в консоль, интерфейс работает как раньше.
@@ -9,8 +9,8 @@
 
 import { getStoredTheme, type ThemeMode } from './theme';
 
-// Фон окна бенто (globals.css, --background): светлая #ECEEEB, тёмная #1C1C1C
-export const WINDOW_BACKGROUND: Record<ThemeMode, string> = { light: '#ECEEEB', dark: '#1C1C1C' };
+// Фон окна бенто (globals.css, --background): светлая #ECEEEB, тёмная #000000
+export const WINDOW_BACKGROUND: Record<ThemeMode, string> = { light: '#ECEEEB', dark: '#000000' };
 
 function inTauri(): boolean {
   if (typeof window === 'undefined') return false;
