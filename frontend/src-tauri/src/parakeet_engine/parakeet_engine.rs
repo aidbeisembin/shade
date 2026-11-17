@@ -81,10 +81,14 @@ pub struct ModelInfo {
     pub description: String,
 }
 
+/// Файл модели: имя, точный размер и SHA-256. Размер проверяется при каждом обзоре моделей
+/// (дёшево), сумма проверяется после скачивания файла (дорого, ~0,5 с на 650 МБ). Файл с
+/// неверной суммой не принимается: он удаляется и скачивается заново один раз.
 #[derive(Clone, Copy)]
 struct ArtifactSpec {
     filename: &'static str,
     exact_bytes: u64,
+    sha256: &'static str,
 }
 
 struct ModelSpec {
@@ -104,17 +108,49 @@ impl ModelSpec {
 }
 
 const PARAKEET_V3_ARTIFACTS: &[ArtifactSpec] = &[
-    ArtifactSpec { filename: "encoder-model.int8.onnx", exact_bytes: 652_183_999 },
-    ArtifactSpec { filename: "decoder_joint-model.int8.onnx", exact_bytes: 18_202_004 },
-    ArtifactSpec { filename: "nemo128.onnx", exact_bytes: 139_764 },
-    ArtifactSpec { filename: "vocab.txt", exact_bytes: 93_939 },
+    ArtifactSpec {
+        filename: "encoder-model.int8.onnx",
+        exact_bytes: 652_183_999,
+        sha256: "6139d2fa7e1b086097b277c7149725edbab89cc7c7ae64b23c741be4055aff09",
+    },
+    ArtifactSpec {
+        filename: "decoder_joint-model.int8.onnx",
+        exact_bytes: 18_202_004,
+        sha256: "eea7483ee3d1a30375daedc8ed83e3960c91b098812127a0d99d1c8977667a70",
+    },
+    ArtifactSpec {
+        filename: "nemo128.onnx",
+        exact_bytes: 139_764,
+        sha256: "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f",
+    },
+    ArtifactSpec {
+        filename: "vocab.txt",
+        exact_bytes: 93_939,
+        sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
+    },
 ];
 
 const PARAKEET_V2_ARTIFACTS: &[ArtifactSpec] = &[
-    ArtifactSpec { filename: "encoder-model.int8.onnx", exact_bytes: 652_184_014 },
-    ArtifactSpec { filename: "decoder_joint-model.int8.onnx", exact_bytes: 8_998_286 },
-    ArtifactSpec { filename: "nemo128.onnx", exact_bytes: 139_764 },
-    ArtifactSpec { filename: "vocab.txt", exact_bytes: 9_384 },
+    ArtifactSpec {
+        filename: "encoder-model.int8.onnx",
+        exact_bytes: 652_184_014,
+        sha256: "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155",
+    },
+    ArtifactSpec {
+        filename: "decoder_joint-model.int8.onnx",
+        exact_bytes: 8_998_286,
+        sha256: "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3",
+    },
+    ArtifactSpec {
+        filename: "nemo128.onnx",
+        exact_bytes: 139_764,
+        sha256: "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f",
+    },
+    ArtifactSpec {
+        filename: "vocab.txt",
+        exact_bytes: 9_384,
+        sha256: "ec182b70dd42113aff6c5372c75cac58c952443eb22322f57bbd7f53977d497d",
+    },
 ];
 
 const PARAKEET_MODEL_SPECS: &[ModelSpec] = &[
@@ -124,7 +160,9 @@ const PARAKEET_MODEL_SPECS: &[ModelSpec] = &[
         quantization: QuantizationType::Int8,
         speed: "Ultra Fast (v3)",
         description: "Real time on M4 Max, latest version with int8 quantization",
-        source_base_url: "https://meetily.towardsgeneralintelligence.com/models/parakeet-tdt-0.6b-v3-onnx",
+        // ONNX-конвертация NVIDIA parakeet-tdt-0.6b-v3 на Hugging Face, закреплённая на коммите:
+        // файлы байт в байт совпадают с прежним сервером загрузки (docs/case/decisions.md).
+        source_base_url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce",
         artifacts: PARAKEET_V3_ARTIFACTS,
     },
     ModelSpec {
@@ -137,6 +175,26 @@ const PARAKEET_MODEL_SPECS: &[ModelSpec] = &[
         artifacts: PARAKEET_V2_ARTIFACTS,
     },
 ];
+
+fn sha256_hex(path: &Path) -> std::io::Result<String> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; 1024 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect())
+}
 
 fn find_model_spec(model_name: &str) -> Option<&'static ModelSpec> {
     PARAKEET_MODEL_SPECS
@@ -877,13 +935,16 @@ impl ParakeetEngine {
         let mut last_report = Instant::now();
         let mut last_percent = 0u8;
 
-        for artifact in artifacts {
+        // Индекс, а не for: файл с неверной суммой удаляется и скачивается заново (один раз)
+        let mut index = 0;
+        let mut redownloaded_after_checksum = false;
+        while let Some(artifact) = artifacts.get(index) {
             if active_download.cancellation.is_cancelled() {
                 return Err(DownloadCancelled.into());
             }
 
             let file_path = model_dir.join(artifact.filename);
-            let local_bytes = match fs::metadata(&file_path).await {
+            let mut local_bytes = match fs::metadata(&file_path).await {
                 Ok(metadata) => metadata.len(),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
                 Err(error) => {
@@ -894,6 +955,18 @@ impl ParakeetEngine {
                     ));
                 }
             };
+
+            if local_bytes == artifact.exact_bytes
+                && !Self::artifact_checksum_matches(&file_path, artifact).await?
+            {
+                log::warn!(
+                    "{} has the right size but a wrong SHA-256, downloading it again",
+                    artifact.filename
+                );
+                Self::remove_rejected_artifact(&file_path, artifact).await?;
+                local_bytes = 0;
+                redownloaded_after_checksum = true;
+            }
 
             if local_bytes == artifact.exact_bytes {
                 confirmed_bytes = confirmed_bytes
@@ -906,6 +979,8 @@ impl ParakeetEngine {
                 self.set_downloading_status(model_name, progress.percent).await;
                 last_percent = progress.percent;
                 last_report = Instant::now();
+                index += 1;
+                redownloaded_after_checksum = false;
                 continue;
             }
 
@@ -1109,6 +1184,27 @@ impl ParakeetEngine {
                     artifact.exact_bytes
                 ));
             }
+
+            if !Self::artifact_checksum_matches(&file_path, artifact).await? {
+                Self::remove_rejected_artifact(&file_path, artifact).await?;
+                confirmed_bytes = confirmed_bytes
+                    .checked_sub(artifact.exact_bytes)
+                    .ok_or_else(|| anyhow!("Progress underflow after rejecting {}", artifact.filename))?;
+                if redownloaded_after_checksum {
+                    return Err(anyhow!(
+                        "Checksum mismatch for {}: downloaded file does not match the expected SHA-256 twice, removed it",
+                        artifact.filename
+                    ));
+                }
+                log::warn!(
+                    "{} failed the SHA-256 check, removed it and downloading again",
+                    artifact.filename
+                );
+                redownloaded_after_checksum = true;
+                continue;
+            }
+            index += 1;
+            redownloaded_after_checksum = false;
         }
 
         if confirmed_bytes != total_bytes {
@@ -1128,6 +1224,29 @@ impl ParakeetEngine {
             DownloadProgress::new(total_bytes, total_bytes, speed_mbps),
             progress_callback,
         ))
+    }
+
+    /// SHA-256 файла с диска в отдельном потоке: 650 МБ не должны держать асинхронный рантайм.
+    async fn artifact_checksum_matches(path: &Path, artifact: &ArtifactSpec) -> Result<bool> {
+        let path = path.to_path_buf();
+        let filename = artifact.filename;
+        let actual = tokio::task::spawn_blocking(move || sha256_hex(&path))
+            .await
+            .map_err(|error| anyhow!("Checksum task failed for {}: {}", filename, error))?
+            .map_err(|error| anyhow!("Failed to read {} for checksum: {}", filename, error))?;
+        Ok(actual.eq_ignore_ascii_case(artifact.sha256))
+    }
+
+    async fn remove_rejected_artifact(path: &Path, artifact: &ArtifactSpec) -> Result<()> {
+        match fs::remove_file(path).await {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(anyhow!(
+                "Failed to remove {} after checksum mismatch: {}",
+                artifact.filename,
+                error
+            )),
+        }
     }
 
     async fn finish_download(
@@ -1238,11 +1357,19 @@ mod tests {
     use tokio::net::TcpListener;
     use tokio::sync::oneshot;
     const TEST_MODEL_NAME: &str = "parakeet-test";
+    const SHA_ABCD: &str = "e12e115acf4552b2568b55e93cbd39394c4ef81c82447fafc997882a02d23677";
+    const SHA_XYZ: &str = "ade099751d2ea9f3393f0f32d20c6b980dd5d3b0989dea599b966ae0d3cd5a1e";
+    const SHA_NO: &str = "23794d91c53ae875c8e247d72561e35d9d06ee07c70c9e0dbcc977a6d161504a";
+    const SHA_V: &str = "de5a6f78116eca62d7fc5ce159d23ae6b889b365a1739ad2cf36f925a140d0cc";
+    const SHA_C: &str = "6b23c0d5f35d1b11f9b683f0b0a617355deb11277d91ae091d399c655b87940d";
+    /// 99 байт «A» и «B»
+    const SHA_NEAR: &str = "84f768c1c564b995d7080e38f8589b3aae022bc74fe6c7daba3a2af937bde6e2";
     const SMALL_ARTIFACTS: &[ArtifactSpec] = &[
-        ArtifactSpec { filename: "encoder.bin", exact_bytes: 4 },
-        ArtifactSpec { filename: "decoder.bin", exact_bytes: 3 },
-        ArtifactSpec { filename: "nemo.bin", exact_bytes: 2 },
-        ArtifactSpec { filename: "vocab.txt", exact_bytes: 1 },
+        // Суммы содержимого, которое отдаёт тестовый сервер: ABCD, XYZ, NO, V
+        ArtifactSpec { filename: "encoder.bin", exact_bytes: 4, sha256: SHA_ABCD },
+        ArtifactSpec { filename: "decoder.bin", exact_bytes: 3, sha256: SHA_XYZ },
+        ArtifactSpec { filename: "nemo.bin", exact_bytes: 2, sha256: SHA_NO },
+        ArtifactSpec { filename: "vocab.txt", exact_bytes: 1, sha256: SHA_V },
     ];
     const SMALL_MODEL_SPECS: &[ModelSpec] = &[ModelSpec {
         name: TEST_MODEL_NAME,
@@ -1562,6 +1689,7 @@ mod tests {
         const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
             filename: "near.bin",
             exact_bytes: 100,
+            sha256: SHA_NEAR,
         }];
         const PREFIX: &[u8] = &[b'A'; 99];
 
@@ -1655,6 +1783,7 @@ mod tests {
         const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
             filename: "model.bin",
             exact_bytes: 4,
+            sha256: SHA_ABCD,
         }];
         let (_temp_dir, engine, model_dir) = test_engine().await;
         fs::create_dir_all(&model_dir).await.expect("create model directory");
@@ -1698,6 +1827,7 @@ mod tests {
         const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
             filename: "model.bin",
             exact_bytes: 4,
+            sha256: SHA_ABCD,
         }];
         let (_temp_dir, engine, model_dir) = test_engine().await;
         fs::create_dir_all(&model_dir).await.expect("create model directory");
@@ -1743,10 +1873,12 @@ mod tests {
             ArtifactSpec {
                 filename: "complete.bin",
                 exact_bytes: 1,
+                sha256: SHA_C,
             },
             ArtifactSpec {
                 filename: "target.bin",
                 exact_bytes: 4,
+                sha256: SHA_ABCD,
             },
         ];
         let cases = vec![
@@ -1886,6 +2018,7 @@ mod tests {
         const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
             filename: "model.bin",
             exact_bytes: 4,
+            sha256: SHA_ABCD,
         }];
         let (_temp_dir, engine, model_dir) = test_engine().await;
         let hook = Arc::new(DownloadStateTestHook {
@@ -2012,5 +2145,176 @@ mod tests {
         assert!(matches!(discovered_model.status, ModelStatus::Available));
         assert!(matches!(test_model_status(&engine).await, ModelStatus::Available));
         assert!(!engine.active_downloads.lock().await.downloads.contains_key(TEST_MODEL_NAME));
+    }
+
+    // Таблица случаев PR «Shade без инфраструктуры исходного проекта»: источник модели и SHA-256
+
+    #[test]
+    fn catalog_sources_are_pinned_hugging_face_with_full_checksums() {
+        for spec in PARAKEET_MODEL_SPECS {
+            assert!(
+                spec.source_base_url
+                    .starts_with("https://huggingface.co/istupakov/parakeet-tdt-0.6b-"),
+                "{} must download from the pinned Hugging Face conversion",
+                spec.name
+            );
+            assert!(spec.source_base_url.contains("/resolve/"), "{} must pin a commit", spec.name);
+            for artifact in spec.artifacts {
+                assert_eq!(artifact.sha256.len(), 64, "{} {}", spec.name, artifact.filename);
+                assert!(artifact.sha256.chars().all(|c| c.is_ascii_hexdigit()));
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn new_install_downloads_and_passes_checksum() {
+        let (_temp_dir, engine, model_dir) = test_engine().await;
+        let (base_url, server) = serve_requests(vec![
+            response("encoder.bin", None, "200 OK", b"ABCD", None),
+            response("decoder.bin", None, "200 OK", b"XYZ", None),
+            response("nemo.bin", None, "200 OK", b"NO", None),
+            response("vocab.txt", None, "200 OK", b"V", None),
+        ])
+        .await;
+        engine
+            .download_model_detailed_from_source(
+                TEST_MODEL_NAME,
+                &model_dir,
+                &base_url,
+                SMALL_ARTIFACTS,
+                None,
+            )
+            .await
+            .expect("fresh download with matching checksums succeeds");
+        server.await.expect("join server");
+        assert!(matches!(test_model_status(&engine).await, ModelStatus::Available));
+        for artifact in SMALL_ARTIFACTS {
+            assert_eq!(
+                sha256_hex(&model_dir.join(artifact.filename)).unwrap(),
+                artifact.sha256
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn corrupted_download_is_rejected_and_downloaded_again() {
+        const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
+            filename: "model.bin",
+            exact_bytes: 4,
+            sha256: SHA_ABCD,
+        }];
+        let (_temp_dir, engine, model_dir) = test_engine().await;
+        let (base_url, server) = serve_requests(vec![
+            response("model.bin", None, "200 OK", b"ABCE", None),
+            response("model.bin", None, "200 OK", b"ABCD", None),
+        ])
+        .await;
+        engine
+            .download_model_detailed_from_source(TEST_MODEL_NAME, &model_dir, &base_url, ARTIFACTS, None)
+            .await
+            .expect("second, correct copy is accepted");
+        server.await.expect("join server: both requests were made");
+        assert_eq!(fs::read(model_dir.join("model.bin")).await.unwrap(), b"ABCD");
+        assert!(matches!(test_model_status(&engine).await, ModelStatus::Available));
+    }
+
+    #[tokio::test]
+    async fn corrupted_local_file_of_right_size_is_replaced() {
+        const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
+            filename: "model.bin",
+            exact_bytes: 4,
+            sha256: SHA_ABCD,
+        }];
+        let (_temp_dir, engine, model_dir) = test_engine().await;
+        fs::create_dir_all(&model_dir).await.expect("create model directory");
+        fs::write(model_dir.join("model.bin"), b"WXYZ").await.expect("seed corrupted file");
+        let (base_url, server) =
+            serve_requests(vec![response("model.bin", None, "200 OK", b"ABCD", None)]).await;
+        engine
+            .download_model_detailed_from_source(TEST_MODEL_NAME, &model_dir, &base_url, ARTIFACTS, None)
+            .await
+            .expect("corrupted local copy is replaced");
+        server.await.expect("join server");
+        assert_eq!(fs::read(model_dir.join("model.bin")).await.unwrap(), b"ABCD");
+    }
+
+    #[tokio::test]
+    async fn repeated_checksum_mismatch_fails_and_keeps_nothing() {
+        const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
+            filename: "model.bin",
+            exact_bytes: 4,
+            sha256: SHA_ABCD,
+        }];
+        let (_temp_dir, engine, model_dir) = test_engine().await;
+        let (base_url, server) = serve_requests(vec![
+            response("model.bin", None, "200 OK", b"ABCE", None),
+            response("model.bin", None, "200 OK", b"ABCE", None),
+        ])
+        .await;
+        let error = engine
+            .download_model_detailed_from_source(TEST_MODEL_NAME, &model_dir, &base_url, ARTIFACTS, None)
+            .await
+            .expect_err("a source that keeps sending wrong bytes must fail");
+        server.await.expect("join server");
+        assert!(error.to_string().contains("Checksum mismatch"), "{error}");
+        assert!(!model_dir.join("model.bin").exists(), "rejected file must not stay on disk");
+        assert!(matches!(test_model_status(&engine).await, ModelStatus::Missing));
+        assert!(!engine.active_downloads.lock().await.downloads.contains_key(TEST_MODEL_NAME));
+    }
+
+    #[tokio::test]
+    async fn unreachable_source_fails_with_message_and_retry_succeeds() {
+        const ARTIFACTS: &[ArtifactSpec] = &[ArtifactSpec {
+            filename: "model.bin",
+            exact_bytes: 4,
+            sha256: SHA_ABCD,
+        }];
+        let (_temp_dir, engine, model_dir) = test_engine().await;
+        // Порт, на котором никто не слушает: соединение отклонено
+        let closed = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let closed_url = format!("http://{}", closed.local_addr().unwrap());
+        drop(closed);
+        let error = engine
+            .download_model_detailed_from_source(TEST_MODEL_NAME, &model_dir, &closed_url, ARTIFACTS, None)
+            .await
+            .expect_err("unreachable source must fail");
+        assert!(error.to_string().contains("Failed to start download"), "{error}");
+        assert!(matches!(test_model_status(&engine).await, ModelStatus::Missing));
+
+        let (base_url, server) =
+            serve_requests(vec![response("model.bin", None, "200 OK", b"ABCD", None)]).await;
+        engine
+            .download_model_detailed_from_source(TEST_MODEL_NAME, &model_dir, &base_url, ARTIFACTS, None)
+            .await
+            .expect("retry after the source is back succeeds");
+        server.await.expect("join server");
+        assert!(matches!(test_model_status(&engine).await, ModelStatus::Available));
+    }
+
+    #[tokio::test]
+    async fn already_downloaded_model_is_available_without_network_or_rehash() {
+        // Модель, скачанная раньше с прежнего сервера: обзор проверяет только размеры,
+        // сеть не нужна, файлы не меняются (даже если содержимое отличается от суммы).
+        let (_temp_dir, engine, model_dir) = test_engine().await;
+        fs::create_dir_all(&model_dir).await.expect("create model directory");
+        for artifact in SMALL_ARTIFACTS {
+            fs::write(model_dir.join(artifact.filename), vec![7; artifact.exact_bytes as usize])
+                .await
+                .expect("seed previously downloaded artifact");
+        }
+        let before: Vec<_> = SMALL_ARTIFACTS
+            .iter()
+            .map(|a| std::fs::metadata(model_dir.join(a.filename)).unwrap().modified().unwrap())
+            .collect();
+        let discovered = engine
+            .discover_models_from_specs(SMALL_MODEL_SPECS)
+            .await
+            .expect("discovery succeeds offline");
+        assert!(matches!(discovered[0].status, ModelStatus::Available));
+        let after: Vec<_> = SMALL_ARTIFACTS
+            .iter()
+            .map(|a| std::fs::metadata(model_dir.join(a.filename)).unwrap().modified().unwrap())
+            .collect();
+        assert_eq!(before, after, "existing model files must not be rewritten");
     }
 }
