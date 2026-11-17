@@ -308,7 +308,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
   },
   titles: {
     id: 'titles', label: 'titles',
-    description: 'Встречи с названиями по умолчанию («Meeting 16_11_26_15_02_11»): список из одних дат. «Настройки → Общие → Придумать названия для старых встреч» даёт им названия по теме (ответы модели в fixtures/titles.ts)',
+    description: 'Встречи с названиями по умолчанию («Meeting 16_11_26_15_02_11»): список из одних дат. «Сделать заново» у итогов встречи (локальная модель в заглушке) придумывает ей название по теме, ответы модели в fixtures/titles.ts',
     meetings: createTitlesMeetings, onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
   },
   'titles-en': {

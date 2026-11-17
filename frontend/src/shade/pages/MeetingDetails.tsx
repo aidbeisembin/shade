@@ -498,8 +498,7 @@ function MeetingDetailsContent() {
     void m.generateSummary();
     if (meetingId) void titler.watchSummary(meetingId);
   };
-  const [retitling, setRetitling] = useState(false);
-  // Название придумано (в фоне или кнопкой): страница показывает его сразу
+  // Название придумано в фоне: страница показывает его сразу
   const setTitle = m.setTitle;
   useEffect(() => onTitleSet((id, title) => id === meetingId && setTitle(title)), [meetingId, setTitle]);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -626,19 +625,6 @@ function MeetingDetailsContent() {
     shadeToast.success(t('renamed'));
   };
 
-  // «Придумать заново»: только по нажатию, меняет и название, заданное человеком (title-service.ts, режим again)
-  const regenerateTitle = async () => {
-    if (retitling) return;
-    setRetitling(true);
-    try {
-      const out = await titler.titleOne(meta.id, { mode: 'again' });
-      if (out.status === 'set') shadeToast.success(t('titleRegenDone'));
-      else shadeToast.error(t(out.reason === 'no-model' ? 'titleRegenNoModel' : 'titleRegenFailed'));
-    } finally {
-      setRetitling(false);
-    }
-  };
-
   const remove = async () => {
     try {
       await deleteMeeting(meta.id);
@@ -676,8 +662,8 @@ function MeetingDetailsContent() {
       <IconAction label={t('openRecordingFolder')} onClick={openFolder}>
         <FolderOpen />
       </IconAction>
-      {(canRetranscribe || !empty) && !isRecording && (
-        // Меню «Ещё»: «Распознать заново» и «Придумать название заново» не главные кнопки страницы
+      {canRetranscribe && !isRecording && (
+        // Меню «Ещё»: «Распознать заново» не главная кнопка страницы
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -690,18 +676,10 @@ function MeetingDetailsContent() {
             <TooltipContent>{t('rerecMenu')}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent>
-            {canRetranscribe && (
-              <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
-                <ArrowClockwise />
-                {t('rerecTitle')}
-              </DropdownMenuItem>
-            )}
-            {!empty && (
-              <DropdownMenuItem disabled={retitling} onSelect={() => void regenerateTitle()}>
-                {retitling ? <Spinner /> : <Sparkle />}
-                {retitling ? t('titleRegenBusy') : t('titleRegen')}
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onSelect={() => setRetranscribe(true)}>
+              <ArrowClockwise />
+              {t('rerecTitle')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}

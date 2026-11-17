@@ -193,11 +193,10 @@ export type Ineligible = 'not-default' | 'too-short' | 'no-text';
 
 /**
  * Автоматике положено только название по умолчанию у встречи от минуты с текстом.
- * `force` («Придумать заново» по нажатию): любое название и любая длина, нужен лишь текст.
  */
-export function ineligibleReason(f: TitleFacts, force = false): Ineligible | null {
-  if (!force && !isDefaultTitle(f.title)) return 'not-default';
+export function ineligibleReason(f: TitleFacts): Ineligible | null {
+  if (!isDefaultTitle(f.title)) return 'not-default';
   if (f.words < MIN_TITLE_TEXT_WORDS) return 'no-text';
-  if (!force && !(typeof f.durationSec === 'number' && f.durationSec >= MIN_TITLE_SECONDS)) return 'too-short';
+  if (!(typeof f.durationSec === 'number' && f.durationSec >= MIN_TITLE_SECONDS)) return 'too-short';
   return null;
 }

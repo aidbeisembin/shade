@@ -10,9 +10,8 @@
 //   (privacy.ts: builtin-ai, Ollama на этом компьютере). Облачному провайдеру ничего не уходит.
 // - after-summary: человек нажал «Подвести итоги», текст уже уходит этому провайдеру,
 //   название создаётся вместе с итогами (watchSummary).
-// - bulk: «Придумать названия для старых встреч» в настройках; облако только после подтверждения.
-// - again: «Придумать заново» в меню встречи, только по нажатию; единственный режим, который
-//   меняет и название, заданное человеком.
+// Названия для старых встреч и «Придумать заново» убраны по просьбе владельца (2026-11-17):
+// название придумывается только по двум путям выше.
 // Любая неудача: название остаётся прежним (датой), без уведомлений, причина в журнале.
 
 import { countWords } from './speech';
@@ -21,7 +20,6 @@ import {
   checkTitleAnswer,
   detectMeetingLang,
   ineligibleReason,
-  isDefaultTitle,
   sampleTranscript,
   type TitleLang,
 } from './meeting-title';
@@ -29,7 +27,7 @@ import {
 /** Где обрабатывается модель итогов: как в privacy.ts. */
 export type PrivacyLevel = 'local' | 'cloud' | 'unknown';
 
-export type TitleMode = 'auto' | 'after-summary' | 'bulk' | 'again';
+export type TitleMode = 'auto' | 'after-summary';
 
 export type SkipReason =
   | 'no-model'
@@ -43,8 +41,7 @@ export type SkipReason =
   | 'missing'
   | 'changed'
   | 'trashed'
-  | 'busy'
-  | 'cancelled';
+  | 'busy';
 
 export type TitleOutcome = { status: 'set'; title: string } | { status: 'skipped'; reason: SkipReason; detail?: string };
 
@@ -69,9 +66,7 @@ export interface TitleDeps {
   load(id: string): Promise<MeetingForTitle | null>;
   origin(id: string): Promise<'manual' | 'auto' | null>;
   generate(system: string, user: string, allowCloud: boolean): Promise<string>;
-  setAuto(id: string, expected: string, title: string, overrideManual: boolean): Promise<SetResult>;
-  /** Встречи с названием по умолчанию, не в корзине и не отбракованные. */
-  listDefaultTitled(): Promise<Array<{ id: string; title: string }>>;
+  setAuto(id: string, expected: string, title: string): Promise<SetResult>;
   summaryStatus(id: string): Promise<string>;
   trashed(id: string): boolean;
   uiLang(): TitleLang;
@@ -84,26 +79,11 @@ export interface TitleDeps {
 /** Запись журнала: структура, а не текст (текст собирает console в настоящих зависимостях, тесты читают поля). */
 export type TitleLog =
   | { event: 'skip'; id: string; reason: SkipReason; detail?: string }
-  | { event: 'set'; id: string; mode: TitleMode; lang: TitleLang }
-  | { event: 'backfill'; phase: 'done' | 'cancelled'; set: number; skipped: number; total: number }
-  | { event: 'backfill-failed'; error: string };
+  | { event: 'set'; id: string; mode: TitleMode; lang: TitleLang };
 
 export interface TitleOptions {
   mode: TitleMode;
-  /** bulk: человек подтвердил, что текст уйдёт облачному провайдеру. */
-  confirmedCloud?: boolean;
-  signal?: AbortSignal;
 }
-
-export interface BackfillState {
-  phase: 'idle' | 'running' | 'done' | 'cancelled';
-  total: number;
-  done: number;
-  set: number;
-  skipped: number;
-}
-
-const IDLE: BackfillState = { phase: 'idle', total: 0, done: 0, set: 0, skipped: 0 };
 
 /** Сколько ждать итогов (мс), прежде чем перестать следить: итоги, которые длятся дольше, не наш случай. */
 const WATCH_POLL_MS = 3000;
@@ -114,13 +94,6 @@ const WATCH_START_MS = 60_000;
 export function createTitler(deps: TitleDeps) {
   const inflight = new Set<string>();
   const watching = new Set<string>();
-  let backfillRunning = false;
-  let state: BackfillState = IDLE;
-  const listeners = new Set<() => void>();
-  const setState = (next: BackfillState) => {
-    state = next;
-    listeners.forEach((fn) => fn());
-  };
 
   const skip = (id: string, reason: SkipReason, detail?: string): TitleOutcome => {
     deps.log({ event: 'skip', id, reason, detail });
@@ -128,23 +101,21 @@ export function createTitler(deps: TitleDeps) {
   };
 
   async function titleOne(id: string, opts: TitleOptions): Promise<TitleOutcome> {
-    const force = opts.mode === 'again';
     if (inflight.has(id)) return skip(id, 'busy');
     inflight.add(id);
     try {
-      if (opts.signal?.aborted) return skip(id, 'cancelled');
       // Сети и текста ещё нет: сначала то, что решается без них
       const model = await deps.model().catch(() => null);
       if (!model || !model.configured) return skip(id, 'no-model');
       // Облако: только если человек сам запустил то, что и так отправляет текст провайдеру
-      const allowCloud = opts.mode === 'after-summary' || opts.mode === 'again' || (opts.mode === 'bulk' && opts.confirmedCloud === true);
+      const allowCloud = opts.mode === 'after-summary';
       if (model.level !== 'local' && !allowCloud) return skip(id, 'cloud-not-allowed', model.provider ?? undefined);
       if (deps.trashed(id)) return skip(id, 'trashed');
-      if (!force && (await deps.origin(id).catch(() => null)) === 'manual') return skip(id, 'manual');
+      if ((await deps.origin(id).catch(() => null)) === 'manual') return skip(id, 'manual');
 
       const meeting = await deps.load(id).catch(() => null);
       if (!meeting) return skip(id, 'missing');
-      const why = ineligibleReason({ title: meeting.title, durationSec: meeting.durationSec, words: countWords(meeting.texts.join(' ')) }, force);
+      const why = ineligibleReason({ title: meeting.title, durationSec: meeting.durationSec, words: countWords(meeting.texts.join(' ')) });
       if (why) return skip(id, why);
 
       const text = meeting.texts.join(' ');
@@ -159,12 +130,9 @@ export function createTitler(deps: TitleDeps) {
         if (message.includes('cloud-not-allowed')) return skip(id, 'cloud-not-allowed');
         return skip(id, 'error', message.slice(0, 160));
       }
-      // Остановили, пока модель думала: ответ не записываем
-      if (opts.signal?.aborted) return skip(id, 'cancelled');
-
       const checked = checkTitleAnswer(answer, lang);
       if (!checked.ok) return skip(id, 'bad-answer', checked.reason);
-      const result = await deps.setAuto(id, meeting.title, checked.title, force).catch((e) => `error:${String(e)}`);
+      const result = await deps.setAuto(id, meeting.title, checked.title).catch((e) => `error:${String(e)}`);
       if (result !== 'set') {
         const reason: SkipReason = result === 'manual' || result === 'changed' || result === 'missing' ? result : 'error';
         return skip(id, reason, result.startsWith('error:') ? result.slice(0, 160) : undefined);
@@ -174,40 +142,6 @@ export function createTitler(deps: TitleDeps) {
       return { status: 'set', title: checked.title };
     } finally {
       inflight.delete(id);
-    }
-  }
-
-  /** «Придумать названия для старых встреч»: по одной, с прогрессом и остановкой. Повторный запуск продолжает: названные уже не по умолчанию. */
-  async function backfill(opts: { confirmedCloud: boolean; signal?: AbortSignal }): Promise<BackfillState> {
-    if (backfillRunning) return state;
-    backfillRunning = true;
-    const attempted = new Set<string>();
-    try {
-      const all = await deps.listDefaultTitled();
-      const list = all.filter((m) => isDefaultTitle(m.title));
-      setState({ phase: 'running', total: list.length, done: 0, set: 0, skipped: 0 });
-      let { done, set: made, skipped } = state;
-      for (const m of list) {
-        if (opts.signal?.aborted) break;
-        if (attempted.has(m.id)) continue;
-        attempted.add(m.id);
-        const out = await titleOne(m.id, { mode: 'bulk', confirmedCloud: opts.confirmedCloud, signal: opts.signal });
-        if (out.status === 'set') made++;
-        else if (out.reason === 'cancelled') break;
-        else skipped++;
-        done++;
-        setState({ phase: 'running', total: list.length, done, set: made, skipped });
-      }
-      setState({ phase: opts.signal?.aborted ? 'cancelled' : 'done', total: list.length, done, set: made, skipped });
-      deps.log({ event: 'backfill', phase: opts.signal?.aborted ? 'cancelled' : 'done', set: made, skipped, total: list.length });
-      return state;
-    } catch (error) {
-      deps.log({ event: 'backfill-failed', error: String(error).slice(0, 160) });
-      // Список не получен: ничего не сделано, экран остаётся как был (тихо, причина в журнале)
-      setState(IDLE);
-      return state;
-    } finally {
-      backfillRunning = false;
     }
   }
 
@@ -239,17 +173,9 @@ export function createTitler(deps: TitleDeps) {
 
   return {
     titleOne,
-    backfill,
     watchSummary,
-    getState: () => state,
-    subscribe: (fn: () => void) => {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    resetState: () => setState(IDLE),
   };
 }
-
 
 /**
  * Ждёт, пока условие истинно (идёт запись), не дольше tries * ms. Возвращает true, если условие
