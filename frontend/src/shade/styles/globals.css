@@ -118,18 +118,19 @@
   }
 
   .dark {
-    /* Тёмная тема: окно чёрное #000000, плитки тёмно-серые #1C1C1C, вложенная
-       светлее плитки #292929. Текст #FFFFFF и #C4C4C4 (9,8:1 на плитке, 8,4:1 на вложенной) */
+    /* Тёмная тема: окно чёрное #000000, плитки почти чёрные #0A0A0A, вложенная
+       #1A1A1A. Текст #FFFFFF и #B3B3B3 (9,8:1 на плитке). Плитка и всё на ней
+       как до 2026-11-16, окно чёрное с 2026-11-16 (docs/ui/foundations.md) */
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
 
-    --card: 0 0% 11%;
+    --card: 0 0% 4%;
     --card-foreground: 0 0% 100%;
-    --popover: 0 0% 16%;
+    --popover: 0 0% 13%;
     --popover-foreground: 0 0% 100%;
 
     /* Лайм как заливка тот же; как текст, иконка и рамка на чёрной плитке сам
-       лайм (13:1) */
+       лайм (16:1) */
     --primary: 70 94% 73%;
     --primary-foreground: 0 0% 7%;
     --primary-ink: 70 94% 73%;
@@ -140,27 +141,27 @@
     --giants-ink: 18 81% 57%;
     --record: 4 74% 49%;
 
-    --secondary: 0 0% 16%;
+    --secondary: 0 0% 10%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 16%;
-    /* Подписи: #C4C4C4, 9,8:1 на серой плитке (на чёрной было #B3B3B3, тоже 9,8:1) */
-    --muted-foreground: 0 0% 77%;
+    --muted: 0 0% 10%;
+    /* Подписи: #B3B3B3, 9,8:1 на почти чёрной плитке */
+    --muted-foreground: 0 0% 70%;
 
-    --accent: 0 0% 16%;
+    --accent: 0 0% 10%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 4 74% 49%;
     --destructive-ink: 4 92% 69%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
+    --border: 0 0% 14%;
+    --input: 0 0% 15%;
     --ring: 70 94% 73%;
 
     --loader: 0 0% 64%;
-    --skeleton: 0 0% 17%;
+    --skeleton: 0 0% 12%;
 
-    --nav-active: 0 0% 28%;
-    --glass-tint: 0 0% 13%;
+    --nav-active: 0 0% 22%;
+    --glass-tint: 0 0% 8%;
     --glass-alpha: 0.72;
     --glass-rim: 0.16;
     --glass-edge: 0 0% 100% / 0.08;
@@ -318,7 +319,7 @@
 }
 
 .dark .shade-toaster [data-sonner-toast][data-styled='true'] {
-  background: hsl(0 0% 16% / 0.74);
+  background: hsl(0 0% 13% / 0.74);
 }
 
 /* Текст занимает всю строку справа от иконки 20 px (зазор 12 px) */
@@ -645,8 +646,8 @@ html body[data-scroll-locked] {
 }
 
 .dark {
-  --nest-card: 0 0% 15%;
-  --nest-muted: 0 0% 20%;
+  --nest-card: 0 0% 9%;
+  --nest-muted: 0 0% 14%;
 }
 
 /* Кнопки-иконки (круглые, без текста: крестик, поиск, импорт, действия встречи,
@@ -666,8 +667,8 @@ html body[data-scroll-locked] {
 }
 
 .dark {
-  --icon-btn-hover: 0 0% 22%;
-  --nest-icon-btn-hover: 0 0% 25%;
+  --icon-btn-hover: 0 0% 16%;
+  --nest-icon-btn-hover: 0 0% 20%;
 }
 
 .shade-nest {
@@ -1152,7 +1153,7 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
 }
 
 .dark .shade-glass-pop {
-  --glass-tint: 0 0% 16%;
+  --glass-tint: 0 0% 13%;
   --glass-alpha: 0.74;
 }
 
