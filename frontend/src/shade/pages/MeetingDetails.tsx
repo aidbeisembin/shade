@@ -256,9 +256,10 @@ function SummaryBlock({
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden>
               <Spinner />
             </span>
-            <span className="min-w-0">
-              <span className="block text-lg font-bold tracking-tight">{t('summaryProcessing')}</span>
-              <span className="block truncate text-sm text-muted-foreground">{t('summaryProcessingHint')}</span>
+            {/* Одной строкой, как у готовых итогов: значок, название и подсказка на одной линии по центру */}
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="shrink-0 text-lg font-bold tracking-tight">{t('summaryProcessing')}</span>
+              <span className="min-w-0 truncate text-sm text-muted-foreground">{t('summaryProcessingHint')}</span>
             </span>
           </div>
         </div>
