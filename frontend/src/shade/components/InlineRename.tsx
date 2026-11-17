@@ -3,7 +3,8 @@
 // клик вне поля сохраняет. Если текст не меняли или стёрли, хранимое название
 // не трогается. Кнопки круглые, в высоту поля (buttonClassName задаёт размер под
 // inputClassName, по умолчанию 48 px как поле), иконки 20 px: «Сохранить» в акценте,
-// «Отмена» на серой подложке (cancelClassName, если поле лежит на той же подложке);
+// «Отмена» на серой подложке. Своей подложки у формы нет: поле и кнопки лежат прямо на
+// фоне страницы, отступы вокруг кнопок одинаковые;
 // Check и X в начертании bold: залитые в Phosphor нарисованы квадратом.
 'use client';
 
@@ -24,12 +25,10 @@ interface InlineRenameProps {
   inputClassName?: string;
   /** Размер кнопок, равный высоте поля (например size-14 при h-14). */
   buttonClassName?: string;
-  /** Подложка «Отмены», если серая по умолчанию сливается с фоном вокруг: тон задаётся через --muted (фон .shade-icon-btn берётся из него). */
-  cancelClassName?: string;
   className?: string;
 }
 
-export function InlineRename({ initial, onSave, onClose, inputClassName, buttonClassName = 'size-12', cancelClassName, className }: InlineRenameProps) {
+export function InlineRename({ initial, onSave, onClose, inputClassName, buttonClassName = 'size-12', className }: InlineRenameProps) {
   useLang();
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -103,7 +102,7 @@ export function InlineRename({ initial, onSave, onClose, inputClassName, buttonC
         type="button"
         variant="secondary"
         size="icon"
-        className={cn('shrink-0 [&_svg]:size-5', buttonClassName, cancelClassName)}
+        className={cn('shrink-0 [&_svg]:size-5', buttonClassName)}
         aria-label={t('cancel')}
         onMouseDown={keepFocus}
         onClick={cancel}
