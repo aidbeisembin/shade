@@ -1,22 +1,22 @@
 // Шаги карточки «Как вам Shade?» и формы отзыва. Чистый редуктор: что видно и что можно нажать.
 //
-//   ask ──звезда 1-3──> form(low) ──Отправить──> sending ──> sent | queued | failed
+//   ask ──звезда 1-2──> form(low) ──Отправить──> sending ──> sent | queued | failed
 //    │                    └─Esc──> closed (ничего не ушло)
-//    └─звезда 4-5──> thanks ──Отправить оценку──> sending
-//                      └─Написать отзыв──> form(high) ──Esc──> thanks
+//    └─звезда 3-5──> sending (оценка без текста, сразу) ──> sent | queued | failed
+// Наведение и стрелки только меняют оценку; ветку выбирает щелчок, Enter или пробел.
 // Крестик на любом шаге до отправки: closed, ничего не уходит (dismissed: закрытие без оценки).
 // «Отправить» на шаге sending и после него ничего не делает: второй запрос не уходит.
 
 import { MAX_TEXT, clampText } from './contract';
 
-export type Step = 'ask' | 'thanks' | 'form' | 'sending' | 'sent' | 'queued' | 'failed' | 'closed';
+export type Step = 'ask' | 'form' | 'sending' | 'sent' | 'queued' | 'failed' | 'closed';
 
 export interface Flow {
   step: Step;
   rating: number;
   text: string;
-  /** Откуда открыта форма: low (1-3 звезды, форма вместо карточки), high (4-5, «Написать отзыв»). */
-  origin: 'low' | 'high' | null;
+  /** Откуда отправка: low (1-2 звезды, через «Что улучшить?») или null (3-5 звёзд, сразу с карточки). */
+  origin: 'low' | null;
   /** Закрыто без отправки. */
   dismissed: boolean;
 }
@@ -24,7 +24,6 @@ export interface Flow {
 export type FlowEvent =
   | { type: 'rate'; rating: number }
   | { type: 'commit'; rating: number }
-  | { type: 'write' }
   | { type: 'text'; text: string }
   | { type: 'cancel' }
   | { type: 'send' }
@@ -39,13 +38,14 @@ export const START: Flow = {
   dismissed: false,
 };
 
-/** Высокая оценка: благодарность и звезда на GitHub. Низкая: сразу «Что улучшить?». */
-export const isHigh = (rating: number) => rating >= 4;
+/** До этой оценки включительно карточка спрашивает «Что улучшить?»; выше оценка уходит сразу. */
+export const FORM_MAX = 2;
+export const sendsAtOnce = (rating: number) => rating > FORM_MAX;
 
 const done = (s: Step) => s === 'sending' || s === 'sent' || s === 'queued' || s === 'failed' || s === 'closed';
 
 export function canSend(f: Flow): boolean {
-  return (f.step === 'form' || f.step === 'thanks') && f.rating >= 1 && f.rating <= 5 && f.text.length <= MAX_TEXT;
+  return f.step === 'form' && f.rating >= 1 && f.rating <= 5 && f.text.length <= MAX_TEXT;
 }
 
 export function flowReducer(f: Flow, e: FlowEvent): Flow {
@@ -57,17 +57,14 @@ export function flowReducer(f: Flow, e: FlowEvent): Flow {
       if (done(f.step)) return f;
       const rating = clamp(e.rating);
       if (rating === 0) return f;
-      // В форме оценку можно поправить, форма остаётся
+      // В форме оценку можно поправить, форма остаётся (уйдёт по «Отправить» вместе с текстом)
       if (f.step === 'form') return { ...f, rating };
-      return isHigh(rating) ? { ...f, rating, step: 'thanks', origin: null } : { ...f, rating, step: 'form', origin: 'low' };
+      return sendsAtOnce(rating) ? { ...f, rating, text: '', step: 'sending', origin: null } : { ...f, rating, step: 'form', origin: 'low' };
     }
-    case 'write':
-      return f.step === 'thanks' ? { ...f, step: 'form', origin: 'high' } : f;
     case 'text':
       return f.step === 'form' ? { ...f, text: clampText(e.text) } : f;
     case 'cancel':
-      if (f.step !== 'form') return f;
-      return f.origin === 'high' ? { ...f, step: 'thanks', origin: null } : { ...f, step: 'closed', dismissed: true };
+      return f.step === 'form' ? { ...f, step: 'closed', dismissed: true } : f;
     case 'send':
       return canSend(f) ? { ...f, step: 'sending' } : f;
     case 'result':

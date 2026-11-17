@@ -75,7 +75,7 @@ export function PendingRow({ title, stage, done = false }: { title: string; stag
       <StatusThumb kind={done ? 'transcript' : 'summarizing'} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-base font-medium">{title}</span>
-        <span className="mt-0.5 block text-sm text-muted-foreground" role="status">
+        <span className="mt-0.5 block truncate text-sm text-muted-foreground" role="status">
           <span className="sr-only">, </span>
           {[now, stage].filter(Boolean).join(' · ')}
         </span>
@@ -146,14 +146,15 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
 
   if (editing) {
     return (
-      <li className="rounded-nested bg-muted p-1">
+      // Без подложки; поле и кнопки в высоту строки (64 px), чтобы список не прыгал
+      <li className="flex min-h-[64px] items-center">
         <InlineRename
+          className="flex-1"
           initial={editableTitle(meeting.title, d?.contentTitle)}
           onSave={onRename}
           onClose={() => setEditing(false)}
-          inputClassName="h-11 text-[15px] font-medium"
-          buttonClassName="size-11"
-          cancelClassName="[--muted:var(--input)]"
+          inputClassName="h-16 text-base font-medium"
+          buttonClassName="size-16"
         />
       </li>
     );
@@ -194,7 +195,7 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
               {/* Разделители для диктора: иначе имя ссылки читается слитно, «НазваниеСегодня, 10:00» */}
               {kind === 'summary' && <span className="sr-only">, {t('statusSummary')}</span>}
               {meta && (
-                <span className="mt-0.5 block text-sm text-muted-foreground">
+                <span className="mt-0.5 block truncate text-sm text-muted-foreground" title={meta}>
                   <span className="sr-only">, </span>
                   {meta}
                 </span>

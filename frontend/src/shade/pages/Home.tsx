@@ -719,8 +719,8 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
           {!search &&
             (state.kind === 'ready' ? shownGroups : []).map(({ group, items }) => (
               <section key={group} aria-labelledby={`shade-group-${group}`} className="mt-5 first:mt-1">
-                {/* Мелкий надзаголовок группы */}
-                <h2 id={`shade-group-${group}`} className="pb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                {/* Заголовок группы обычным текстом, не капсом */}
+                <h2 id={`shade-group-${group}`} className="pb-2 text-sm font-medium text-muted-foreground">
                   {t(GROUP_LABEL[group])}
                 </h2>
                 <ul className="grid grid-cols-1 gap-x-6 gap-y-1 @[1100px]:grid-cols-2">

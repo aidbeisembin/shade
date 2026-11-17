@@ -8,6 +8,7 @@ import { resetLangForTests } from '@/shade/lib/lang';
 import { PROMPT_KEY, readPrompt, resetFeedbackForTests } from '@/shade/lib/feedback/store';
 import { QUEUE_KEY } from '@/shade/lib/feedback/send';
 import { START } from '@/shade/lib/feedback/flow';
+import { setTimeScale } from '@/shade/lib/motion/spring';
 
 (globalThis as unknown as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 const g = globalThis as unknown as Record<string, unknown>;
@@ -42,6 +43,11 @@ afterEach(() => {
 const radios = (root: ReactTestInstance) => root.findAll((n) => n.type === 'button' && n.props.role === 'radio');
 const textOf = (n: ReactTestInstance | string): string => (typeof n === 'string' ? n : n.children.map(textOf).join(''));
 const byText = (root: ReactTestInstance, text: string) => root.find((n) => n.type === 'button' && textOf(n).includes(text));
+/** Ждать условия до 2 с (ответ подставного сервера приходит не в фиксированный момент). */
+const waitFor = async (cond: () => boolean) => {
+  for (let i = 0; i < 100 && !cond(); i++) await act(async () => void (await new Promise((res) => setTimeout(res, 20))));
+  return cond();
+};
 const flush = () => act(async () => void (await new Promise((r) => setTimeout(r, 60))));
 
 test('2 звезды без текста и крестик: в сеть ничего, закрытие в счёт', async () => {
@@ -82,19 +88,62 @@ test('повторный клик «Отправить»: один запрос,
   expect(r.root.findAll((n) => n.props.role === 'status')).toHaveLength(1);
 });
 
-test('5 звёзд: «Спасибо!», без «Отправить оценку» ничего не уходит', async () => {
+test('5 звёзд: оценка уходит сразу, карточка сворачивается в «Спасибо!» и уходит сама', async () => {
+  // Кадров в тестах нет: таймер вместо requestAnimationFrame, время движка ×20
+  g.requestAnimationFrame = (cb: (t: number) => void) => setTimeout(() => cb(performance.now()), 8) as unknown as number;
+  (g.document as Record<string, unknown>).addEventListener = () => undefined;
+  setTimeScale(20);
+  let r!: TestRenderer.ReactTestRenderer;
+  try {
+    let done = 0;
+    await act(async () => {
+      r = TestRenderer.create(<FeedbackCard onDone={() => done++} />);
+    });
+    await act(async () => radios(r.root)[4].props.onClick());
+    await flush();
+    // Ушло сразу, один раз, без текста; GitHub в карточке нет
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0].body)).toMatchObject({ rating: 5, text: '' });
+    expect(r.root.findAll((n) => typeof n.type === 'string' && textOf(n).includes('GitHub'))).toHaveLength(0);
+    // Свернулась: заголовок «Спасибо!», звёзды скрыты от чтения с экрана, итог объявлен
+    const status = () => textOf(r.root.find((n) => n.props.role === 'status'));
+    expect(await waitFor(() => status() !== '')).toBe(true);
+    const card = r.root.find((n) => n.type === 'section');
+    expect(card.props['data-folded']).toBe(true);
+    expect(textOf(card)).toContain('Спасибо!');
+    expect(textOf(r.root.find((n) => n.props.role === 'status'))).toBe('Отзыв отправлен');
+    expect(readPrompt().ratedAt).not.toBeNull();
+    // Через THANKS_HOLD_MS (1,6 с движка) карточка уходит; закрытие не считается отказом
+    expect(await waitFor(() => done === 1)).toBe(true);
+    expect(readPrompt().dismissals).toBe(0);
+    expect(calls).toHaveLength(1);
+  } finally {
+    // Снять таймеры и пружины, дать циклу движка остановиться, потом убрать подставной rAF
+    await act(async () => r?.unmount());
+    await new Promise((res) => setTimeout(res, 50));
+    setTimeScale(1);
+    delete g.requestAnimationFrame;
+  }
+});
+
+test('3 звезды тоже уходят сразу; 2 звезды открывают форму и без «Отправить» ничего не шлют', async () => {
   let r!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     r = TestRenderer.create(<FeedbackCard onDone={() => undefined} />);
   });
-  await act(async () => radios(r.root)[4].props.onClick());
-  expect(byText(r.root, 'Поставить звезду на GitHub')).toBeDefined();
-  await flush();
-  expect(calls).toHaveLength(0);
-  await act(async () => byText(r.root, 'Отправить оценку').props.onClick());
+  await act(async () => radios(r.root)[2].props.onClick());
   await flush();
   expect(calls).toHaveLength(1);
-  expect(JSON.parse(calls[0].body)).toMatchObject({ rating: 5, text: '' });
+  expect(JSON.parse(calls[0].body)).toMatchObject({ rating: 3, text: '' });
+
+  calls = [];
+  await act(async () => {
+    r = TestRenderer.create(<FeedbackCard onDone={() => undefined} />);
+  });
+  await act(async () => radios(r.root)[1].props.onClick());
+  await flush();
+  expect(r.root.findAll((n) => n.type === 'textarea')).toHaveLength(1);
+  expect(calls).toHaveLength(0);
 });
 
 test('звёзды: radiogroup, стрелки меняют, Enter подтверждает, один Tab-стоп', async () => {

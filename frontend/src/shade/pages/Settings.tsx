@@ -40,7 +40,6 @@ import { providerLabel, usePrivacy } from '@/shade/lib/privacy';
 import { startBackfill, stopBackfill, titler } from '@/shade/lib/title-service';
 import { FeedbackMorph } from '@/shade/components/feedback/FeedbackMorph';
 import { LicensesDialog } from '@/shade/components/LicensesDialog';
-import { GithubButton } from '@/shade/components/feedback/FeedbackFields';
 import { setAskEnabled, useAskEnabled } from '@/shade/lib/feedback/store';
 
 const TABS = [
@@ -291,19 +290,16 @@ function GeneralTab() {
 
 /**
  * «Обратная связь»: та же форма, что у карточки «Как вам Shade?» (звёзды и текст, уходит только по
- * «Отправить»), звезда на GitHub и переключатель «Иногда спрашивать оценку» (lib/feedback).
+ * «Отправить»), и переключатель «Иногда спрашивать оценку» (lib/feedback). Звезда на GitHub будет
+ * отдельной иконкой (openGithub в components/feedback/FeedbackFields.tsx).
  */
 function FeedbackRows() {
   useLang();
   const ask = useAskEnabled();
   return (
     <>
-      {/* wide: «Поставить звезду на GitHub» не помещается в 200 px */}
-      <Row title={t('feedbackRowTitle')} hint={t('feedbackRowHint')} wide>
-        <div className="flex w-full flex-col gap-2">
-          <FeedbackMorph />
-          <GithubButton variant="secondary" className="w-full" />
-        </div>
+      <Row title={t('feedbackRowTitle')} hint={t('feedbackRowHint')}>
+        <FeedbackMorph />
       </Row>
       <Row title={t('feedbackAskRow')} hint={t('feedbackAskHint')}>
         <Switch checked={ask} onCheckedChange={setAskEnabled} aria-label={t('feedbackAskRow')} />

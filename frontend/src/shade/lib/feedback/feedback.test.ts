@@ -103,14 +103,29 @@ describe('шаги карточки', () => {
     expect(flowReducer(f, { type: 'cancel' })).toMatchObject({ step: 'closed', dismissed: true });
   });
 
-  test('4-5 звёзд: «Спасибо!», «Написать отзыв» и Esc обратно', () => {
-    const f = run([{ type: 'commit', rating: 5 }]);
-    expect(f.step).toBe('thanks');
-    const form = flowReducer(f, { type: 'write' });
-    expect(form).toMatchObject({ step: 'form', origin: 'high' });
-    expect(flowReducer(form, { type: 'cancel' }).step).toBe('thanks');
-    // «Отправить оценку» без текста
+  test('3-5 звёзд: оценка уходит сразу, без текста и без формы', () => {
+    for (const rating of [3, 4, 5]) {
+      const f = run([{ type: 'commit', rating }]);
+      expect(f).toMatchObject({ step: 'sending', rating, text: '', origin: null });
+      // Пока уходит, оценку не поменять и второй отправки нет
+      expect(flowReducer(f, { type: 'commit', rating: 1 })).toBe(f);
+      expect(flowReducer(f, { type: 'send' })).toBe(f);
+      // Закрыли посреди отправки: это не «закрытие без оценки»
+      expect(flowReducer(f, { type: 'close' }).dismissed).toBe(false);
+    }
+  });
+
+  test('1-2 звезды: «Что улучшить?», оценку в форме можно поднять, уйдёт только по «Отправить»', () => {
+    for (const rating of [1, 2]) expect(run([{ type: 'commit', rating }])).toMatchObject({ step: 'form', origin: 'low' });
+    const f = run([{ type: 'commit', rating: 2 }, { type: 'commit', rating: 5 }]);
+    expect(f).toMatchObject({ step: 'form', rating: 5 });
     expect(flowReducer(f, { type: 'send' }).step).toBe('sending');
+  });
+
+  test('наведение и стрелки до 5 ничего не отправляют', () => {
+    const f = run([{ type: 'rate', rating: 5 }]);
+    expect(f).toMatchObject({ step: 'ask', rating: 5 });
+    expect(flowReducer(f, { type: 'send' })).toBe(f);
   });
 
   test('повторный клик «Отправить»: второй отправки нет', () => {

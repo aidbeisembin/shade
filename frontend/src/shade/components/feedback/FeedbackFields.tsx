@@ -1,11 +1,10 @@
 // Общие части отзыва для карточки в доке (FeedbackCard) и формы в Настройках (FeedbackMorph):
-// поле текста со счётчиком, плашка итога, высота на пружине, кнопка GitHub.
+// поле текста со счётчиком, плашка итога, высота на пружине, ссылка на GitHub.
 'use client';
 
 import * as React from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Check, GithubLogo, Warning } from '@phosphor-icons/react';
-import { Button } from '@/shade/components/ui/button';
+import { Check, Warning } from '@phosphor-icons/react';
 import { NoticeMark } from '@/shade/components/ui/notice';
 import { spring } from '@/shade/lib/motion/spring';
 import { MORPH } from '@/shade/lib/motion/shade-springs';
@@ -98,18 +97,9 @@ export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?
   );
 }
 
+/** Открыть репозиторий Shade в браузере. Для будущей иконки GitHub (из карточки и Настроек кнопка убрана). */
 export function openGithub() {
   invoke('open_external_url', { url: GITHUB_URL }).catch((error) => shadeToast.error(t('openLinkFailed'), { description: String(error) }));
-}
-
-export function GithubButton({ className, variant = 'default' }: { className?: string; variant?: 'default' | 'secondary' }) {
-  useLang();
-  return (
-    <Button variant={variant} className={className} onClick={openGithub}>
-      <GithubLogo weight="fill" />
-      {t('feedbackGithubStar')}
-    </Button>
-  );
 }
 
 /**

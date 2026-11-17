@@ -4,7 +4,8 @@
 // bold с чуть более толстым контуром, .shade-close-glyph в globals.css;
 // залитый X в Phosphor нарисован квадратом, docs/ui/foundations.md).
 // Правило места: у карточек (уведомления, итог записи, карточки про микрофон) крестик справа
-// по центру высоты, 4 px от правого края (CLOSE_CENTER), на одной линии с кнопкой действия;
+// по центру высоты, 20 px от правого края, как отступ карточки (CLOSE_CENTER), на одной линии с кнопкой действия:
+// у карточки в одну строку зазор справа и сверху с снизу равны;
 // у диалога в правом верхнем углу, 4 px сверху и справа (CLOSE_CORNER). Карточка с крестиком
 // оставляет справа запас (CLOSE_RESERVE), чтобы текст и кнопки не заходили под него.
 'use client';
@@ -25,14 +26,14 @@ export const CLOSE_BUTTON =
 /** Место крестика у диалога: правый верхний угол, 4 px сверху и справа (у родителя position: relative). */
 export const CLOSE_CORNER = 'absolute right-1 top-1 z-10';
 
-/** Место крестика у карточки: справа по центру высоты, 4 px от края (у родителя position: relative). */
-export const CLOSE_CENTER = 'absolute right-1 top-1/2 z-10 -translate-y-1/2';
+/** Место крестика у карточки: справа по центру высоты, 20 px от края (= p-5 карточки, зазор справа равен зазору сверху и снизу; у родителя position: relative). */
+export const CLOSE_CENTER = 'absolute right-5 top-1/2 z-10 -translate-y-1/2';
 
 /**
- * Запас справа у карточки с крестиком: 4 + 44 + 8 = 56 px от края, текст и действия
+ * Запас справа у карточки с крестиком: 20 + 44 + 8 = 72 px от края, текст и действия
  * кончаются на 8 px левее кнопки.
  */
-export const CLOSE_RESERVE = 'pr-14';
+export const CLOSE_RESERVE = 'pr-[72px]';
 
 /** Круглый крестик карточки: справа по центру высоты (CLOSE_CENTER). */
 export const CloseButton = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }>(
