@@ -228,7 +228,7 @@ function SummaryBlock({
   summary: SummaryState;
   /** Название в шапке: заголовок итогов, который его повторяет, не показывается. */
   title: string;
-  /** Нет у короткой встречи и во время записи: «Сделать заново» не показывается. */
+  /** «Повторить» после ошибки итогов; нет у короткой встречи и во время записи. Готовые итоги заново не делаются: кнопки «Сделать заново» нет (решение владельца 2026-11-17). */
   onRetry?: () => void;
 }) {
   useLang();
@@ -303,12 +303,6 @@ function SummaryBlock({
           <CaretDown className={cn('ml-auto size-4 transition-transform', open && 'rotate-180')} aria-hidden />
           <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
         </button>
-        {onRetry && (
-          <Button variant="ghost" className="h-12 bg-input px-5 hover:bg-input/70" onClick={onRetry}>
-            <ArrowClockwise />
-            {t('summaryRedo')}
-          </Button>
-        )}
       </div>
       {open && (
         <article
@@ -477,7 +471,7 @@ function MeetingDetailsContent() {
   const router = useRouter();
   const m = useMeeting(meetingId);
   const { meetings, setMeetings, refetchMeetings } = useSidebar();
-  // «Подвести итоги» (в том числе «Сделать заново»): когда итоги будут готовы, название создаётся вместе
+  // «Подвести итоги» (и «Повторить» после ошибки): когда итоги будут готовы, название создаётся вместе
   // с ними, если его не задал человек (title-service.ts). Следим по ядру, страница может быть уже закрыта
   const generate = () => {
     void m.generateSummary();
@@ -590,14 +584,14 @@ function MeetingDetailsContent() {
   // «Подвести итоги» только когда есть из чего: запись остановлена (во время записи
   // кнопки нет) и в тексте не меньше MIN_SUMMARY_WORDS слов (speech.ts). Иначе модель
   // заполнила бы разделы заглушками «Ничего не отмечено». Итоги, сделанные раньше, видны
-  // при любой длине, но «Сделать заново» у короткой встречи нет
+  // при любой длине
   // Хук вызван выше, до ранних return (иначе порядок хуков меняется между загрузкой и готовой встречей)
   const isRecording = recordingNow;
   const enoughText = m.hasMore || countWords(m.segments.map((x) => x.text).join(' ')) >= MIN_SUMMARY_WORDS;
   const canSummarize = !empty && enoughText && !isRecording;
   const showSummary = !empty && (m.summary.kind === 'ready' || m.summary.kind === 'processing' || (m.summary.kind === 'failed' && canSummarize));
   // «Подвести итоги» в шапке, только пока итогов нет: ход генерации, ошибка
-  // и «Сделать заново» показываются в блоке итогов над транскриптом
+  // и «Повторить» показываются в блоке итогов над транскриптом
   const showGenerate = canSummarize && m.summary.kind === 'empty';
 
   const rename = async (title: string) => {
