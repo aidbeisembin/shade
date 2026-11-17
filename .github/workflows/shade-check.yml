@@ -70,6 +70,10 @@ jobs:
       - name: Migration script (bash scripts/test-migrate-from-aid.sh)
         run: bash scripts/test-migrate-from-aid.sh
 
+      # Смена identifier 17.11.2026: io.github.katanana23.shade -> com.aidbeisembin.shade.
+      - name: Identifier migration (bash scripts/test-migrate-identifier.sh)
+        run: bash scripts/test-migrate-identifier.sh
+
   core:
     name: core (macOS, ffmpeg, Parakeet)
     # Ядро собирается на macOS: build.rs скачивает закреплённый ffmpeg, сверяет SHA-256 архива
