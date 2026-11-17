@@ -53,7 +53,7 @@ export function ReadyStep({
 
       <div className="mt-6 rounded-nested bg-muted py-4 pl-4 pr-3">
         <div className="flex items-center gap-3">
-          <UserSound className="size-6 shrink-0 text-foreground" aria-hidden />
+          <UserSound className="size-5 shrink-0 text-foreground" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold leading-6">{t('obSpeechModel')}</p>
             <p role="status" className={cn('text-pretty text-[13px] leading-5', speech.failed ? 'text-giants-ink' : 'text-muted-foreground')}>

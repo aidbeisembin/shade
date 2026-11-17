@@ -47,7 +47,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
             active ? 'bg-nav-active text-nav-active-foreground' : 'shade-icon-btn-ghost text-muted-foreground',
           )}
         >
-          <Icon className="size-6" aria-hidden />
+          <Icon className="size-5" aria-hidden />
         </Link>
       </TooltipTrigger>
       <TooltipContent side="right">{t(item.label)}</TooltipContent>
