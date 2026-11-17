@@ -7,7 +7,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowClockwise, ArrowCounterClockwise, Chats, MagnifyingGlass, Sparkle, Trash, UploadSimple, Warning, X } from '@phosphor-icons/react';
+import { ArrowClockwise, ArrowCounterClockwise, Chats, MagnifyingGlass, Sparkle, Trash, FileArrowUp, Warning, X } from '@phosphor-icons/react';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { Button } from '@/shade/components/ui/button';
 import { Skeleton } from '@/shade/components/ui/skeleton';
@@ -598,7 +598,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="secondary" size="icon" className="size-14 [&_svg]:size-6" onClick={() => openImportDialog()} aria-label={t('importAudio')}>
-                <UploadSimple />
+                <FileArrowUp />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">{t('importAudio')}</TooltipContent>

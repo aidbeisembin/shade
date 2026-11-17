@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowClockwise, FileAudio, UploadSimple, Warning } from '@phosphor-icons/react';
+import { ArrowClockwise, FileAudio, FileArrowUp, Warning } from '@phosphor-icons/react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { Button } from '@/shade/components/ui/button';
 import { Input } from '@/shade/components/ui/input';
@@ -152,7 +152,7 @@ export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
               className="flex w-full flex-col items-center gap-3 rounded-nested bg-muted px-6 py-8 text-center transition-colors hover:bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             >
               <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary-ink" aria-hidden>
-                {status === 'validating' ? <Spinner /> : <UploadSimple className="size-5" />}
+                {status === 'validating' ? <Spinner /> : <FileArrowUp className="size-5" />}
               </span>
               <span className="text-[15px] font-semibold">{status === 'validating' ? t('importChecking') : t('importChoose')}</span>
               <span className="text-xs text-muted-foreground">{FORMATS}</span>
@@ -249,7 +249,7 @@ export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
                 {t('cancel')}
               </Button>
               <Button size="main" onClick={() => void start()} disabled={!fileInfo}>
-                <UploadSimple />
+                <FileArrowUp />
                 {t('importStart')}
               </Button>
             </>
