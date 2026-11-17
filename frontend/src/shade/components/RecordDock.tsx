@@ -183,7 +183,7 @@ function RecordButton() {
             data-shade-record="needs-access"
             className="flex size-[88px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground shadow-lg transition-colors hover:bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
           >
-            <MicrophoneSlash className="size-8" aria-hidden />
+            <MicrophoneSlash className="size-5" aria-hidden />
           </button>
         </TooltipTrigger>
         <TooltipContent side="top">{t('micNeedsAccess')}</TooltipContent>
@@ -400,7 +400,7 @@ export function RecordDock() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="shade-icon-btn-glass size-14 [&_svg]:size-6"
+                  className="shade-icon-btn-glass size-14 [&_svg]:size-5"
                   onClick={() => void c.togglePause()}
                   disabled={c.busy !== null}
                   aria-label={c.isPaused ? t('resumeRecording') : t('pauseRecording')}
