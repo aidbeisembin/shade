@@ -1,10 +1,10 @@
 [package]
-name = "meetily"
+name = "shade"
 version = "0.4.1"
-description = "A Tauri App for meeting minutes"
-authors = ["Sujith S"]
+description = "Shade: private meeting notes for macOS"
+authors = ["Aid Beisembin"]
 license = "MIT"
-repository = "https://github.com/Zackriya-Solutions/meeting-minutes"
+repository = "https://github.com/katanana23/shade"
 edition = "2021"
 rust-version = "1.77"
 
@@ -15,8 +15,8 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 # Исполняемый файл Shade: под этим именем приложение видно в Dock и в
-# «Мониторинге системы», в том числе при запуске через tauri dev (раньше meetily,
-# по имени пакета). Имя пакета не меняется. В паре с mainBinaryName в tauri.conf.json.
+# «Мониторинге системы», в том числе при запуске через tauri dev. Пакет называется
+# shade (cargo -p shade). В паре с mainBinaryName в tauri.conf.json.
 [[bin]]
 name = "Shade"
 path = "src/main.rs"
