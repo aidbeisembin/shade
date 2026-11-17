@@ -1211,11 +1211,11 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
 }
 
 /* Кнопка записи в покое: круглая 88 px, сплошной лайм, тёмный микрофон.
-   От круга расходятся две мягкие волны, как от звука (transform и opacity). */
+   От круга расходятся две мягкие волны, как от звука (transform и opacity). Без серой тени под
+   кругом: на светлом фоне она грязнила лайм (решение владельца 2026-11-17). */
 .shade-record-button {
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-  box-shadow: 0 10px 24px -12px hsl(0 0% 0% / 0.55);
   transition:
     transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
     background-color 0.2s ease-out;

@@ -207,7 +207,7 @@ function RecordButton() {
             aria-keyshortcuts="Meta+Shift+R Control+Shift+R"
             className="shade-record-button relative flex size-full items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 disabled:opacity-80"
           >
-            {c.isStarting ? <Spinner tone="inherit" /> : <Microphone className="size-8" aria-hidden />}
+            {c.isStarting ? <Spinner tone="inherit" /> : <Microphone className="size-5" aria-hidden />}
           </button>
         </span>
       </TooltipTrigger>
