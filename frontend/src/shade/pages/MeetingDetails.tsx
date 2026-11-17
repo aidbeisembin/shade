@@ -123,6 +123,7 @@ function Title({ shown, editable, onRename }: { shown: string; editable: string;
         }}
         onClose={() => setEditing(false)}
         inputClassName="h-14 text-2xl font-bold"
+        buttonClassName="size-14"
       />
     );
   }

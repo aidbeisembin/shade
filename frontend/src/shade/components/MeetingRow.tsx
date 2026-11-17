@@ -152,6 +152,8 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
           onSave={onRename}
           onClose={() => setEditing(false)}
           inputClassName="h-11 text-[15px] font-medium"
+          buttonClassName="size-11"
+          cancelClassName="[--muted:var(--input)]"
         />
       </li>
     );

@@ -106,7 +106,7 @@ void main(){
 const UNIFORMS = ['uRes', 'uTime', 'uLevel', 'uThink', 'uSweep', 'uRadius', 'uDark', 'uAmp', 'uLine', 'uPx'] as const;
 type Uniforms = Record<(typeof UNIFORMS)[number], WebGLUniformLocation | null>;
 
-/** Радиус плитки, px (--tile-radius). */
+/** Радиус плитки, px, если его не прочитать из CSS (плитка в бенто: --frame-radius). */
 const TILE_RADIUS = 24;
 /** Масштаб холста: 1 CSS px на пиксель холста, не DPR экрана. */
 const RENDER_SCALE = 1;
@@ -213,6 +213,7 @@ export function VoiceGlow({ mode, className }: { mode: VoiceGlowMode; className?
     let amp = modeRef.current === 'off' ? 0 : 1;
     let sweep = 0;
     let dpr = 1;
+    let radius = TILE_RADIUS;
     let visible = false;
     let cleared = true;
 
@@ -221,6 +222,9 @@ export function VoiceGlow({ mode, className }: { mode: VoiceGlowMode; className?
     const resize = () => {
       // Свечение мягкое: холст в 1×, на Retina в 4 раза меньше работы шейдера без видимой разницы
       dpr = RENDER_SCALE;
+      // Радиус берём у обёртки свечения: в колонке бенто он каркасный, а не 24
+      const box = canvas.parentElement?.parentElement;
+      radius = (box && parseFloat(getComputedStyle(box).borderBottomLeftRadius)) || TILE_RADIUS;
       const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
       const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
       if (canvas.width !== w || canvas.height !== h) {
@@ -245,7 +249,7 @@ export function VoiceGlow({ mode, className }: { mode: VoiceGlowMode; className?
       gl.uniform1f(U.uLevel, level);
       gl.uniform1f(U.uThink, think);
       gl.uniform1f(U.uSweep, 0.5 + 0.32 * Math.sin(sweep));
-      gl.uniform1f(U.uRadius, TILE_RADIUS * dpr);
+      gl.uniform1f(U.uRadius, radius * dpr);
       gl.uniform1f(U.uDark, document.documentElement.classList.contains('dark') ? 1 : 0);
       gl.uniform1f(U.uAmp, amp);
       gl.uniform1f(U.uLine, line);

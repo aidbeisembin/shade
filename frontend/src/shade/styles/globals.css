@@ -89,12 +89,16 @@
     --loader-speed: 0.9s;
 
     /* Геометрия бенто: 8 px между плитками и от края окна, 20 px внутри плитки.
-       Радиус плитки 24, вложенного элемента 16 (= плитка минус --inner-gap, так
-       углы вложенных концентричны плитке). Окно macOS 26 скруглено на 17 pt
-       (замер одиннадцатого круга), поэтому угол плитки у края окна мягче угла
-       окна: так задано в задаче «бенто с ролями цвета». Таблетки и кнопки 9999. */
+       Окно macOS 26 скруглено на 17 pt (замер одиннадцатого круга). Плитки каркаса
+       у края окна (сайдбар, плитка страницы, плитки колонки бенто) скруглены на
+       --frame-radius = окно минус отступ = 9 px: углы концентричны углу окна, край
+       плитки идёт параллельно краю окна. До 17.11.2026 там было 24 px, угол плитки
+       выходил круглее угла окна, и владелец увидел это как «криво». Плитки не у края
+       окна (диалоги, меню, карточки у капсулы) 24, вложенные 16 (= 24 минус
+       --inner-gap, концентричны плитке). Таблетки и кнопки 9999. */
     --window-radius: 17px;
     --tile-gap: 8px;
+    --frame-radius: calc(var(--window-radius) - var(--tile-gap));
     --tile-pad: 20px;
     --inner-gap: 8px;
     --tile-radius: 24px;
@@ -118,18 +122,19 @@
   }
 
   .dark {
-    /* Тёмная тема: окно чёрное #000000, плитки тёмно-серые #1C1C1C, вложенная
-       светлее плитки #292929. Текст #FFFFFF и #C4C4C4 (9,8:1 на плитке, 8,4:1 на вложенной) */
+    /* Тёмная тема: окно чёрное #000000, плитки почти чёрные #121212 (чуть светлее
+       окна, чтобы край читался), вложенная #212121. Текст #FFFFFF и #B3B3B3 (9:1 на
+       плитке). Окно чёрное с 2026-11-16, плитка #121212 с 2026-11-17 (docs/ui/foundations.md) */
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
 
-    --card: 0 0% 11%;
+    --card: 0 0% 7%;
     --card-foreground: 0 0% 100%;
-    --popover: 0 0% 16%;
+    --popover: 0 0% 13%;
     --popover-foreground: 0 0% 100%;
 
     /* Лайм как заливка тот же; как текст, иконка и рамка на чёрной плитке сам
-       лайм (13:1) */
+       лайм (16:1) */
     --primary: 70 94% 73%;
     --primary-foreground: 0 0% 7%;
     --primary-ink: 70 94% 73%;
@@ -140,27 +145,27 @@
     --giants-ink: 18 81% 57%;
     --record: 4 74% 49%;
 
-    --secondary: 0 0% 16%;
+    --secondary: 0 0% 13%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 16%;
-    /* Подписи: #C4C4C4, 9,8:1 на серой плитке (на чёрной было #B3B3B3, тоже 9,8:1) */
-    --muted-foreground: 0 0% 77%;
+    --muted: 0 0% 13%;
+    /* Подписи: #B3B3B3, около 9:1 на почти чёрной плитке */
+    --muted-foreground: 0 0% 70%;
 
-    --accent: 0 0% 16%;
+    --accent: 0 0% 13%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 4 74% 49%;
     --destructive-ink: 4 92% 69%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
+    --border: 0 0% 17%;
+    --input: 0 0% 18%;
     --ring: 70 94% 73%;
 
     --loader: 0 0% 64%;
-    --skeleton: 0 0% 17%;
+    --skeleton: 0 0% 15%;
 
-    --nav-active: 0 0% 28%;
-    --glass-tint: 0 0% 13%;
+    --nav-active: 0 0% 25%;
+    --glass-tint: 0 0% 8%;
     --glass-alpha: 0.72;
     --glass-rim: 0.16;
     --glass-edge: 0 0% 100% / 0.08;
@@ -318,7 +323,7 @@
 }
 
 .dark .shade-toaster [data-sonner-toast][data-styled='true'] {
-  background: hsl(0 0% 16% / 0.74);
+  background: hsl(0 0% 13% / 0.74);
 }
 
 /* Текст занимает всю строку справа от иконки 20 px (зазор 12 px) */
@@ -645,8 +650,8 @@ html body[data-scroll-locked] {
 }
 
 .dark {
-  --nest-card: 0 0% 15%;
-  --nest-muted: 0 0% 20%;
+  --nest-card: 0 0% 12%;
+  --nest-muted: 0 0% 17%;
 }
 
 /* Кнопки-иконки (круглые, без текста: крестик, поиск, импорт, действия встречи,
@@ -666,8 +671,8 @@ html body[data-scroll-locked] {
 }
 
 .dark {
-  --icon-btn-hover: 0 0% 22%;
-  --nest-icon-btn-hover: 0 0% 25%;
+  --icon-btn-hover: 0 0% 19%;
+  --nest-icon-btn-hover: 0 0% 23%;
 }
 
 .shade-nest {
@@ -1087,19 +1092,44 @@ main[data-layout='bento'] {
   --head-surface: var(--background);
 }
 
-/* Кнопки и чипы в шапке на тоне текста (--glass-btn: 6 %, при наведении 12 %; в тёмной
-   11 % и 17 %), а не на вложенной поверхности: шапка лежит то на плитке, то на фоне окна,
-   и на фоне окна вложенный тон почти не виден. На плитке тон близок к вложенной поверхности */
+/* Плитки колонки бенто лежат у края окна: радиус каркаса, концентричный окну (см. --frame-radius) */
+main[data-layout='bento'] .rounded-tile {
+  border-radius: var(--frame-radius);
+}
+
+/* Кнопки, чипы и поля в шапке и в герое бенто на тоне текста (--glass-btn: 6 %, при
+   наведении 12 %; в тёмной 11 % и 17 %), а не на вложенной поверхности: шапка лежит то
+   на плитке, то на фоне окна, герой бенто всегда на фоне окна, а на фоне окна вложенный
+   тон почти не виден (в светлой теме --muted светлее окна). На плитке тон близок к
+   вложенной поверхности. Поле наведением не темнеет: меняются только кнопки. */
 .shade-sticky-head .shade-icon-btn,
 .shade-sticky-head .bg-muted,
-.shade-sticky-head .bg-secondary {
+.shade-sticky-head .bg-secondary,
+main[data-layout='bento'] .shade-hero .shade-icon-btn,
+main[data-layout='bento'] .shade-hero .bg-muted,
+main[data-layout='bento'] .shade-hero .bg-secondary {
   background-color: hsl(var(--foreground) / var(--glass-btn));
 }
 
 .shade-sticky-head .shade-icon-btn:hover:not(:disabled),
 .shade-sticky-head .bg-muted:hover:not(:disabled),
-.shade-sticky-head .bg-secondary:hover:not(:disabled) {
+.shade-sticky-head .bg-secondary:hover:not(:disabled),
+main[data-layout='bento'] .shade-hero .shade-icon-btn:hover:not(:disabled),
+main[data-layout='bento'] .shade-hero button.bg-muted:hover:not(:disabled),
+main[data-layout='bento'] .shade-hero button.bg-secondary:hover:not(:disabled) {
   background-color: hsl(var(--foreground) / var(--glass-btn-hover));
+}
+
+/* Скелетоны загрузки на фоне окна (шапка, герой бенто): --skeleton в светлой теме
+   совпадает с фоном окна, поэтому тот же тон текста, что у кнопок */
+.shade-sticky-head .shade-skeleton,
+main[data-layout='bento'] .shade-hero .shade-skeleton {
+  background: hsl(var(--foreground) / var(--glass-btn));
+}
+
+/* Подсветка наведения в герое бенто (название встречи) тоже на тоне текста */
+main[data-layout='bento'] .shade-hero .hover\:bg-muted:hover {
+  background-color: hsl(var(--foreground) / var(--glass-btn));
 }
 
 /* Низ под кнопкой записи: контент растворяется к низу так же, как под шапкой (то же
@@ -1152,7 +1182,7 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
 }
 
 .dark .shade-glass-pop {
-  --glass-tint: 0 0% 16%;
+  --glass-tint: 0 0% 13%;
   --glass-alpha: 0.74;
 }
 

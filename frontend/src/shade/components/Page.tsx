@@ -162,9 +162,9 @@ export function Page({ leading, title, actions, hero, children, layout = 'tile',
     return (
       <main data-layout="bento" className={cn('shade-page-in relative h-full min-w-0 flex-1', className)}>
         {/* -mr-2: прокрутка заходит в правое поле окна, полоса 8 px живёт там. Скругление по
-            радиусу плитки через overflow hidden у обёртки, а не маской: маска и clip-path у
+            радиусу каркаса (--frame-radius) через overflow hidden у обёртки, а не маской: маска и clip-path у
             области прокрутки отрезают размытию полосы всё, что под ней (контент оставался резким) */}
-        <div className="-mr-2 h-full overflow-hidden rounded-tile">
+        <div className="-mr-2 h-full overflow-hidden rounded-frame">
         <div ref={ref} className="shade-scroll shade-scroll-edge shade-scroll-under-head flex h-full flex-col gap-2 overflow-y-auto">
           {head}
           {heroBlock}
@@ -182,7 +182,7 @@ export function Page({ leading, title, actions, hero, children, layout = 'tile',
   }
 
   return (
-    <main data-layout="tile" className={cn('shade-page-in relative h-full min-w-0 flex-1 overflow-hidden rounded-tile bg-card', className)}>
+    <main data-layout="tile" className={cn('shade-page-in relative h-full min-w-0 flex-1 overflow-hidden rounded-frame bg-card', className)}>
       <div ref={ref} className="shade-scroll shade-scroll-under-head h-full overflow-y-auto">
         {head}
         {heroBlock}
