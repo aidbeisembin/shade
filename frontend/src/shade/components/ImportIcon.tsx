@@ -2,8 +2,9 @@
 // вместо UploadSimple и FileArrowUp из Phosphor; цвет currentColor, размер задаёт класс, по умолчанию 1em.
 import type { SVGProps } from 'react';
 
-// Контур толще на 1 px при любом размере значка (обводка currentColor 1 px не масштабируется: расширяет форму на 0,5 px с каждой стороны)
-const THICKEN = { stroke: 'currentColor', strokeWidth: 1, strokeLinejoin: 'round', vectorEffect: 'non-scaling-stroke' } as const;
+// Контур толще на 0,6 px при любом размере значка (обводка currentColor не масштабируется и расширяет форму на 0,3 px с каждой стороны):
+// рисунок 1,25 px при 20 px + 0,6 = 1,85 px, как лупа рядом (Phosphor bold: 24/256 от размера = 1,875 px)
+const THICKEN = { stroke: 'currentColor', strokeWidth: 0.6, strokeLinejoin: 'round', vectorEffect: 'non-scaling-stroke' } as const;
 
 export function ImportIcon(props: SVGProps<SVGSVGElement>) {
   return (
