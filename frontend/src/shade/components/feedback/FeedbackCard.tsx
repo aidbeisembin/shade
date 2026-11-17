@@ -78,7 +78,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
     return after(plaque === 'sent' ? THANKS_HOLD_MS : FAILED_HOLD_MS, () => dispatch({ type: 'close' }));
   }, [plaque]);
 
-  // Закрыто: закрытие без отправки идёт в счёт (после двух больше не спрашиваем)
+  // Закрыто: закрытие без отправки записывается (журнал; следующий показ по расписанию policy.ts)
   const closedOnce = React.useRef(false);
   React.useEffect(() => {
     if (flow.step !== 'closed' || closedOnce.current) return;

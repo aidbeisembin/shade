@@ -520,7 +520,7 @@ export const ru = {
   feedbackRowTitle: 'Оценка и отзыв',
   feedbackRowHint: 'Оценка и пара слов о Shade. Уходит только по кнопке «Отправить».',
   feedbackAskRow: 'Иногда спрашивать оценку',
-  feedbackAskHint: 'Не чаще раза в две недели, когда вы открыли итоги встречи. Не во время записи.',
+  feedbackAskHint: 'После записи от 10 минут, когда вы открыли её итоги: через неделю ещё раз, дальше раз в месяц. Не во время записи.',
 } satisfies Record<string, Entry>;
 
 type RuDict = typeof ru;
@@ -1026,7 +1026,7 @@ export const en: Mirror<RuDict> = {
   feedbackRowTitle: 'Rating and feedback',
   feedbackRowHint: 'A rating and a few words about Shade. Sent only when you press “Send”.',
   feedbackAskRow: 'Sometimes ask for a rating',
-  feedbackAskHint: 'At most every two weeks, when you open a meeting summary. Never while recording.',
+  feedbackAskHint: 'After a recording of 10+ minutes, when you open its summary: again a week later, then once a month. Never while recording.',
 };
 
 const DICTS: Record<Lang, Record<string, string | RuPlural | EnPlural>> = { ru, en };

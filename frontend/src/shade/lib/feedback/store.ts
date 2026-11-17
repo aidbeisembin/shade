@@ -133,7 +133,7 @@ export function considerOffer(ctx: Omit<OfferContext, 'askEnabled' | 'now'>): Of
  * видит итоги, карточка не прыгает навстречу открытию страницы). Ушли со страницы раньше: ничего.
  */
 export function useFeedbackOffer(ctx: Omit<OfferContext, 'askEnabled' | 'now'> & { trashed?: boolean }) {
-  const { meetingId, summaryReady, recovered, recording, trashed } = ctx;
+  const { meetingId, summaryReady, recovered, recording, durationSec, trashed } = ctx;
   useEffect(() => {
     if (!meetingId || !summaryReady || recording || recovered || trashed) return;
     const id = setTimeout(() => {
@@ -142,11 +142,12 @@ export function useFeedbackOffer(ctx: Omit<OfferContext, 'askEnabled' | 'now'> &
         summaryReady,
         recovered,
         recording,
+        durationSec,
       });
       if (verdict !== 'offer') console.debug('[shade] Отзыв: карточку не показываю:', verdict);
     }, OFFER_DELAY_MS);
     return () => clearTimeout(id);
-  }, [meetingId, summaryReady, recovered, recording, trashed]);
+  }, [meetingId, summaryReady, recovered, recording, durationSec, trashed]);
 }
 
 // ---------- Отправка ----------

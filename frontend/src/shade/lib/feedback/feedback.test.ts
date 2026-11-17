@@ -2,9 +2,11 @@
 // bun test src/shade (pnpm test). Таблица случаев: docs/ui/feedback.md.
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import {
-  COOLDOWN_MS,
   EMPTY_PROMPT,
-  MAX_DISMISSALS,
+  MIN_SECONDS,
+  REPEAT_GAP_DAYS,
+  SECOND_GAP_DAYS,
+  gapAfter,
   markCompleted,
   markDismissed,
   markRated,
@@ -24,69 +26,79 @@ import { LABEL_ROLL, STAR_FILL, STAR_POP, STAR_POP_FROM, STAR_POP_VELOCITY, over
 import { ALLOWED_ORIGINS, RATE_LIMIT, formatMessage, handleFeedback, resetRateLimitForTests, type Deps } from '../../../../api/feedback';
 
 const NOW = 1_800_000_000_000;
+const DAY = 24 * 60 * 60 * 1000;
 const ctx = (over: Partial<OfferContext> = {}): OfferContext => ({
-  meetingId: 'm3',
+  meetingId: 'm1',
   summaryReady: true,
   recovered: false,
   recording: false,
+  durationSec: 12 * 60,
   askEnabled: true,
   now: NOW,
   ...over,
 });
-const three = (): PromptState => ['m1', 'm2', 'm3'].reduce(markCompleted, EMPTY_PROMPT);
+const one = (): PromptState => markCompleted(EMPTY_PROMPT, 'm1');
+/** Показана n раз, последний раз daysAgo дней назад. */
+const shownTimes = (n: number, daysAgo: number): PromptState => {
+  let s = one();
+  for (let i = 0; i < n; i++) s = markShown(s, NOW - daysAgo * DAY);
+  return s;
+};
 
 describe('когда показывать карточку', () => {
-  test('третья завершённая встреча, итоги открыты: карточка есть', () => {
-    expect(offerVerdict(three(), ctx())).toBe('offer');
+  test('первая запись от 10 минут, итоги открыты: карточка сразу', () => {
+    expect(MIN_SECONDS).toBe(600);
+    expect(offerVerdict(one(), ctx())).toBe('offer');
+    expect(offerVerdict(one(), ctx({ durationSec: MIN_SECONDS }))).toBe('offer');
   });
 
-  test('вторая встреча: нет (и после третьей вторая тоже не зовёт)', () => {
-    const two = ['m1', 'm2'].reduce(markCompleted, EMPTY_PROMPT);
-    expect(offerVerdict(two, ctx({ meetingId: 'm2' }))).toBe('too-early');
-    expect(offerVerdict(three(), ctx({ meetingId: 'm2' }))).toBe('too-early');
+  test('запись короче 10 минут или длительность неизвестна: нет', () => {
+    expect(offerVerdict(one(), ctx({ durationSec: MIN_SECONDS - 1 }))).toBe('short');
+    expect(offerVerdict(one(), ctx({ durationSec: null }))).toBe('short');
+    expect(offerVerdict(one(), ctx({ durationSec: Number.NaN }))).toBe('short');
   });
 
-  test('идёт запись: нет', () => {
-    expect(offerVerdict(three(), ctx({ recording: true }))).toBe('recording');
+  test('второй раз через 7 дней после первого, дальше раз в 30 дней', () => {
+    expect([SECOND_GAP_DAYS, REPEAT_GAP_DAYS]).toEqual([7, 30]);
+    expect([0, 1, 2, 5].map(gapAfter)).toEqual([0, 7 * DAY, 30 * DAY, 30 * DAY]);
+    expect(offerVerdict(shownTimes(1, 6.9), ctx())).toBe('cooldown');
+    expect(offerVerdict(shownTimes(1, 7), ctx())).toBe('offer');
+    expect(offerVerdict(shownTimes(2, 29), ctx())).toBe('cooldown');
+    expect(offerVerdict(shownTimes(2, 30), ctx())).toBe('offer');
+    expect(offerVerdict(shownTimes(6, 30), ctx())).toBe('offer');
   });
 
-  test('встреча восстановлена после сбоя: нет', () => {
-    expect(offerVerdict(three(), ctx({ recovered: true }))).toBe('recovered');
+  test('оценка и закрытия цикл не останавливают; оценка сдвигает паузу', () => {
+    expect(offerVerdict(markDismissed(markDismissed(shownTimes(2, 31))), ctx())).toBe('offer');
+    expect(offerVerdict(markRated(shownTimes(2, 31), NOW - 31 * DAY), ctx())).toBe('offer');
+    // Оценил в Настройках 3 дня назад: следующий показ отсчитывается от оценки
+    expect(offerVerdict(markRated(shownTimes(2, 31), NOW - 3 * DAY), ctx())).toBe('cooldown');
   });
 
-  test('встреча не из записи (импорт, восстановление, чужая): нет', () => {
-    expect(offerVerdict(three(), ctx({ meetingId: 'imported' }))).toBe('not-completed');
+  test('идёт запись, восстановлена после сбоя, не из записи в этом окне: нет', () => {
+    expect(offerVerdict(one(), ctx({ recording: true }))).toBe('recording');
+    expect(offerVerdict(one(), ctx({ recovered: true }))).toBe('recovered');
+    expect(offerVerdict(one(), ctx({ meetingId: 'imported' }))).toBe('not-completed');
   });
 
-  test('два закрытия без отправки: больше не показывать', () => {
-    const s = markDismissed(markDismissed(three()));
-    expect(MAX_DISMISSALS).toBe(2);
-    expect(offerVerdict(s, ctx())).toBe('dismissed');
-    expect(offerVerdict(markDismissed(three()), ctx())).toBe('offer');
+  test('переключатель выключен, итогов нет: нет', () => {
+    expect(offerVerdict(one(), ctx({ askEnabled: false }))).toBe('off');
+    expect(offerVerdict(one(), ctx({ summaryReady: false }))).toBe('no-summary');
   });
 
-  test('14 дней не прошло: нет; прошло: да', () => {
-    const shown = markShown(three(), NOW - COOLDOWN_MS + 60_000);
-    expect(offerVerdict(shown, ctx())).toBe('cooldown');
-    expect(offerVerdict(markShown(three(), NOW - COOLDOWN_MS), ctx())).toBe('offer');
+  test('проверка моделью убрала встречу в корзину: не в счёт, «Вернуть» возвращает', () => {
+    const s = unmarkCompleted(one(), 'm1');
+    expect(offerVerdict(s, ctx())).toBe('not-completed');
+    expect(offerVerdict(markCompleted(s, 'm1'), ctx())).toBe('offer');
   });
 
-  test('оценка уже ушла, переключатель выключен, итогов нет: нет', () => {
-    expect(offerVerdict(markRated(three(), NOW), ctx())).toBe('rated');
-    expect(offerVerdict(three(), ctx({ askEnabled: false }))).toBe('off');
-    expect(offerVerdict(three(), ctx({ summaryReady: false }))).toBe('no-summary');
-  });
-
-  test('проверка моделью убрала вторую встречу в корзину: третьей становится следующая', () => {
-    const s = unmarkCompleted(three(), 'm2');
-    expect(offerVerdict(s, ctx())).toBe('too-early');
-    expect(offerVerdict(markCompleted(s, 'm4'), ctx({ meetingId: 'm4' }))).toBe('offer');
-  });
-
-  test('повтор той же встречи не считается дважды; битое хранилище не роняет', () => {
-    expect(markCompleted(three(), 'm3').total).toBe(3);
+  test('повтор той же встречи не считается дважды; битое и старое хранилище не роняет', () => {
+    expect(markCompleted(one(), 'm1').total).toBe(1);
     expect(parsePrompt('{не json')).toEqual(EMPTY_PROMPT);
     expect(parsePrompt(JSON.stringify({ completed: [{ id: 'a', n: 1 }, null, 5], dismissals: -1 })).dismissals).toBe(0);
+    // Состояние до 17.11.2026: без счётчика показов; был показ, значит один (следующий через 7 дней)
+    expect(parsePrompt(JSON.stringify({ completed: [], shownAt: NOW })).shows).toBe(1);
+    expect(parsePrompt(JSON.stringify({ completed: [] })).shows).toBe(0);
   });
 });
 
