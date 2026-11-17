@@ -88,11 +88,11 @@ describe('название: модель не настроена', () => {
 
 describe('название: локальная модель', () => {
   test('нормальный ответ: название записано, список узнаёт, пометка не трогается интерфейсом', async () => {
-    const w = world({ meetings: [meeting()], answers: ['«Сроки релиза мобильного приложения».'] });
+    const w = world({ meetings: [meeting()], answers: ['«Релиз мобильного приложения».'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
-    expect(out).toEqual({ status: 'set', title: 'Сроки релиза мобильного приложения' });
-    expect(w.meetings.get('m1')!.title).toBe('Сроки релиза мобильного приложения');
-    expect(w.calls.setAuto).toEqual([{ id: 'm1', expected: DEFAULT, title: 'Сроки релиза мобильного приложения' }]);
+    expect(out).toEqual({ status: 'set', title: 'Релиз мобильного приложения' });
+    expect(w.meetings.get('m1')!.title).toBe('Релиз мобильного приложения');
+    expect(w.calls.setAuto).toEqual([{ id: 'm1', expected: DEFAULT, title: 'Релиз мобильного приложения' }]);
     expect(w.calls.announced).toEqual(['m1']);
     expect(w.calls.generate[0].allowCloud).toBe(false);
   });
@@ -113,12 +113,12 @@ describe('название: локальная модель', () => {
     expect(w.meetings.get('m1')!.title).toBe(DEFAULT);
     expect(w.logs.some((l) => l.event === 'skip' && l.reason === 'error')).toBe(true);
   });
-  test('длинный ответ обрезается до 6 слов по границе слова', async () => {
+  test('длинный ответ обрезается до 3 слов по границе слова', async () => {
     const w = world({ meetings: [meeting()], answers: ['Сроки релиза мобильного приложения для клиентов и подрядчиков осенью следующего года'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status).toBe('set');
     if (out.status === 'set') {
-      expect(out.title.split(' ').length).toBeLessThanOrEqual(6);
+      expect(out.title.split(' ').length).toBeLessThanOrEqual(3);
       expect('Сроки релиза мобильного приложения для клиентов и подрядчиков осенью следующего года').toContain(out.title);
     }
   });
@@ -127,7 +127,7 @@ describe('название: локальная модель', () => {
 describe('название: облачный провайдер', () => {
   const cloud: ModelInfo = { configured: true, level: 'cloud', provider: 'openai' };
   test('автоматически ничего не уходит: ни чтения текста, ни запроса', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting()], model: cloud, answers: ['Релиз мобильной версии'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status === 'skipped' && out.reason).toBe('cloud-not-allowed');
     expect(w.calls.generate).toHaveLength(0);
@@ -141,25 +141,25 @@ describe('название: облачный провайдер', () => {
     expect(w.calls.generate).toHaveLength(0);
   });
   test('«Подвести итоги» нажато: название создаётся вместе с итогами', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'], summary: ['processing', 'processing', 'completed'] });
+    const w = world({ meetings: [meeting()], model: cloud, answers: ['Релиз мобильной версии'], summary: ['processing', 'processing', 'completed'] });
     await w.titler.watchSummary('m1');
     expect(w.calls.generate).toHaveLength(1);
     expect(w.calls.generate[0].allowCloud).toBe(true);
-    expect(w.meetings.get('m1')!.title).toBe('Сроки релиза мобильной версии');
+    expect(w.meetings.get('m1')!.title).toBe('Релиз мобильной версии');
   });
   test('итоги не получились: название не создаётся', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'], summary: ['processing', 'failed'] });
+    const w = world({ meetings: [meeting()], model: cloud, answers: ['Релиз мобильной версии'], summary: ['processing', 'failed'] });
     await w.titler.watchSummary('m1');
     expect(w.calls.generate).toHaveLength(0);
     expect(w.meetings.get('m1')!.title).toBe(DEFAULT);
   });
   test('итоги отменены сразу: название не создаётся', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'], summary: ['cancelled'] });
+    const w = world({ meetings: [meeting()], model: cloud, answers: ['Релиз мобильной версии'], summary: ['cancelled'] });
     await w.titler.watchSummary('m1');
     expect(w.calls.generate).toHaveLength(0);
   });
   test('два слежения за одной встречей: один запрос', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'], summary: ['completed'] });
+    const w = world({ meetings: [meeting()], model: cloud, answers: ['Релиз мобильной версии'], summary: ['completed'] });
     await Promise.all([w.titler.watchSummary('m1'), w.titler.watchSummary('m1')]);
     expect(w.calls.generate).toHaveLength(1);
   });
@@ -167,7 +167,7 @@ describe('название: облачный провайдер', () => {
 
 describe('название: ручное главнее', () => {
   test('переименовал человек: ни автоматика, ни итоги не трогают', async () => {
-    const make = () => world({ meetings: [meeting({ title: DEFAULT, origin: 'manual' })], answers: ['Сроки релиза мобильной версии'], summary: ['completed'] });
+    const make = () => world({ meetings: [meeting({ title: DEFAULT, origin: 'manual' })], answers: ['Релиз мобильной версии'], summary: ['completed'] });
     for (const run of [
       (w: ReturnType<typeof make>) => w.titler.titleOne('m1', { mode: 'auto' }),
       (w: ReturnType<typeof make>) => w.titler.watchSummary('m1'),
@@ -180,13 +180,13 @@ describe('название: ручное главнее', () => {
     }
   });
   test('своё название без пометки (встреча без папки): название не по умолчанию, не трогается', async () => {
-    const w = world({ meetings: [meeting({ title: 'Мой план на неделю' })], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting({ title: 'Мой план на неделю' })], answers: ['Релиз мобильной версии'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status === 'skipped' && out.reason).toBe('not-default');
     expect(w.calls.generate).toHaveLength(0);
   });
   test('переименовали, пока модель думала: ядро отказывает, название человека на месте', async () => {
-    const w = world({ meetings: [meeting()], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting()], answers: ['Релиз мобильной версии'] });
     const original = w.meetings.get('m1')!;
     // имитируем переименование посреди запроса: ответ модели приходит после него
     const orig = w.calls.generate.push.bind(w.calls.generate);
@@ -199,7 +199,7 @@ describe('название: ручное главнее', () => {
     expect(original.title).toBe('Мой план');
   });
   test('гонка с пометкой: ядро вернуло manual, название не записано и не объявлено', async () => {
-    const w = world({ meetings: [meeting()], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting()], answers: ['Релиз мобильной версии'] });
     const origin = w.meetings.get('m1')!;
     // пометка появляется после проверки интерфейса, до записи ядром
     const gen = w.calls.generate.push.bind(w.calls.generate);
@@ -216,39 +216,39 @@ describe('название: ручное главнее', () => {
 
 describe('название: кому положено', () => {
   test('встреча меньше минуты: ничего не отправляется', async () => {
-    const w = world({ meetings: [meeting({ durationSec: 59 })], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting({ durationSec: 59 })], answers: ['Релиз мобильной версии'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status === 'skipped' && out.reason).toBe('too-short');
     expect(w.calls.generate).toHaveLength(0);
   });
   test('ровно минута проходит', async () => {
-    const w = world({ meetings: [meeting({ durationSec: 60 })], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting({ durationSec: 60 })], answers: ['Релиз мобильной версии'] });
     expect((await w.titler.titleOne('m1', { mode: 'auto' })).status).toBe('set');
   });
   test('без текста: ничего не отправляется', async () => {
-    const w = world({ meetings: [meeting({ texts: ['да', 'угу'] })], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting({ texts: ['да', 'угу'] })], answers: ['Релиз мобильной версии'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status === 'skipped' && out.reason).toBe('no-text');
     expect(w.calls.generate).toHaveLength(0);
   });
   test('встреча в корзине и встреча, которой нет', async () => {
-    const w = world({ meetings: [meeting()], trashed: ['m1'], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting()], trashed: ['m1'], answers: ['Релиз мобильной версии'] });
     expect((await w.titler.titleOne('m1', { mode: 'auto' })).status === 'skipped').toBe(true);
     expect(w.calls.generate).toHaveLength(0);
-    const w2 = world({ meetings: [], answers: ['Сроки релиза мобильной версии'] });
+    const w2 = world({ meetings: [], answers: ['Релиз мобильной версии'] });
     const out = await w2.titler.titleOne('nope', { mode: 'auto' });
     expect(out.status === 'skipped' && out.reason).toBe('missing');
   });
   test('восстановленная после сбоя: название создаётся; пометка восстановления лежит в другом файле и не затрагивается', async () => {
     // восстановленная встреча несёт обычное название по умолчанию («Meeting …» из папки записи)
-    const w = world({ meetings: [meeting({ title: DEFAULT, durationSec: 12 * 60 })], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting({ title: DEFAULT, durationSec: 12 * 60 })], answers: ['Релиз мобильной версии'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status).toBe('set');
     // интерфейс пишет только через api_set_auto_title (title.json в ядре), recovered.json ему недоступен
     expect(w.calls.setAuto).toHaveLength(1);
   });
   test('два запроса к одной встрече одновременно: второй «занято», модель спрошена один раз', async () => {
-    const w = world({ meetings: [meeting()], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting()], answers: ['Релиз мобильной версии'] });
     const [a, b] = await Promise.all([w.titler.titleOne('m1', { mode: 'auto' }), w.titler.titleOne('m1', { mode: 'auto' })]);
     expect([a.status, b.status].sort()).toEqual(['set', 'skipped']);
     expect(w.calls.generate).toHaveLength(1);
@@ -263,13 +263,13 @@ describe('название: язык встречи', () => {
     expect(w.calls.generate[0].user).toContain('in English');
   });
   test('английская встреча, а модель ответила по-русски: остаётся дата', async () => {
-    const w = world({ meetings: [meeting({ texts: EN_TEXT })], answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting({ texts: EN_TEXT })], answers: ['Релиз мобильной версии'] });
     const out = await w.titler.titleOne('m1', { mode: 'auto' });
     expect(out.status === 'skipped' && out.reason).toBe('bad-answer');
     expect(w.meetings.get('m1')!.title).toBe(DEFAULT);
   });
   test('русская встреча: запрос русский', async () => {
-    const w = world({ meetings: [meeting()], uiLang: 'en', answers: ['Сроки релиза мобильной версии'] });
+    const w = world({ meetings: [meeting()], uiLang: 'en', answers: ['Релиз мобильной версии'] });
     await w.titler.titleOne('m1', { mode: 'auto' });
     expect(w.calls.generate[0].user).toContain('по-русски');
   });
@@ -278,7 +278,7 @@ describe('название: язык встречи', () => {
 describe('название: слежение за итогами и запись', () => {
   const cloud: ModelInfo = { configured: true, level: 'cloud', provider: 'openai' };
   test('итоги не начались (запуск не состоялся): слежение заканчивается, запросов нет', async () => {
-    const w = world({ meetings: [meeting()], model: cloud, answers: ['Сроки релиза мобильной версии'], summary: ['idle'] });
+    const w = world({ meetings: [meeting()], model: cloud, answers: ['Релиз мобильной версии'], summary: ['idle'] });
     await w.titler.watchSummary('m1');
     expect(w.calls.generate).toHaveLength(0);
   });

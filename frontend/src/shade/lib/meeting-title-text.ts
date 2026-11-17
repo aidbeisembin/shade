@@ -6,9 +6,9 @@
 
 export type TitleLang = 'ru' | 'en';
 
-/** Сколько слов в названии: от MIN до MAX. */
+/** Сколько слов в названии: от MIN до MAX (коротко: владелец 2026-11-17 попросил вдвое короче прежних 6 слов). */
 export const MIN_TITLE_WORDS_IN_NAME = 2;
-export const MAX_TITLE_WORDS_IN_NAME = 6;
+export const MAX_TITLE_WORDS_IN_NAME = 3;
 
 export interface TitlePromptText {
   system: string;
@@ -25,12 +25,12 @@ export const PROMPTS: Record<TitleLang, TitlePromptText> = {
     rules: [
       'Придумай название встречи по фрагментам расшифровки ниже.',
       'Требования:',
-      '- от 2 до 6 слов, по-русски;',
+      '- коротко: от 2 до 3 слов, не больше 30 знаков, по-русски;',
       '- назови тему или предмет разговора, а не жанр: не «Обсуждение», не «Встреча по вопросам», не «Рабочий разговор»;',
       '- без кавычек, без точки в конце, с заглавной буквы;',
       '- не называй людей по именам и не пиши суммы и цифры денег;',
       '- ответ: только название, одной строкой.',
-      'Образец формы (не копируй): Сроки релиза мобильной версии.',
+      'Образец формы (не копируй): Сроки релиза.',
     ],
     transcriptLabel: 'Расшифровка (фрагменты):',
     answerLabel: 'Название:',
@@ -40,12 +40,12 @@ export const PROMPTS: Record<TitleLang, TitlePromptText> = {
     rules: [
       'Write a title for the meeting from the transcript excerpts below.',
       'Requirements:',
-      '- 2 to 6 words, in English;',
+      '- short: 2 to 3 words, at most 30 characters, in English;',
       '- name the topic or subject of the conversation, not the genre: not "Discussion", not "Meeting about questions", not "Work chat";',
       '- no quotation marks, no full stop at the end, start with a capital letter;',
       '- do not use people\'s names and do not write sums or amounts of money;',
       '- reply with the title only, one line.',
-      'Example of the form (do not copy it): Mobile release schedule.',
+      'Example of the form (do not copy it): Release schedule.',
     ],
     transcriptLabel: 'Transcript (excerpts):',
     answerLabel: 'Title:',

@@ -1,4 +1,4 @@
-// Название встречи: запрос, чистка ответа модели, отказ от пустого и общего, обрезка до 6 слов.
+// Название встречи: запрос, чистка ответа модели, отказ от пустого и общего, обрезка до 3 слов.
 // Запуск: bun test src/shade (pnpm test).
 import { describe, expect, test } from 'bun:test';
 import {
@@ -69,7 +69,7 @@ describe('язык встречи', () => {
 describe('запрос', () => {
   test('русский: условия названия на месте', () => {
     const p = buildTitlePrompt('Обсуждаем бюджет', 'ru');
-    expect(p.user).toContain('от 2 до 6 слов');
+    expect(p.user).toContain('от 2 до 3 слов');
     expect(p.user).toContain('без кавычек');
     expect(p.user).toContain('без точки');
     expect(p.user).toContain('не называй людей по именам');
@@ -77,7 +77,7 @@ describe('запрос', () => {
   });
   test('английский запрос просит английское название', () => {
     const p = buildTitlePrompt('We discuss the budget', 'en');
-    expect(p.user).toContain('2 to 6 words, in English');
+    expect(p.user).toContain('2 to 3 words, at most 30 characters, in English');
     expect(p.user).toContain('do not use people');
     expect(p.user).not.toMatch(/[Ѐ-ӿ]/);
   });
@@ -96,9 +96,9 @@ describe('запрос', () => {
 
 describe('ответ модели: чистка', () => {
   test('кавычки, точка в конце, заглавная буква', () => {
-    expect(ok('«сроки релиза мобильной версии».')).toBe('Сроки релиза мобильной версии');
-    expect(ok('"Бюджет на следующий квартал."')).toBe('Бюджет на следующий квартал');
-    expect(ok('“Выбор подрядчика для редизайна”')).toBe('Выбор подрядчика для редизайна');
+    expect(ok('«сроки релиза версии».')).toBe('Сроки релиза версии');
+    expect(ok('"Бюджет на квартал."')).toBe('Бюджет на квартал');
+    expect(ok('“Выбор подрядчика”')).toBe('Выбор подрядчика');
     expect(ok("'Планирование найма аналитиков'")).toBe('Планирование найма аналитиков');
   });
   test('метка, разметка и первая строка', () => {
@@ -113,27 +113,28 @@ describe('ответ модели: чистка', () => {
     expect(ok('Бюджет на квартал!')).toBe('Бюджет на квартал');
   });
   test('английское название', () => {
-    expect(ok('"release schedule for the mobile app."', 'en')).toBe('Release schedule for the mobile app');
-    expect(ok('Title: Hiring plan for analysts', 'en')).toBe('Hiring plan for analysts');
+    expect(ok('"release schedule for the mobile app."', 'en')).toBe('Release schedule');
+    expect(ok('Title: Hiring plan', 'en')).toBe('Hiring plan');
   });
 });
 
-describe('ответ модели: обрезка до 6 слов по границе слова', () => {
-  test('длинный ответ режется до шести слов', () => {
-    const r = checkTitleAnswer('Обсуждение сроков релиза мобильного приложения для клиентов и подрядчиков осенью', 'ru');
+describe('ответ модели: обрезка до 3 слов по границе слова', () => {
+  test('длинный ответ режется до трёх слов', () => {
+    const r = checkTitleAnswer('Сроки релиза мобильного приложения для клиентов и подрядчиков осенью', 'ru');
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.title.split(' ').length).toBeLessThanOrEqual(6);
-      expect(r.title).toBe('Обсуждение сроков релиза мобильного приложения для клиентов'.split(' ').slice(0, 6).join(' ').replace(/ для$/, ''));
+      expect(r.title.split(' ').length).toBeLessThanOrEqual(3);
+      expect(r.title).toBe('Сроки релиза мобильного');
     }
   });
   test('предлог на обрезанном конце не остаётся', () => {
-    // шестое слово «для»: уходит вместе с хвостовым предлогом
-    expect(ok('Сроки релиза мобильного приложения выбор для клиентов')).toBe('Сроки релиза мобильного приложения выбор');
-    expect(ok('Plan for the release and the budget of the next quarter', 'en')).toBe('Plan for the release');
+    // третье слово «для»: уходит вместе с хвостовым предлогом
+    expect(ok('Сроки релиза для клиентов и подрядчиков')).toBe('Сроки релиза');
+    expect(ok('Release plan for the next quarter', 'en')).toBe('Release plan');
+    expect(ok('Plan for the release and the budget', 'en')).toBe('×too-short');
   });
-  test('не длиннее 60 знаков, слово не режется пополам', () => {
-    const r = checkTitleAnswer('Сверхдлинноеназваниепервое сверхдлинноеназваниевторое сверхдлинноеназваниетретье', 'ru');
+  test('не длиннее 30 знаков, слово не режется пополам', () => {
+    const r = checkTitleAnswer('Сверхдлинное сверхдлинное сверхдлинное', 'ru');
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.title.length).toBeLessThanOrEqual(MAX_TITLE_CHARS);
@@ -167,13 +168,13 @@ describe('ответ модели: отказ, а не почти подходя
     expect(ok('Бюджет $5,000 на квартал')).toBe('×money');
     expect(ok('Budget of 10k for Q4', 'en')).toBe('×money');
     // цифра без денег допустима
-    expect(ok('Релиз версии 2.3 и откат')).toBe('Релиз версии 2.3 и откат');
+    expect(ok('Релиз версии 2.3 и откат')).toBe('Релиз версии 2.3');
   });
   test('не на языке встречи', () => {
     expect(ok('Release schedule for mobile app', 'ru')).toBe('×wrong-language');
     expect(ok('Сроки релиза мобильного приложения', 'en')).toBe('×wrong-language');
     // английские термины внутри русского названия допустимы
-    expect(ok('Релиз Figma API для клиентов')).toBe('Релиз Figma API для клиентов');
+    expect(ok('Релиз Figma API для клиентов')).toBe('Релиз Figma API');
   });
 });
 

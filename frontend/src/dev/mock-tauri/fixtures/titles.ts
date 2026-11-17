@@ -15,25 +15,25 @@ export function defaultTitle(iso: string): string {
   return `Meeting ${pad(d.getDate())}_${pad(d.getMonth() + 1)}_${pad(d.getFullYear() % 100)}_${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
 }
 
-/** Что «ответит модель» по встрече: тема, 2-6 слов, без имён и сумм. */
+/** Что «ответит модель» по встрече: тема, 2-3 слова, без имён и сумм. */
 export const TITLE_ANSWERS: Record<string, string> = {
-  'mock-standup-0930': 'Блокеры по срокам релиза',
-  'mock-sync-granat': 'Подготовка релиза мобильной версии',
-  'mock-retro-41': 'Итоги спринта и улучшения процесса',
-  'mock-client-kedr': 'Условия пилота для клиента',
-  'mock-session-training': 'Разбор ролевой учебной сессии',
-  'mock-design-weekly': 'Недельный обзор дизайн-задач',
-  'mock-budget-q4': 'Бюджет на четвёртый квартал',
-  'mock-interview-analyst': 'Интервью на позицию аналитика',
-  'mock-vendor-harbor': 'Условия работы с подрядчиком',
-  'demo-sync-weekly': 'Weekly product priorities',
-  'demo-planning-onboarding': 'Onboarding v2 sprint scope',
-  'demo-support-sync': 'Support backlog and escalations',
-  'demo-design-billing': 'Billing page design feedback',
-  'demo-interview-admin': 'Small-team admin pain points',
-  'demo-client-harbor': 'Rollout questions from the client',
-  'demo-roadmap-q1': 'Q1 roadmap trade-offs',
-  'demo-retro-42': 'Release 4.2 lessons learned',
+  'mock-standup-0930': 'Блокеры по релизу',
+  'mock-sync-granat': 'Подготовка релиза',
+  'mock-retro-41': 'Итоги спринта',
+  'mock-client-kedr': 'Условия пилота',
+  'mock-session-training': 'Учебная сессия',
+  'mock-design-weekly': 'Обзор дизайн-задач',
+  'mock-budget-q4': 'Бюджет на квартал',
+  'mock-interview-analyst': 'Интервью аналитика',
+  'mock-vendor-harbor': 'Работа с подрядчиком',
+  'demo-sync-weekly': 'Weekly priorities',
+  'demo-planning-onboarding': 'Onboarding v2 scope',
+  'demo-support-sync': 'Support backlog',
+  'demo-design-billing': 'Billing page feedback',
+  'demo-interview-admin': 'Admin pain points',
+  'demo-client-harbor': 'Rollout questions',
+  'demo-roadmap-q1': 'Q1 roadmap',
+  'demo-retro-42': 'Release 4.2 lessons',
 };
 
 /** Встречи, которые остаются короткими (меньше минуты): названия им не придумываются, это видно в «после». */

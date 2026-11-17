@@ -276,26 +276,25 @@ function SummaryBlock({
   return (
     // Полоса-заголовок нейтральная; раскрытый текст на плитке под ней
     <section className="flex flex-col gap-2" aria-labelledby="summary-title">
-      <div className="flex items-center gap-2 rounded-tile bg-card p-3">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls="summary-body"
-          className="flex min-h-12 flex-1 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden>
-            <Sparkle className="size-5 text-muted-foreground" />
-          </span>
-          <span id="summary-title" className="text-lg font-bold tracking-tight">
-            {t('summary')}
-          </span>
-          <span className="hidden text-sm text-muted-foreground sm:inline">{t('summaryOpenHint')}</span>
-          {/* Шеврон `bold` (не залитый треугольник), серый, как остальной второстепенный текст. Вниз, когда свёрнуто, вверх, когда раскрыто */}
-          <CaretDown weight="bold" className={cn('ml-auto size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
-          <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
-        </button>
-      </div>
+      {/* Вся полоса одна кнопка: наведение красит весь фон (белый становится чуть серым), а не только область внутри */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="summary-body"
+        className="group flex min-h-[72px] w-full items-center gap-3 rounded-tile bg-card p-3 pr-6 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-input" aria-hidden>
+          <Sparkle className="size-5 text-muted-foreground" />
+        </span>
+        <span id="summary-title" className="text-lg font-bold tracking-tight">
+          {t('summary')}
+        </span>
+        <span className="hidden text-sm text-muted-foreground sm:inline">{t('summaryOpenHint')}</span>
+        {/* Шеврон `bold` (не залитый треугольник), серый, как остальной второстепенный текст. Вниз, когда свёрнуто, вверх, когда раскрыто */}
+        <CaretDown weight="bold" className={cn('ml-auto size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+        <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
+      </button>
       {open && (
         <article
           id="summary-body"
