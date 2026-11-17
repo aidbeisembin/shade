@@ -335,20 +335,17 @@ const PATTERNS: Array<[RegExp, (...m: string[]) => string]> = [
 
 /**
  * Перевод строки оригинала или null, если перевода нет. В английском режиме оригинал уже
- * по-английски и остаётся как есть, подменяется только чужое имя бренда.
+ * по-английски и остаётся как есть.
  */
 export function translate(text: string): string | null {
   const key = text.replace(/\s+/g, ' ').trim();
   if (!key) return null;
-  if (getLang() !== 'ru') return key.includes('Meetily') && !/[\\/]/.test(key) ? key.replace(/Meetily/g, 'Shade') : null;
+  if (getLang() !== 'ru') return null;
   if (key in EXACT) return EXACT[key];
   for (const [re, fn] of PATTERNS) {
     const m = key.match(re);
     if (m) return fn(...m);
   }
-  // Бренд оригинала во фразе без перевода: хотя бы не показываем чужое имя.
-  // Пути к файлам не трогаем: папка на диске называется так, как её создало ядро.
-  if (key.includes('Meetily') && !/[\\/]/.test(key)) return key.replace(/Meetily/g, 'Shade');
   return null;
 }
 

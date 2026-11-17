@@ -32,6 +32,10 @@ const nextConfig = {
 
   // Add webpack configuration for Tauri
   webpack: (config, { isServer }) => {
+    // Экран «Лицензии открытого ПО» читает THIRD_PARTY_NOTICES.md из корня репозитория
+    // строкой: один источник правды для файла и приложения (src/shade/lib/notices.ts).
+    config.module.rules.push({ test: /THIRD_PARTY_NOTICES\.md$/, type: 'asset/source' });
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

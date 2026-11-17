@@ -1,152 +1,27 @@
-# Contributing to Meeting Minutes Updates
+# Участие в Shade
 
-Thank you for your interest in contributing to Meetily! This document provides guidelines and instructions for contributing to this project.
+## Ветки и pull request
 
-## Development Workflow
+- Основная ветка `shade`. Изменения приходят только pull request-ом в неё, сливает владелец.
+- Короткие ветки от свежей `shade`: `fix/…`, `feature/…`, `claude/…`.
+- Описание PR по шаблону `.github/pull_request_template.md`: что сделано, таблица случаев для логики, вывод проверок, снимки для вида, шаги проверки владельца.
 
-### Branch Strategy
+## Проверки
 
-- `main` - Production branch
-- `devtest` - Development and testing branch
-- Feature branches should be created from `devtest`
+Перед PR в папке `frontend`:
 
-### Getting Started
-
-1. Fork the repository
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/meeting-minutes.git
-   ```
-3. Add the original repository as upstream:
-   ```bash
-   git remote add upstream https://github.com/Zackriya-Solutions/meeting-minutes.git
-   ```
-4. Create a new branch from `devtest`:
-   ```bash
-   git checkout devtest
-   git pull upstream devtest
-   git checkout -b feature/your-feature-name
-   ```
-
-### Development Process
-
-1. Always start your work from the `devtest` branch
-2. Create a new branch for each feature/fix
-3. Make your changes
-4. Write or update tests as needed
-5. Ensure all tests pass
-6. Update documentation if necessary
-
-### Issue Creation
-
-Before starting work on a new feature or bug fix:
-
-1. Check if an issue already exists
-2. If not, create a new issue with:
-   - Clear title
-   - Detailed description
-   - Steps to reproduce (for bugs)
-   - Expected behavior
-   - Screenshots (if applicable)
-   - Labels (bug, enhancement, etc.)
-
-### Pull Request Process
-
-1. Create a PR from your feature branch to `devtest`
-2. Link the PR to the related issue using the issue number (e.g., "Fixes #123")
-3. Fill out the PR template completely
-4. Ensure CI checks pass
-5. Request review from at least one maintainer
-6. Address any review comments
-7. Once approved, the PR will be merged into `devtest`
-
-### PR Template
-
-```markdown
-## Description
-[Describe your changes here]
-
-## Related Issue
-[Link to the issue this PR addresses]
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Code refactoring
-- [ ] Other (please describe)
-
-## Testing
-- [ ] Unit tests added/updated
-- [ ] Manual testing performed
-- [ ] All tests pass
-
-## Documentation
-- [ ] Documentation updated
-- [ ] No documentation needed
-
-## Checklist
-- [ ] Code follows project style
-- [ ] Self-reviewed the code
-- [ ] Added comments for complex code
-- [ ] Updated README if needed
+```bash
+pnpm check
+pnpm build
 ```
 
-## Code Style
+`pnpm check` это типы, контраст, страж языка и тесты. Те же шаги и страж имён (`scripts/check-brand.sh`) запускает CI «Shade check» на каждый PR в `shade`.
 
-- Follow the existing code style
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Keep functions small and focused
-- Write clear commit messages
+## Правила
 
-## Commit Message Format
+- Тексты интерфейса только в `frontend/src/shade/strings.ts`, на русском и английском.
+- Ядро на Rust (`frontend/src-tauri`) меняется только по необходимости, отдельным коммитом, с записью в `docs/isolation.md`. Имена команд и событий Tauri, форматы данных, пути и ключи хранилищ не меняются без скрипта переноса.
+- Никаких реальных встреч, записей и ключей в репозитории.
+- Код других авторов добавляется вместе с их лицензией в `THIRD_PARTY_NOTICES.md`.
 
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-Types:
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation changes
-- style: Code style changes
-- refactor: Code refactoring
-- test: Adding/updating tests
-- chore: Maintenance tasks
-
-## Testing
-
-- Write unit tests for new features
-- Update existing tests when modifying code
-- Ensure all tests pass before submitting PR
-- Include integration tests for complex features
-
-## Documentation
-
-- Update documentation for new features
-- Keep README up to date
-- Document API changes
-- Add comments for complex code
-
-## Review Process
-
-1. PRs require at least one review
-2. Address all review comments
-3. Keep the PR up to date with `devtest`
-4. Squash commits if requested
-
-## Getting Help
-
-- Create an issue for questions
-- Join our community chat
-- Contact maintainers
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the project's MIT License. 
+Подробно: [CLAUDE.md](CLAUDE.md) и [docs/dev.md](docs/dev.md).

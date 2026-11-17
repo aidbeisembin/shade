@@ -50,7 +50,7 @@
 Логика с данными, поэтому «Готово значит» и «Логика» из CLAUDE.md. Ядро: `frontend/src-tauri/src/crash_recovery/` (команда `recover_interrupted_meetings`), интерфейс: `lib/crash-recovery.ts`. Правки ядра перечислены в [isolation.md](../isolation.md#5-правки-ядра-сверх-патча-идентичности-запись-восстановление-сохранение).
 
 ### Что остаётся на диске при сбое
-Папка встречи в папке записей (`~/Movies/Shade/Meeting …`): `.checkpoints/audio_chunk_NNN.mp4` (куски звука по `CHECKPOINT_SECONDS` = 10 с), `transcripts.json` (все реплики, переписывается на каждую новую), `metadata.json` со `status: "recording"` и `completed_at: null`. Строка в базе появляется только при «Остановить», поэтому без восстановления встречи в списке нет. Оригинальное окно «восстановить?» (IndexedDB `MeetilyRecoveryDB`, `TranscriptRecovery`) в Shade не подключено: оно хранит только текст в хранилище окна.
+Папка встречи в папке записей (`~/Movies/Shade/Meeting …`): `.checkpoints/audio_chunk_NNN.mp4` (куски звука по `CHECKPOINT_SECONDS` = 10 с), `transcripts.json` (все реплики, переписывается на каждую новую), `metadata.json` со `status: "recording"` и `completed_at: null`. Строка в базе появляется только при «Остановить», поэтому без восстановления встречи в списке нет. Окно «восстановить?» из исходного интерфейса (IndexedDB в `services/indexedDBService.ts`, `TranscriptRecovery`) в Shade не подключено: оно хранит только текст в хранилище окна.
 
 ### Что делает ядро при запуске
 Один вызов из `ShadeRecordingProvider` после готовности базы.

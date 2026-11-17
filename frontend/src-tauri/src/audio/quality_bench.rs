@@ -5,7 +5,7 @@
 //! SHADE_BENCH_DIR=/tmp/shade-measure \
 //! SHADE_BENCH_PARAKEET=~/Library/Application\ Support/io.github.katanana23.shade/models \
 //! CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE \
-//! cargo test --release -p meetily --lib quality_bench::bench_real_meeting -- --ignored --nocapture
+//! cargo test --release -p shade --lib quality_bench::bench_real_meeting -- --ignored --nocapture
 //! ```
 //! В `SHADE_BENCH_DIR`: `meeting/audio.mp4`, `meeting/transcripts.json` (живое распознавание
 //! Parakeet из настоящей записи), `models/ggml-large-v3-turbo-q5_0.bin`. Результат по репликам

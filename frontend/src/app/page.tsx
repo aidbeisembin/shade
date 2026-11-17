@@ -1,6 +1,6 @@
 'use client';
 
-// Переходник главной: shade-интерфейс или оригинальный Meetily (NEXT_PUBLIC_UI=original).
+// Переходник главной: shade-интерфейс или исходный интерфейс (NEXT_PUBLIC_UI=original).
 // Оригинал грузится лениво, чтобы его код не попадал в бандл shade.
 
 import dynamic from 'next/dynamic';

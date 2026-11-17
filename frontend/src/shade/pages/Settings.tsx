@@ -16,7 +16,7 @@ import { Suspense, useEffect, useState, useSyncExternalStore, type ReactNode } f
 import { useRouter, useSearchParams } from 'next/navigation';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
-import { ArrowUpRight, BookOpen, Flask, FolderOpen, Microphone, SlidersHorizontal, Sparkle, Trash, Waveform } from '@phosphor-icons/react';
+import { BookOpen, Flask, FolderOpen, Microphone, Scroll, SlidersHorizontal, Sparkle, Trash, Waveform } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Page } from '@/shade/components/Page';
 import { BackButton } from '@/shade/components/BackButton';
@@ -40,6 +40,7 @@ import { SpeechEngineNotice } from '@/shade/components/SpeechEngineNotice';
 import { providerLabel, usePrivacy } from '@/shade/lib/privacy';
 import { startBackfill, stopBackfill, titler } from '@/shade/lib/title-service';
 import { FeedbackMorph } from '@/shade/components/feedback/FeedbackMorph';
+import { LicensesDialog } from '@/shade/components/LicensesDialog';
 import { GithubButton } from '@/shade/components/feedback/FeedbackFields';
 import { setAskEnabled, useAskEnabled } from '@/shade/lib/feedback/store';
 
@@ -55,9 +56,6 @@ type TabValue = (typeof TABS)[number]['value'];
 
 // Разделы вкладки один под другим: 32 px между группами
 const TAB = 'mt-0 flex-col gap-8 data-[state=active]:flex';
-
-const UPSTREAM_URL = 'https://github.com/Zackriya-Solutions/meeting-minutes';
-const LICENSE_URL = `${UPSTREAM_URL}/blob/main/LICENSE.md`;
 
 /** Раздел настроек: открытая группа внутри плитки страницы, заголовок 22/28. */
 function Section({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
@@ -339,25 +337,24 @@ function SpeechTab() {
 function AboutTab() {
   useLang();
   const [version, setVersion] = useState<string | null>(null);
+  const [licensesOpen, setLicensesOpen] = useState(false);
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => setVersion(null));
   }, []);
-
-  const openUrl = (url: string) =>
-    invoke('open_external_url', { url }).catch((error) => shadeToast.error(t('openLinkFailed'), { description: String(error) }));
 
   return (
     <Section title={t('settingsAbout')}>
       <Row title={t('appName')} hint={version ? `${t('version')} ${version}` : undefined}>
         {null}
       </Row>
-      <Row title={t('licenseTitle')} hint={t('licenseHint')}>
-        <Button variant="outline" onClick={() => void openUrl(LICENSE_URL)}>
-          <ArrowUpRight />
-          {t('license')}
+      <Row title={t('licensesTitle')} hint={t('licensesHint')}>
+        <Button variant="outline" onClick={() => setLicensesOpen(true)}>
+          <Scroll />
+          {t('licensesShow')}
         </Button>
       </Row>
+      <LicensesDialog open={licensesOpen} onOpenChange={setLicensesOpen} />
     </Section>
   );
 }

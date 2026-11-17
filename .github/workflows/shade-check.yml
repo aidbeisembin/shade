@@ -69,3 +69,17 @@ jobs:
       # Перенос данных со старых имён: случаи из таблицы PR на подставном HOME.
       - name: Migration script (bash scripts/test-migrate-from-aid.sh)
         run: bash scripts/test-migrate-from-aid.sh
+
+  brand:
+    name: check-brand
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Чужие имена только в THIRD_PARTY_NOTICES.md и явных исключениях (scripts/check-brand.sh).
+      - name: Guard test (bash scripts/test-check-brand.sh)
+        run: bash scripts/test-check-brand.sh
+
+      - name: Brand guard (bash scripts/check-brand.sh)
+        run: bash scripts/check-brand.sh

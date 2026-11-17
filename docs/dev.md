@@ -3,17 +3,16 @@
 Перенесено из CLAUDE.md: полные тексты разделов «Проект», «Границы», «Данные», «Стиль», «Как работать» и «Вольт». Краткая версия там.
 
 ## Проект
-- Продукт **Shade**, основан на открытом Meetily (MIT, Zackriya Solutions): приватный ИИ-ассистент встреч, запись, транскрипция и итоги на компьютере пользователя. Прежние рабочие названия «Aid Meetings» и «ShadeNotes» больше нигде не используются.
+- Продукт **Shade**: приватный ИИ-ассистент встреч, запись, транскрипция и итоги на компьютере пользователя. Прежние рабочие названия «Aid Meetings» и «ShadeNotes» больше нигде не используются. Ядро записи и распознавания взято из открытого проекта по MIT: автор, лицензия и что взято в `THIRD_PARTY_NOTICES.md`, в приложении Настройки → О программе → «Лицензии открытого ПО». Чужое имя в коде, документах и интерфейсе не пишется: страж `scripts/check-brand.sh`, исключения с причиной в самом скрипте.
 - Десктоп на Tauri 2: ядро на Rust (`frontend/src-tauri`, чужое), интерфейс на Next.js 14 + React 18. Свой слой интерфейса в `frontend/src/shade/` (ветка `shade`, префиксы `shade-` в классах, `[shade]` в журнале, `shade.` в ключах хранилищ).
 - Идентичность: `identifier` `io.github.katanana23.shade` (от него папка данных), папки данных ядра `APP_DATA_DIR_NAME = "Shade"` и `RECORDINGS_DIR_NAME = "Shade"` (`src-tauri/src/config.rs`), ключи `localStorage` с префиксом `shade.` (`shade.theme`, `shade.lang` и др.; язык вкладки `shade.lang.tab` и язык заглушек `shade.lang.demo` в `sessionStorage`). Любая смена этих имён отрывает данные пользователя от приложения: делать её только вместе со скриптом переноса, как `scripts/migrate-from-aid.sh` (2026-11-14, переход с `io.github.katanana23.aid-meetings`). Репозиторий на GitHub `katanana23/shade`.
-- Ветка `main` зеркалит оригинал, рабочая ветка `shade`. Подробнее: `docs/FORK.md`, `docs/isolation.md`, `docs/recon.md`.
+- Основная и рабочая ветка `shade` (репозиторий самостоятельный с 17.11.2026, синхронизации с оригиналом нет). Подробнее: `docs/FORK.md`, реестр правок ядра `docs/isolation.md`, разведка интерфейса `docs/recon.md`.
 
 ## Границы
 - `frontend/src-tauri` не менять. Исключение: строки идентичности в `config.rs` и `tauri.conf.json`, отдельным коммитом и по явной просьбе.
 - Не менять имена и аргументы команд и событий Tauri, форматы данных, миграции, ключи `localStorage` и `IndexedDB`.
 - Оригинальные файлы интерфейса не трогать. Допустимы тонкие переходники: `app/page.tsx`, `app/meeting-details/page.tsx`, `app/settings/page.tsx`, `app/layout.tsx`, `tailwind.config.js`. Оригиналы лежат рядом в `page-original.tsx`.
 - `frontend/src/dev/mock-tauri` не менять без явной просьбы.
-- `backend/` (Python/FastAPI) архив, не использовать.
 
 ## Данные и секреты
 - В репозитории никаких реальных встреч, записей, ключей и личных данных. Фикстуры только вымышленные (`src/dev/mock-tauri`).
@@ -39,13 +38,14 @@
 
 ## Проверки
 - После правок во `frontend`: `npx tsc --noEmit`, `pnpm check:contrast`, `pnpm check:i18n`, `pnpm test`, `pnpm build` (первые четыре подряд: `pnpm check`). Те же шаги на каждый PR в `shade` запускает `.github/workflows/shade-check.yml`.
-- Название встречи (ядро): `CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p meetily --lib summary::title` (пометка `title.json`, запрет облаку, решение «писать или нет»). Интерфейс: `bun test src/shade/lib/meeting-title.test.ts src/shade/lib/title-core.test.ts` (входят в `pnpm test`).
-- Ядро записи и восстановления после сбоя: `CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p meetily --lib crash_recovery` (нужен `ffmpeg`; настоящий `kill -9` дочернего процесса в `kill9_*`, на настоящей копии папки: `SHADE_REAL_ROOT=… SHADE_REAL_FOLDER=… cargo test -p meetily --lib crash_recovery::tests::real_copy -- --ignored --nocapture`). В CI это не идёт: Tauri-ядро там не собирается, проверка локальная, хвост вывода в PR. Нагрузка записи (память, процессор) на заглушке звука: `scripts/measure-recording-load.sh [секунды] [файл.csv]`.
-- Замер схем распознавания на настоящей встрече (вручную, звук и текст только локально, наружу цифры): `SHADE_BENCH_DIR=<папка с meeting/audio.mp4, meeting/transcripts.json и models/ggml-large-v3-turbo-q5_0.bin> SHADE_BENCH_PARAKEET=<папка models Shade> CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p meetily --lib quality_bench::bench_real_meeting -- --ignored --nocapture` (далее `bench_whisper_live_ranges` и `bench_analyze`). Профиль `--release` в этом дереве не собирается (битые proc-macro библиотеки), идёт обычный. Результат и вывод: `docs/case/decisions.md`. Чистка текста и язык: `cargo test -p meetily --lib transcript_quality retranscription`.
+- Название встречи (ядро): `CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p shade --lib summary::title` (пометка `title.json`, запрет облаку, решение «писать или нет»). Интерфейс: `bun test src/shade/lib/meeting-title.test.ts src/shade/lib/title-core.test.ts` (входят в `pnpm test`).
+- Ядро записи и восстановления после сбоя: `CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p shade --lib crash_recovery` (нужен `ffmpeg`; настоящий `kill -9` дочернего процесса в `kill9_*`, на настоящей копии папки: `SHADE_REAL_ROOT=… SHADE_REAL_FOLDER=… cargo test -p shade --lib crash_recovery::tests::real_copy -- --ignored --nocapture`). В CI это не идёт: Tauri-ядро там не собирается, проверка локальная, хвост вывода в PR. Нагрузка записи (память, процессор) на заглушке звука: `scripts/measure-recording-load.sh [секунды] [файл.csv]`.
+- Замер схем распознавания на настоящей встрече (вручную, звук и текст только локально, наружу цифры): `SHADE_BENCH_DIR=<папка с meeting/audio.mp4, meeting/transcripts.json и models/ggml-large-v3-turbo-q5_0.bin> SHADE_BENCH_PARAKEET=<папка models Shade> CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE cargo test -p shade --lib quality_bench::bench_real_meeting -- --ignored --nocapture` (далее `bench_whisper_live_ranges` и `bench_analyze`). Профиль `--release` в этом дереве не собирается (битые proc-macro библиотеки), идёт обычный. Результат и вывод: `docs/case/decisions.md`. Чистка текста и язык: `cargo test -p shade --lib transcript_quality retranscription`.
 - Скрипт переноса данных `scripts/migrate-from-aid.sh`: тест `bash scripts/test-migrate-from-aid.sh` (подставной `HOME`, вымышленные данные), в CI отдельной задачей той же проверки.
+- Страж имён `bash scripts/check-brand.sh` (из корня): ищет имя исходного проекта и его автора (слова в начале скрипта) без учёта регистра в путях и содержимом файлов git; исключения файлами и строками-данными с причиной в скрипте. Его тест `bash scripts/test-check-brand.sh`. Оба в CI той же проверки.
 
 ## Git и отчёты
-- Не коммитить и не пушить без просьбы. Не пушить в `main`. PR не сливать самому.
+- Не коммитить и не пушить без просьбы. Не пушить в `shade` напрямую. PR не сливать самому.
 - Без резервных копий файлов (`*-backup.tsx` и подобных): история есть в git.
 - Отчёт о работе писать в описание PR по шаблону `.github/pull_request_template.md`. Файлы-самоотчёты (`*_DONE.md`, `*_REPORT.md` и подобные) не создавать.
 - В `docs/case` только `mock.md`, `journal.md`, `metrics.md`, `decisions.md`.
