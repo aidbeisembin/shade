@@ -3,6 +3,7 @@
 //  - Наведение зажигает звёзды до указателя по очереди, шаг STAR_STAGGER_MS; гаснут в обратном порядке.
 //  - У каждой звезды пружина заливки STAR_FILL (слева направо, clip-path) и «прыжок» масштаба при
 //    зажигании: STAR_POP от STAR_POP_FROM с толчком STAR_POP_VELOCITY.
+//  - Цвет: жёлтые (--star), при 1-2 мягко-красные (--star-low), смена за 200 мс.
 //  - Подпись под звёздами перекатывается (RollText, LABEL_ROLL).
 //  - Щелчок ставит оценку и подтверждает её (onCommit), уход указателя возвращает к поставленной.
 //  - role="radiogroup", у звезды role="radio" и aria-checked; одна звезда в порядке Tab (бегущий
@@ -16,6 +17,7 @@ import { RollText } from '@/shade/components/feedback/RollText';
 import { after, prefersReducedMotion, spring, type Spring } from '@/shade/lib/motion/spring';
 import { STAR_FILL, STAR_POP, STAR_POP_FROM, STAR_POP_VELOCITY, STAR_STAGGER_MS } from '@/shade/lib/motion/shade-springs';
 import { RATING_LABELS, STARS, starKey } from '@/shade/lib/feedback/stars';
+import { FORM_MAX } from '@/shade/lib/feedback/flow';
 import { cn } from '@/shade/lib/utils';
 import { t, tp } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
@@ -48,6 +50,8 @@ export function StarRating({ value, onChange, onCommit, showLabel = true, autoFo
   useLang();
   const [hover, setHover] = React.useState(0);
   const shown = hover || value;
+  // 1-2 звезды (ветка «Что улучшить?») мягко-красные, 3-5 жёлтые; цвет меняется вместе с наведением
+  const low = shown > 0 && shown <= FORM_MAX;
   const fillRefs = React.useRef<(HTMLSpanElement | null)[]>([]);
   const popRefs = React.useRef<(HTMLSpanElement | null)[]>([]);
   const btnRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
@@ -190,7 +194,11 @@ export function StarRating({ value, onChange, onCommit, showLabel = true, autoFo
                   }}
                   className="shade-star-fill absolute inset-0"
                 >
-                  <Star weight="fill" aria-hidden className="size-full text-primary-ink" />
+                  <Star
+                    weight="fill"
+                    aria-hidden
+                    className={cn('size-full transition-colors duration-200 motion-reduce:transition-none', low ? 'text-[hsl(var(--star-low))]' : 'text-[hsl(var(--star))]')}
+                  />
                 </span>
               </span>
             </button>

@@ -460,14 +460,9 @@ export const ru = {
   feedbackStar: { one: '{n} звезда', few: '{n} звезды', many: '{n} звёзд', other: '{n} звезды' },
   feedbackImproveTitle: 'Что улучшить?',
   feedbackPlaceholder: 'Что мешает, чего не хватает',
-  feedbackDisclosure: 'Уйдёт: оценка, этот текст, версия Shade и macOS. Записи и текст встреч не отправляются.',
   feedbackCharsLeft: { one: 'Остался {n} знак', few: 'Осталось {n} знака', many: 'Осталось {n} знаков', other: 'Осталось {n} знака' },
   feedbackSend: 'Отправить',
-  feedbackSendRating: 'Отправить оценку',
   feedbackSending: 'Отправляю…',
-  feedbackThanksTitle: 'Спасибо!',
-  feedbackThanksHint: 'Если Shade помогает, поставьте ему звезду на GitHub.',
-  feedbackGithubStar: 'Поставить звезду на GitHub',
   feedbackWrite: 'Написать отзыв',
   feedbackSent: 'Спасибо',
   feedbackSentHint: 'Отзыв отправлен',
@@ -477,7 +472,7 @@ export const ru = {
   feedbackRowTitle: 'Оценка и отзыв',
   feedbackRowHint: 'Оценка и пара слов о Shade. Уходит только по кнопке «Отправить».',
   feedbackAskRow: 'Иногда спрашивать оценку',
-  feedbackAskHint: 'Не чаще раза в две недели, когда вы открыли итоги встречи. Не во время записи.',
+  feedbackAskHint: 'После записи от 10 минут, когда вы открыли её итоги: через неделю ещё раз, дальше раз в месяц. Не во время записи.',
 } satisfies Record<string, Entry>;
 
 type RuDict = typeof ru;
@@ -923,14 +918,9 @@ export const en: Mirror<RuDict> = {
   feedbackStar: { one: '{n} star', other: '{n} stars' },
   feedbackImproveTitle: 'What to improve?',
   feedbackPlaceholder: 'What gets in the way, what’s missing',
-  feedbackDisclosure: 'Sent: your rating, this text, Shade and macOS versions. Recordings and meeting text are never sent.',
   feedbackCharsLeft: { one: '{n} character left', other: '{n} characters left' },
   feedbackSend: 'Send',
-  feedbackSendRating: 'Send rating',
   feedbackSending: 'Sending…',
-  feedbackThanksTitle: 'Thank you!',
-  feedbackThanksHint: 'If Shade helps you, give it a star on GitHub.',
-  feedbackGithubStar: 'Star on GitHub',
   feedbackWrite: 'Write feedback',
   feedbackSent: 'Thanks',
   feedbackSentHint: 'Feedback sent',
@@ -940,7 +930,7 @@ export const en: Mirror<RuDict> = {
   feedbackRowTitle: 'Rating and feedback',
   feedbackRowHint: 'A rating and a few words about Shade. Sent only when you press “Send”.',
   feedbackAskRow: 'Sometimes ask for a rating',
-  feedbackAskHint: 'At most every two weeks, when you open a meeting summary. Never while recording.',
+  feedbackAskHint: 'After a recording of 10+ minutes, when you open its summary: again a week later, then once a month. Never while recording.',
 };
 
 const DICTS: Record<Lang, Record<string, string | RuPlural | EnPlural>> = { ru, en };

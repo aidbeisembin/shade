@@ -519,9 +519,9 @@ function MeetingDetailsContent() {
   const glow = useGlowPresence(m.summary.kind === 'processing' ? 'think' : null);
 
   // «Как вам Shade?»: человек открыл итоги успешно завершённой встречи (lib/feedback). Карточку
-  // ставит док, правила в policy.ts; восстановленная после сбоя и встреча в корзине не в счёт
+  // ставит док, правила в policy.ts (запись от 10 минут); восстановленная после сбоя и встреча в корзине не в счёт
   const recordingNow = useRecordingControls().isRecording;
-  useFeedbackOffer({ meetingId: meta?.id ?? null, summaryReady: m.summary.kind === 'ready', recovered: Boolean(recovered), recording: recordingNow, trashed });
+  useFeedbackOffer({ meetingId: meta?.id ?? null, summaryReady: m.summary.kind === 'ready', recovered: Boolean(recovered), recording: recordingNow, durationSec: m.duration, trashed });
 
   if (m.meeting.kind === 'loading') return <LoadingState />;
 

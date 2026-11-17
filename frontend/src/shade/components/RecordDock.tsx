@@ -42,6 +42,7 @@ import { useConfig } from '@/contexts/ConfigContext';
 import { LANGUAGES } from '@/constants/languages';
 import { useLang } from '@/shade/lib/lang';
 import { FeedbackCard } from '@/shade/components/feedback/FeedbackCard';
+import { DockLeave, LEAVE_MS } from '@/shade/components/DockLeave';
 import { clearOffer, flushFeedbackOnLaunch, useOfferedMeeting } from '@/shade/lib/feedback/store';
 import { previewFeedback, previewMotion } from '@/shade/lib/feedback/preview';
 import type { Flow } from '@/shade/lib/feedback/flow';
@@ -53,40 +54,7 @@ const LEVEL_BARS = 9;
 /** Шаг полос уровня, мс: новая полоса раз в 100 мс. */
 const LEVEL_STEP_MS = 100;
 
-/** Сколько длится уход (.shade-dock-out в globals.css). */
-const LEAVE_MS = 280;
-
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-
-/**
- * Карточка над капсулой (подсказки про микрофон и речь, доступ к микрофону): появляется из
- * размытия, а когда show сменилось на false, ещё LEAVE_MS держит последний вид и уходит
- * с размытием (.shade-dock-out). Обёртка одна и та же, содержимое не пересоздаётся.
- */
-function DockLeave({ show, children }: { show: boolean; children: ReactNode }) {
-  const last = useRef<ReactNode>(null);
-  if (show) last.current = children;
-  const [leaving, setLeaving] = useState(false);
-  const was = useRef(show);
-  useIsoLayoutEffect(() => {
-    if (show) {
-      was.current = true;
-      setLeaving(false);
-      return;
-    }
-    if (!was.current) return;
-    was.current = false;
-    setLeaving(true);
-    const id = window.setTimeout(() => setLeaving(false), LEAVE_MS);
-    return () => window.clearTimeout(id);
-  }, [show]);
-  if (!show && !leaving) return null;
-  return (
-    <div className={cn('flex w-full flex-col items-center', !show && 'shade-dock-out pointer-events-none')} aria-hidden={!show || undefined}>
-      {show ? children : last.current}
-    </div>
-  );
-}
 
 /** Точка записи с кольцом: вспышка на каждый сигнал речи (ключ меняется, анимация начинается заново). */
 function ActivityDot({ pulse, paused }: { pulse: number; paused: boolean }) {

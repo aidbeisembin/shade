@@ -1,11 +1,10 @@
 // Общие части отзыва для карточки в доке (FeedbackCard) и формы в Настройках (FeedbackMorph):
-// поле текста со счётчиком, строка «что уйдёт», плашка итога, высота на пружине, кнопка GitHub.
+// поле текста со счётчиком, плашка итога, высота и ширина на пружине, ссылка на GitHub.
 'use client';
 
 import * as React from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Check, GithubLogo, Warning } from '@phosphor-icons/react';
-import { Button } from '@/shade/components/ui/button';
+import { Check, Warning } from '@phosphor-icons/react';
 import { NoticeMark } from '@/shade/components/ui/notice';
 import { spring } from '@/shade/lib/motion/spring';
 import { MORPH } from '@/shade/lib/motion/shade-springs';
@@ -36,7 +35,7 @@ export interface FeedbackTextProps {
   labelledBy?: string;
 }
 
-/** Поле «Что улучшить?»: до MAX_TEXT знаков (вставка длиннее обрезается), счётчик у предела, строка «что уйдёт». */
+/** Поле «Что улучшить?»: до MAX_TEXT знаков (вставка длиннее обрезается), счётчик у предела. */
 export const FeedbackText = React.forwardRef<HTMLTextAreaElement, FeedbackTextProps>(
   ({ value, onChange, onSubmit, onCancel, disabled, autoFocus, labelledBy }, ref) => {
     useLang();
@@ -51,7 +50,7 @@ export const FeedbackText = React.forwardRef<HTMLTextAreaElement, FeedbackTextPr
           autoFocus={autoFocus}
           disabled={disabled}
           aria-labelledby={labelledBy}
-          aria-describedby={noteId}
+          aria-describedby={left <= COUNTER_FROM ? noteId : undefined}
           aria-keyshortcuts="Meta+Enter Control+Enter Escape"
           placeholder={t('feedbackPlaceholder')}
           className={FIELD}
@@ -67,14 +66,11 @@ export const FeedbackText = React.forwardRef<HTMLTextAreaElement, FeedbackTextPr
             }
           }}
         />
-        <p id={noteId} className="text-xs leading-4 text-muted-foreground [text-wrap:pretty]">
-          {t('feedbackDisclosure')}
-          {left <= COUNTER_FROM && (
-            <span className={cn('ml-1 tabular', left <= 0 && 'text-destructive-ink')} aria-live="polite">
-              {tp('feedbackCharsLeft', Math.max(0, left))}
-            </span>
-          )}
-        </p>
+        {left <= COUNTER_FROM && (
+          <p id={noteId} className={cn('text-xs leading-4 text-muted-foreground tabular', left <= 0 && 'text-destructive-ink')} aria-live="polite">
+            {tp('feedbackCharsLeft', Math.max(0, left))}
+          </p>
+        )}
       </div>
     );
   },
@@ -90,7 +86,11 @@ export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?
   const title = ok ? t('feedbackSent') : outcome === 'queued' ? t('feedbackQueued') : t('feedbackFailed');
   return (
     <div role="status" className="flex min-w-0 items-center gap-3">
-      <NoticeMark tone={ok ? 'success' : 'giants'} className={compact ? 'size-8 [&_svg]:size-4' : undefined}>
+      {/* Отправлено: зелёная галочка на зелёной подложке (--ok), не лаймом: так читается «готово» */}
+      <NoticeMark
+        tone={ok ? 'success' : 'giants'}
+        className={cn(ok && 'bg-[hsl(var(--ok)/0.14)] text-[hsl(var(--ok))]', compact && 'size-8 [&_svg]:size-4')}
+      >
         {ok ? <Check weight="bold" /> : <Warning />}
       </NoticeMark>
       <div className="min-w-0">
@@ -101,18 +101,9 @@ export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?
   );
 }
 
+/** Открыть репозиторий Shade в браузере. Для будущей иконки GitHub (из карточки и Настроек кнопка убрана). */
 export function openGithub() {
   invoke('open_external_url', { url: GITHUB_URL }).catch((error) => shadeToast.error(t('openLinkFailed'), { description: String(error) }));
-}
-
-export function GithubButton({ className, variant = 'default' }: { className?: string; variant?: 'default' | 'secondary' }) {
-  useLang();
-  return (
-    <Button variant={variant} className={className} onClick={openGithub}>
-      <GithubLogo weight="fill" />
-      {t('feedbackGithubStar')}
-    </Button>
-  );
 }
 
 /**
@@ -157,4 +148,47 @@ export function useSpringHeight<O extends HTMLElement, I extends HTMLElement>() 
     };
   }, [s]);
   return { outer, inner };
+}
+
+/**
+ * Ширина карточки на той же пружине MORPH: в плашке итога карточка сжимается по содержимому
+ * (fit), в остальных шагах занимает место до max. Содержимое сразу раскладывается под итоговую
+ * ширину (content), рамка (frame) догоняет его на пружине, край обрезает. Пружина только при
+ * смене fit; окно и язык меняют ширину сразу. Нет DOM (тесты): ничего не делает.
+ */
+export function useSpringWidth<F extends HTMLElement>(content: React.RefObject<HTMLElement>, fit: boolean, max: number) {
+  const frame = React.useRef<F>(null);
+  const prevFit = React.useRef<boolean | null>(null);
+  const [s] = React.useState(() =>
+    spring(-1, {
+      ...MORPH,
+      precision: 0.5,
+      onUpdate: (w) => {
+        if (frame.current && w >= 0) frame.current.style.width = `${w.toFixed(1)}px`;
+      },
+    }),
+  );
+  useIsoLayoutEffect(() => {
+    const box = frame.current;
+    const el = content.current;
+    const host = box?.parentElement;
+    if (!box || !el || !host) return;
+    const measure = (animate: boolean) => {
+      const room = Math.min(max, host.clientWidth);
+      el.style.maxWidth = `${room}px`;
+      el.style.width = fit ? 'max-content' : `${room}px`;
+      const w = el.offsetWidth;
+      if (s.target >= 0 && Math.abs(w - s.target) < 0.5) return;
+      if (animate && s.target >= 0) s.to(w);
+      else s.set(w);
+    };
+    measure(prevFit.current !== null && prevFit.current !== fit);
+    prevFit.current = fit;
+    const ro = new ResizeObserver(() => measure(false));
+    ro.observe(host);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fit, max, s]);
+  React.useEffect(() => () => s.stop(), [s]);
+  return frame;
 }
