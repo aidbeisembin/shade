@@ -246,7 +246,7 @@ function SummaryBlock({
 
   // Итоги: спокойная белая полоса, как плитка транскрипта (не акцент экрана, решение владельца 2026-11-17).
   // Пока итоги готовятся: та же полоса, что у готовых (та же высота, без прыжка), в круге
-  // Spinner, а на месте текста итогов Skeleton на нейтральной плитке, без мигания. Единственный
+  // Spinner; плитки-заглушки (Skeleton) под ней нет: итоги показываются, когда готовы. Единственный
   // эффект экрана: свечение «думает» у нижнего края транскрипта (VoiceGlow, docs/ui/foundations.md «Эффекты»)
   if (summary.kind === 'processing') {
     return (
@@ -262,15 +262,6 @@ function SummaryBlock({
               <span className="min-w-0 truncate text-sm text-muted-foreground">{t('summaryProcessingHint')}</span>
             </span>
           </div>
-        </div>
-        <div className={cn(TILE, 'space-y-3')} aria-hidden>
-          <Skeleton className="h-5 w-1/3 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-[760px] rounded-lg" />
-          <Skeleton className="h-4 w-11/12 max-w-[700px] rounded-lg" />
-          <Skeleton className="h-4 w-3/4 max-w-[560px] rounded-lg" />
-          <Skeleton className="mt-5 h-5 w-1/4 rounded-lg" />
-          <Skeleton className="h-4 w-5/6 max-w-[640px] rounded-lg" />
-          <Skeleton className="h-4 w-2/3 max-w-[500px] rounded-lg" />
         </div>
       </section>
     );
