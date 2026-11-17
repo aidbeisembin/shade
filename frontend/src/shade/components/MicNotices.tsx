@@ -10,7 +10,7 @@ import { CLOSE_RESERVE, CloseButton as CloseButtonBase } from '@/shade/component
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GearSix, MicrophoneSlash, SpeakerHigh } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
-import { NoticeMark, NoticeSurface } from '@/shade/components/ui/notice';
+import { NOTICE_SECONDARY, NoticeMark, NoticeSurface } from '@/shade/components/ui/notice';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { openPrivacySettings } from '@/shade/lib/onboarding';
@@ -241,13 +241,13 @@ export function MicHint({ kind, onClose }: { kind: MicHintKind; onClose: () => v
         <p className="line-clamp-2 text-sm text-muted-foreground">{t(HINT[kind].hint)}</p>
       </div>
       {kind === 'blind' ? (
-        <Button size="sm" variant="secondary" className="shrink-0" onClick={() => void openPrivacySettings('microphone')}>
+        <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => void openPrivacySettings('microphone')}>
           <GearSix />
           {t('micOpenSettings')}
         </Button>
       ) : (
         kind !== 'system-only' && (
-          <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setSoundCheck(true)}>
+          <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => setSoundCheck(true)}>
             <SpeakerHigh />
             {t('soundCheck')}
           </Button>

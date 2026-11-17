@@ -108,7 +108,7 @@ function DemoRecording() {
             </span>
           </div>
           <span className="shade-ob-demo-rec absolute flex size-12 items-center justify-center rounded-full bg-primary text-on-role">
-            <Microphone className="size-6" />
+            <Microphone className="size-5" />
           </span>
         </div>
       </div>

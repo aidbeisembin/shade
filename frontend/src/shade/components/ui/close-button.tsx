@@ -21,7 +21,7 @@ export function CloseGlyph({ className }: { className?: string }) {
 
 /** Классы круглой кнопки: для своих кнопок и для Radix Close. */
 export const CLOSE_BUTTON =
-  'flex size-11 shrink-0 items-center justify-center shade-icon-btn-glass rounded-full text-[hsl(var(--muted-foreground)/0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
+  'flex size-11 shrink-0 items-center justify-center shade-icon-btn-glass rounded-full text-[hsl(var(--muted-foreground)/var(--close-glyph-alpha))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
 
 /** Место крестика у диалога: правый верхний угол, 4 px сверху и справа (у родителя position: relative). */
 export const CLOSE_CORNER = 'absolute right-1 top-1 z-10';
