@@ -69,11 +69,11 @@ function Sign({ children }: { children: React.ReactNode }) {
   return <NoticeMark>{children}</NoticeMark>;
 }
 
-function CloseButton({ onClick }: { onClick: () => void }) {
+function CloseButton({ onClick, className }: { onClick: () => void; className?: string }) {
   useLang();
   return (
-    // Общий круглый крестик (ui/close-button.tsx): в правом верхнем углу карточки, 4 px сверху и справа
-    <CloseButtonBase label={t('close')} onClick={onClick} />
+    // Общий круглый крестик (ui/close-button.tsx): справа по центру высоты, отступ от края равен отступу карточки
+    <CloseButtonBase label={t('close')} onClick={onClick} className={className} />
   );
 }
 
@@ -234,8 +234,8 @@ export function MicHint({ kind, onClose }: { kind: MicHintKind; onClose: () => v
   useLang();
   const [soundCheck, setSoundCheck] = useState(false);
   return (
-    // Крестик в углу подложки дока (у неё relative и p-4): справа запас 40 px, кнопки и текст не заходят под него
-    <div className="flex min-w-0 items-center gap-3 pr-10" role="status" data-shade-mic-hint={kind}>
+    // Крестик у подложки дока (у неё relative и p-4): 16 px от края, как её отступ; справа запас 52 px, кнопки и текст не заходят под него
+    <div className="flex min-w-0 items-center gap-3 pr-[52px]" role="status" data-shade-mic-hint={kind}>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{t(HINT[kind].title)}</p>
         <p className="line-clamp-2 text-sm text-muted-foreground">{t(HINT[kind].hint)}</p>
@@ -253,7 +253,7 @@ export function MicHint({ kind, onClose }: { kind: MicHintKind; onClose: () => v
           </Button>
         )
       )}
-      <CloseButton onClick={onClose} />
+      <CloseButton onClick={onClose} className="right-4" />
       <SoundCheckDialog open={soundCheck} onOpenChange={setSoundCheck} />
     </div>
   );

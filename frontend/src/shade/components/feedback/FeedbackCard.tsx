@@ -99,7 +99,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
       }}
     >
       <div ref={outer} className="overflow-hidden rounded-[inherit]">
-        <div ref={inner} className={cn('p-5', !outcome && 'pr-14')}>
+        <div ref={inner} className={cn('p-5', !outcome && 'pr-[72px]')}>
           {outcome ? (
             <OutcomePlaque outcome={outcome} />
           ) : (
@@ -179,7 +179,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
         <CloseButton
           label={t('close')}
           onClick={() => dispatch({ type: 'close' })}
-          className={cn(tall && 'top-1 translate-y-0')}
+          className={cn(tall && 'top-5 translate-y-0')}
           disabled={sending}
         />
       )}
