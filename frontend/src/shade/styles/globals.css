@@ -1097,19 +1097,39 @@ main[data-layout='bento'] .rounded-tile {
   border-radius: var(--frame-radius);
 }
 
-/* Кнопки и чипы в шапке на тоне текста (--glass-btn: 6 %, при наведении 12 %; в тёмной
-   11 % и 17 %), а не на вложенной поверхности: шапка лежит то на плитке, то на фоне окна,
-   и на фоне окна вложенный тон почти не виден. На плитке тон близок к вложенной поверхности */
+/* Кнопки, чипы и поля в шапке и в герое бенто на тоне текста (--glass-btn: 6 %, при
+   наведении 12 %; в тёмной 11 % и 17 %), а не на вложенной поверхности: шапка лежит то
+   на плитке, то на фоне окна, герой бенто всегда на фоне окна, а на фоне окна вложенный
+   тон почти не виден (в светлой теме --muted светлее окна). На плитке тон близок к
+   вложенной поверхности. Поле наведением не темнеет: меняются только кнопки. */
 .shade-sticky-head .shade-icon-btn,
 .shade-sticky-head .bg-muted,
-.shade-sticky-head .bg-secondary {
+.shade-sticky-head .bg-secondary,
+main[data-layout='bento'] .shade-hero .shade-icon-btn,
+main[data-layout='bento'] .shade-hero .bg-muted,
+main[data-layout='bento'] .shade-hero .bg-secondary {
   background-color: hsl(var(--foreground) / var(--glass-btn));
 }
 
 .shade-sticky-head .shade-icon-btn:hover:not(:disabled),
 .shade-sticky-head .bg-muted:hover:not(:disabled),
-.shade-sticky-head .bg-secondary:hover:not(:disabled) {
+.shade-sticky-head .bg-secondary:hover:not(:disabled),
+main[data-layout='bento'] .shade-hero .shade-icon-btn:hover:not(:disabled),
+main[data-layout='bento'] .shade-hero button.bg-muted:hover:not(:disabled),
+main[data-layout='bento'] .shade-hero button.bg-secondary:hover:not(:disabled) {
   background-color: hsl(var(--foreground) / var(--glass-btn-hover));
+}
+
+/* Скелетоны загрузки на фоне окна (шапка, герой бенто): --skeleton в светлой теме
+   совпадает с фоном окна, поэтому тот же тон текста, что у кнопок */
+.shade-sticky-head .shade-skeleton,
+main[data-layout='bento'] .shade-hero .shade-skeleton {
+  background: hsl(var(--foreground) / var(--glass-btn));
+}
+
+/* Подсветка наведения в герое бенто (название встречи) тоже на тоне текста */
+main[data-layout='bento'] .shade-hero .hover\:bg-muted:hover {
+  background-color: hsl(var(--foreground) / var(--glass-btn));
 }
 
 /* Низ под кнопкой записи: контент растворяется к низу так же, как под шапкой (то же

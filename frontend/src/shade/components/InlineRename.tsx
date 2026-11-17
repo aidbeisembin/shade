@@ -1,7 +1,9 @@
 // Переименование прямо на месте (строка списка и заголовок встречи).
 // Поле получает полное название без многоточия. Enter сохраняет, Esc отменяет,
 // клик вне поля сохраняет. Если текст не меняли или стёрли, хранимое название
-// не трогается. Кнопки 40 px: «Сохранить» в акценте, «Отмена» прозрачная;
+// не трогается. Кнопки круглые, в высоту поля (buttonClassName задаёт размер под
+// inputClassName, по умолчанию 48 px как поле), иконки 20 px: «Сохранить» в акценте,
+// «Отмена» на серой подложке (cancelClassName, если поле лежит на той же подложке);
 // Check и X в начертании bold: залитые в Phosphor нарисованы квадратом.
 'use client';
 
@@ -20,10 +22,14 @@ interface InlineRenameProps {
   onSave: (next: string) => Promise<void>;
   onClose: () => void;
   inputClassName?: string;
+  /** Размер кнопок, равный высоте поля (например size-14 при h-14). */
+  buttonClassName?: string;
+  /** Подложка «Отмены», если серая по умолчанию сливается с фоном вокруг: тон задаётся через --muted (фон .shade-icon-btn берётся из него). */
+  cancelClassName?: string;
   className?: string;
 }
 
-export function InlineRename({ initial, onSave, onClose, inputClassName, className }: InlineRenameProps) {
+export function InlineRename({ initial, onSave, onClose, inputClassName, buttonClassName = 'size-12', cancelClassName, className }: InlineRenameProps) {
   useLang();
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -90,14 +96,14 @@ export function InlineRename({ initial, onSave, onClose, inputClassName, classNa
         maxLength={200}
         disabled={saving}
       />
-      <Button type="submit" size="icon" className="size-10 shrink-0 [&_svg]:size-5" aria-label={t('save')} disabled={saving} onMouseDown={keepFocus}>
+      <Button type="submit" size="icon" className={cn('shrink-0 [&_svg]:size-5', buttonClassName)} aria-label={t('save')} disabled={saving} onMouseDown={keepFocus}>
         {saving ? <Spinner tone="inherit" /> : <Check weight="bold" />}
       </Button>
       <Button
         type="button"
-        variant="ghost"
+        variant="secondary"
         size="icon"
-        className="size-10 shrink-0 text-muted-foreground [&_svg]:size-5"
+        className={cn('shrink-0 [&_svg]:size-5', buttonClassName, cancelClassName)}
         aria-label={t('cancel')}
         onMouseDown={keepFocus}
         onClick={cancel}
