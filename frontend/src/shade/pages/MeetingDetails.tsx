@@ -299,8 +299,8 @@ function SummaryBlock({
             {t('summary')}
           </span>
           <span className="hidden text-sm text-muted-foreground sm:inline">{t('summaryOpenHint')}</span>
-          {/* Вниз, когда свёрнуто, вверх, когда раскрыто: залитый треугольник вправо читается как «воспроизвести» */}
-          <CaretDown className={cn('ml-auto size-4 transition-transform', open && 'rotate-180')} aria-hidden />
+          {/* Шеврон `bold` (не залитый треугольник), серый, как остальной второстепенный текст. Вниз, когда свёрнуто, вверх, когда раскрыто */}
+          <CaretDown weight="bold" className={cn('ml-auto size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
           <span className="sr-only">{open ? t('collapse') : t('expand')}</span>
         </button>
       </div>
