@@ -414,7 +414,7 @@ export const pluginHandlers: Record<string, Handler> = {
   'plugin:app|version': ok('0.4.1-mock'),
   'plugin:app|name': ok('Shade'),
   'plugin:app|tauri_version': ok('2.x-mock'),
-  'plugin:app|identifier': ok('io.github.katanana23.shade.mock'),
+  'plugin:app|identifier': ok('com.aidbeisembin.shade.mock'),
   'plugin:path|resolve_directory': ok(`${MOCK_ROOT}/AppData`),
   'plugin:path|join': (a) => (a?.paths ?? []).join('/'),
 

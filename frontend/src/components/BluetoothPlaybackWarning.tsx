@@ -81,7 +81,7 @@ export function BluetoothPlaybackWarning({
             <strong>wired headphones</strong>.
             <br />
             <a
-              href="https://github.com/katanana23/shade/blob/shade/README.md"
+              href="https://github.com/aidbeisembin/shade/blob/shade/README.md"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-yellow-900 font-medium mt-2 inline-block"

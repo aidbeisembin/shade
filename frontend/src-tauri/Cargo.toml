@@ -4,7 +4,7 @@ version = "0.4.1"
 description = "Shade: private meeting notes for macOS"
 authors = ["Aid Beisembin"]
 license = "MIT"
-repository = "https://github.com/katanana23/shade"
+repository = "https://github.com/aidbeisembin/shade"
 edition = "2021"
 rust-version = "1.77"
 

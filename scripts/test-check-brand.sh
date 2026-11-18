@@ -2,7 +2,9 @@
 # Тест scripts/check-brand.sh на временном репозитории с вымышленными файлами.
 # Случаи из таблицы PR: чисто, имя в коде, имя в пути, строка-данные, данные плюс второе
 # упоминание в строке, файл-исключение, архив PR, FORK.md до и после «## История»,
-# новый неотслеживаемый файл, игнорируемый файл, двоичный файл, разный регистр.
+# новый неотслеживаемый файл, игнорируемый файл, двоичный файл, разный регистр; прежний ник
+# владельца: ссылка, прежние identifier как данные, данные плюс ссылка, docs/case, «## История»,
+# скрипт переноса, регистр, имя файла.
 # Запуск: bash scripts/test-check-brand.sh (macOS и Linux; нужен git).
 
 set -euo pipefail
@@ -98,6 +100,41 @@ expect "двоичный файл: только имя" 0
 new_repo
 printf 'user-agent: %s/1\n' "$(echo "$A" | tr 'a-z' 'A-Z')" > "$WORK/r/src/ua.rs"; commit
 expect "регистр не важен" 1 "src/ua.rs:1:"
+
+# --- Правило 2: прежний ник владельца на GitHub -----------------------------------------
+N="kata""nana23"
+
+new_repo
+printf 'export const GITHUB_URL = "https://github.com/%s/shade";\n' "$N" > "$WORK/r/src/store.ts"; commit
+expect "ник: ссылка GitHub в коде" 1 "src/store.ts:1:"
+
+new_repo
+printf '| identifier | com.aidbeisembin.shade | io.github.%s.shade | io.github.%s.aid-meetings |\n' "$N" "$N" > "$WORK/r/docs/FORK.md"; commit
+expect "ник: прежние identifier как строки-данные" 0
+
+new_repo
+printf 'Папка io.github.%s.shade, репозиторий github.com/%s/shade\n' "$N" "$N" > "$WORK/r/README.md"; commit
+expect "ник: данные плюс ссылка в той же строке" 1 "README.md:1:"
+
+new_repo
+printf 'Автор: %s\n' "$N" > "$WORK/r/docs/case/decisions.md"; commit
+expect "ник: docs/case не проверяется" 0
+
+new_repo
+printf '# Fork\n\nсверху\n\n## История\n\nрепозиторий %s/shade\n' "$N" > "$WORK/r/docs/FORK.md"; commit
+expect "ник: FORK.md в «## История»" 0
+
+new_repo
+printf 'OLD="%s"\n' "$N" > "$WORK/r/scripts/migrate-x.sh"; commit
+expect "ник: скрипт переноса" 0
+
+new_repo
+printf 'user %s\n' "$(echo "$N" | tr 'a-z' 'A-Z')" > "$WORK/r/src/x.md"; commit
+expect "ник: регистр не важен" 1 "src/x.md:1:"
+
+new_repo
+printf 'x\n' > "$WORK/r/src/$N.txt"; commit
+expect "ник: в имени файла" 1 "имя файла"
 
 echo "check-brand tests: $pass ok, $fail fail"
 [[ "$fail" == 0 ]]

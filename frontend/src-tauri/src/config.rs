@@ -42,7 +42,9 @@ pub const WHISPER_MODEL_CATALOG: &[(&str, &str, u32, &str, &str, &str)] = &[
 // Renaming the data folders below (or the `identifier` in tauri.conf.json)
 // orphans existing user data: do it only together with a migration script
 // like scripts/migrate-from-aid.sh (2026-11-14: Aid Meetings,
-// aid-meetings-recordings and io.github.katanana23.aid-meetings -> Shade).
+// aid-meetings-recordings and io.github.katanana23.aid-meetings -> Shade) or
+// scripts/migrate-identifier.sh (2026-11-17: io.github.katanana23.shade ->
+// com.aidbeisembin.shade).
 // ---------------------------------------------------------------------------
 #[macro_export]
 macro_rules! fork_app_name {

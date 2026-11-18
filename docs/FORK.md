@@ -1,6 +1,6 @@
 # Shade: ветки, имена данных, правки ядра
 
-Продукт **Shade**, репозиторий `katanana23/shade`. С 17.11.2026 репозиторий самостоятельный: синхронизации с исходным проектом нет, его обновления сюда не приходят. Откуда проект и как было раньше: раздел «История» в конце.
+Продукт **Shade**, репозиторий `aidbeisembin/shade` (до 17.11.2026 ник владельца на GitHub был другим, старые адреса пока перенаправляются). С 17.11.2026 репозиторий самостоятельный: синхронизации с исходным проектом нет, его обновления сюда не приходят. Откуда проект и как было раньше: раздел «История» в конце.
 
 ## 1. Ветки
 
@@ -16,19 +16,25 @@
 
 `identifier` это идентификатор приложения в `frontend/src-tauri/tauri.conf.json`. От него зависят папка данных, база, модели, хранилище WebView (встроенного окна браузера) и разрешения macOS.
 
-| Что | Сейчас | Прежнее имя (до 14.11.2026) |
-|---|---|---|
-| `identifier` | `io.github.katanana23.shade` | `io.github.katanana23.aid-meetings` |
-| Папка данных | `~/Library/Application Support/io.github.katanana23.shade/` | `~/Library/Application Support/io.github.katanana23.aid-meetings/` |
-| Свои шаблоны и `notifications.json` (`APP_DATA_DIR_NAME`) | `~/Library/Application Support/Shade/` | `~/Library/Application Support/Aid Meetings/` |
-| Папка записей (`RECORDINGS_DIR_NAME`) | `~/Movies/Shade` | `~/Movies/aid-meetings-recordings` |
-| Корзина записей (внутри папки записей) | `Корзина Shade` | `Корзина ShadeNotes` |
-| Ключи хранилищ интерфейса | `shade.*`, тема `shade.theme` | `aid.*`, `aid-meetings.theme` |
-| `productName`, заголовок окна, сборка | `Shade`, `Shade.app` | `ShadeNotes.app` |
+| Что | Сейчас | Прежнее (до 17.11.2026) | Прежнее (до 14.11.2026) |
+|---|---|---|---|
+| `identifier` | `com.aidbeisembin.shade` | `io.github.katanana23.shade` | `io.github.katanana23.aid-meetings` |
+| Папка данных (база, модели, настройки) | `~/Library/Application Support/com.aidbeisembin.shade/` | `~/Library/Application Support/io.github.katanana23.shade/` | `~/Library/Application Support/io.github.katanana23.aid-meetings/` |
+| Хранилище окна (`localStorage`) и кеш | `~/Library/WebKit/<identifier>`, `~/Library/Caches/<identifier>` | так же, по прежнему `identifier` | так же, по прежнему `identifier` |
+| Свои шаблоны и `notifications.json` (`APP_DATA_DIR_NAME`) | `~/Library/Application Support/Shade/` | не менялось | `~/Library/Application Support/Aid Meetings/` |
+| Папка записей (`RECORDINGS_DIR_NAME`) | `~/Movies/Shade` | не менялось | `~/Movies/aid-meetings-recordings` |
+| Корзина записей (внутри папки записей) | `Корзина Shade` | не менялось | `Корзина ShadeNotes` |
+| Ключи хранилищ интерфейса | `shade.*`, тема `shade.theme` | не менялось | `aid.*`, `aid-meetings.theme` |
+| `productName`, заголовок окна, сборка | `Shade`, `Shade.app` | не менялось | `ShadeNotes.app` |
 
 Константы `APP_DATA_DIR_NAME` и `RECORDINGS_DIR_NAME` лежат в `frontend/src-tauri/src/config.rs`. Имена команд и событий Tauri не менялись.
 
-**Перенос со старых имён**: `scripts/migrate-from-aid.sh`. Скрипт копирует данные, правит пути в базе, метках корзины и `localStorage`, проверяет результат и старое не удаляет; с `--archive-old` переносит старые папки в `_to_delete`. Совместимости со старыми именами в коде нет: без переноса Shade их не видит.
+**Перенос со старых имён**: по скрипту на каждую смену, запускать по порядку, общий движок `scripts/migrate-lib.sh`.
+
+1. `scripts/migrate-from-aid.sh` (14.11.2026): копирует данные, правит пути в базе, метках корзины и `localStorage`.
+2. `scripts/migrate-identifier.sh` (17.11.2026): копирует папки по `identifier` (Application Support, WebKit, Caches и, если есть, Logs, HTTPStorages, Saved Application State, Preferences) байт в байт. Папки `~/Movies/Shade` и `~/Library/Application Support/Shade` от `identifier` не зависят и остаются на месте; старого `identifier` в базе, настройках и `localStorage` нет, скрипт это проверяет. Разрешения macOS (микрофон, звук системы) привязаны к `identifier`: их дают заново.
+
+Оба скрипта проверяют результат, старое не удаляют, при запущенном Shade отказываются работать; с `--archive-old` переносят старые папки в `_to_delete`. Совместимости со старыми именами в коде нет: без переноса Shade их не видит. Тесты: `scripts/test-migrate-from-aid.sh`, `scripts/test-migrate-identifier.sh`.
 
 Любая смена этих имён отрывает данные пользователя от приложения. Делать её только вместе со скриптом переноса.
 
