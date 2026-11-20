@@ -1,9 +1,9 @@
 // Показ окна Tauri при запуске. Окно создаётся скрытым ("visible": false в
 // tauri.conf.json): иначе первые мгновения, пока WebView ждёт страницу, видно
-// пустое светлое окно ядра, и в тёмной теме оно слепит. Скрипт в <head> ставит
-// окну фон темы (тёмная #000000, светлая #ECEEEB, как WINDOW_BACKGROUND в window-theme.ts), а показывает его скрипт в начале
-// <body>, сразу после разметки заставки (LaunchScreen): окно появляется уже с
-// маскотом в цвет темы. Страховки: повтор через SHOW_FALLBACK_MS и вызов из
+// пустое окно ядра. Скрипт в <head> ставит окну чёрный фон заставки (LAUNCH_BACKGROUND:
+// заставка чёрная в обеих темах), а показывает его скрипт в начале <body>, сразу после
+// разметки заставки (LaunchScreen): окно появляется уже с логотипом на чёрном. Цвет
+// темы окну потом ставит syncWindowTheme (window-theme.ts), под заставкой его не видно. Страховки: повтор через SHOW_FALLBACK_MS и вызов из
 // эффекта layout (showWindow), если встроенный скрипт не сработал.
 // Права: core:window:allow-show и core:window:allow-set-background-color.
 // Аргументы команд как в @tauri-apps/api 2.11 (show с label, фон с color).
@@ -12,7 +12,10 @@
 
 const SHOW_FALLBACK_MS = 3000;
 
-/** Для <head>, после themeScript: фон окна по теме и функция показа. */
+/** Фон заставки и окна на запуске: чёрный в обеих темах. */
+export const LAUNCH_BACKGROUND = '#000000';
+
+/** Для <head>, после themeScript: чёрный фон окна и функция показа. */
 export const windowBootScript = `
 (function() {
   var w = window, T = w.__TAURI_INTERNALS__;
@@ -24,8 +27,7 @@ export const windowBootScript = `
     T.invoke('plugin:window|show', { label: 'main' }).catch(function(e) { console.warn('[shade] Window did not show:', e); });
   };
   try {
-    var dark = document.documentElement.classList.contains('dark');
-    T.invoke('plugin:window|set_background_color', { color: dark ? '#000000' : '#ECEEEB' }).catch(function() {});
+    T.invoke('plugin:window|set_background_color', { color: '${LAUNCH_BACKGROUND}' }).catch(function() {});
   } catch (e) {}
   setTimeout(function() { w.__shadeShowWindow(); }, ${SHOW_FALLBACK_MS});
 })();
