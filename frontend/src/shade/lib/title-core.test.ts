@@ -303,7 +303,7 @@ describe('название: слежение за итогами и запись
   });
 });
 
-describe('название: сигнал «модель придумывает» (перелив на дате)', () => {
+describe('название: сигнал «модель придумывает» (полоса пикселей)', () => {
   test('удача: включается до запроса, выключается после записи и объявления', async () => {
     const w = world({ meetings: [meeting()], answers: ['Сроки релиза'] });
     await w.titler.titleOne('m1', { mode: 'auto' });
@@ -321,7 +321,7 @@ describe('название: сигнал «модель придумывает»
     expect(bad.meetings.get('m1')!.title).toBe(DEFAULT);
   });
 
-  test('отказ до запроса (нет модели, ручное название, короткая встреча): перелива нет', async () => {
+  test('отказ до запроса (нет модели, ручное название, короткая встреча): полосы нет', async () => {
     const noModel = world({ meetings: [meeting()], model: { configured: false, level: 'unknown', provider: null } });
     await noModel.titler.titleOne('m1', { mode: 'auto' });
     const manual = world({ meetings: [meeting({ origin: 'manual' })] });

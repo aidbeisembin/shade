@@ -1,20 +1,24 @@
-// Проявление придуманного названия встречи перебором букв: чистая часть без React.
-// Здесь решается, КОГДА играть (decideReveal), и что видно в момент времени (scrambleFrame).
-// Показывает components/TitleReveal.tsx. Тесты: title-reveal.test.ts. Вид: docs/ui/foundations.md.
+// Пиксельная «генерация» названия встречи: чистая часть без React и без canvas.
+// Две фазы. Пока модель думает (сигнал progress, title-service.ts), вместо даты мерцают
+// пиксели с бегущей волной (loadingAlpha). Когда название записано (событие shade-title-set),
+// пиксели поверх настоящего текста мельчают и рассыпаются в случайном порядке, текст проступает
+// (revealFrame, cellAlive). Холст рисует только пиксели, буквы всегда DOM: шрифт не расходится.
+// Рисует components/TitleReveal.tsx. Тесты: title-reveal.test.ts. Вид: docs/ui/foundations.md.
 //
-// Признак «название только что придумано» один: событие shade-title-set (onTitleSet,
-// title-service.ts). Его шлёт только автоматика после записи названия ядром. Ручное
-// переименование, загрузка списка при старте, прокрутка и перерисовки события не шлют.
+// Признак «название только что придумано» один: событие shade-title-set (onTitleSet).
+// Его шлёт только автоматика после записи названия ядром. Ручное переименование, загрузка
+// списка при старте, прокрутка и перерисовки события не шлют.
 
 /** Длительность проявления, мс (требование 700-900). */
 export const REVEAL_MS = 800;
 /** Сколько ждать, пока экран покажет название из события. Позже: проявление не играет. */
 export const ARM_TTL_MS = 3000;
-/** Как часто меняются случайные буквы, мс: чаще мельтешит, реже выглядит как зависание. */
-export const SCRAMBLE_TICK_MS = 50;
-/** Доли длительности, в которые буквы встают на место: первая чуть позже начала, последняя до конца. */
-export const SETTLE_FROM = 0.1;
-export const SETTLE_TO = 0.9;
+/** Сторона крупного пикселя, CSS px: в ожидании и в начале проявления. */
+export const PIXEL = 4;
+/** Как часто пиксели ожидания меняют яркость, мс. */
+export const FLICKER_MS = 90;
+/** Период бегущей волны ожидания, мс: «модель работает», слева направо. */
+export const WAVE_MS = 1400;
 
 export interface Armed {
   /** Название из события, как его записало ядро. */
@@ -59,52 +63,51 @@ export function hash01(a: number, b: number, seed: number): number {
   return (h >>> 0) / 4294967296;
 }
 
+// --- ожидание ------------------------------------------------------------------------------
+
 /**
- * Когда буква i встаёт на место, мс. Порядок случайный (не слева направо), а сколько букв
- * уже на месте, растёт по ease-out: большая часть встаёт быстро, последние медленнее.
+ * Яркость пикселя ожидания (0..1) в колонке col из cols, ряду row, в момент elapsed мс.
+ * Случайное мерцание раз в FLICKER_MS и светлая волна, бегущая слева направо раз в WAVE_MS.
  */
-export function settleAt(i: number, seed: number, duration = REVEAL_MS): number {
-  const r = hash01(i, 7, seed);
-  // обратная к easeOut: доля встающих букв к моменту p равна easeOut(p)
-  const p = 1 - Math.cbrt(1 - r);
-  return duration * (SETTLE_FROM + (SETTLE_TO - SETTLE_FROM) * p);
+export function loadingAlpha(col: number, row: number, cols: number, elapsed: number, seed: number): number {
+  const tick = Math.floor(Math.max(0, elapsed) / FLICKER_MS);
+  const flicker = hash01(col * 131 + row, tick, seed);
+  // волна выходит из-за левого края и уходит за правый
+  const phase = ((Math.max(0, elapsed) % WAVE_MS) / WAVE_MS) * 1.6 - 0.3;
+  const x = cols > 1 ? col / (cols - 1) : 0;
+  const wave = Math.exp(-((x - phase) ** 2) / 0.015);
+  return Math.min(1, 0.2 + 0.4 * flicker + 0.45 * wave * (0.5 + 0.5 * flicker));
 }
 
-const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, k) => String.fromCharCode(from + k));
-// Буквы того же письма, что и в названии: без кириллицы в коде (страж языка), по кодам Unicode
-const CYR_LOWER = range(0x430, 0x44f);
-const CYR_UPPER = range(0x410, 0x42f);
-const LAT_LOWER = range(0x61, 0x7a);
-const LAT_UPPER = range(0x41, 0x5a);
-const DIGITS = range(0x30, 0x39);
+// --- проявление ----------------------------------------------------------------------------
 
-/** Чем заменять букву, пока она не на месте; null: показывать как есть (пробел, знаки). */
-export function poolFor(ch: string): string[] | null {
-  if (/\p{Script=Cyrillic}/u.test(ch)) return ch === ch.toUpperCase() ? CYR_UPPER : CYR_LOWER;
-  if (/[a-z]/.test(ch)) return LAT_LOWER;
-  if (/[A-Z]/.test(ch)) return LAT_UPPER;
-  if (/\d/.test(ch)) return DIGITS;
-  return null;
-}
-
-export interface ScrambleChar {
-  ch: string;
-  /** Буква уже на месте (настоящая). */
-  settled: boolean;
-}
-
-export interface ScrambleFrame {
-  chars: ScrambleChar[];
+export interface RevealFrame {
+  /** Сторона пикселя, CSS px: от PIXEL к 1. */
+  block: number;
+  /** Доля рассыпавшихся пикселей, 0..1 (ease-out). */
+  gone: number;
+  /** Видимость настоящего текста под пикселями, 0..1. */
+  text: number;
   done: boolean;
 }
 
-/** Что видно в момент elapsed: стоящие на месте буквы и случайные на месте остальных. */
-export function scrambleFrame(text: string, elapsed: number, seed: number, duration = REVEAL_MS): ScrambleFrame {
-  const tick = Math.floor(Math.max(0, elapsed) / SCRAMBLE_TICK_MS);
-  const chars = Array.from(text).map((ch, i) => {
-    const pool = poolFor(ch);
-    if (!pool || elapsed >= settleAt(i, seed, duration)) return { ch, settled: true };
-    return { ch: pool[Math.floor(hash01(i, tick, seed) * pool.length)], settled: false };
-  });
-  return { chars, done: elapsed >= duration };
+/** Кадр проявления в момент elapsed мс: пиксели мельчают (4 → 2 → 1) и рассыпаются, текст проступает. */
+export function revealFrame(elapsed: number, duration = REVEAL_MS): RevealFrame {
+  const p = Math.min(1, Math.max(0, elapsed / duration));
+  const block = p < 0.3 ? PIXEL : p < 0.6 ? PIXEL / 2 : 1;
+  // первые 15 % строка целиком в пикселях, текст проступает с 30 %: глаз успевает увидеть «генерацию»
+  const gone = easeOut(Math.max(0, (p - 0.15) / 0.85));
+  const text = easeOut(Math.max(0, (p - 0.3) / 0.6));
+  return { block, gone, text, done: p >= 1 };
+}
+
+/**
+ * Жив ли пиксель (x, y) в CSS px на кадре f. Порог общий у пикселей одной крупной клетки
+ * (с небольшим разбросом внутри), поэтому клетки рассыпаются пятнами в случайном порядке,
+ * а не слева направо. К концу (gone = 1) не остаётся ни одного.
+ */
+export function cellAlive(x: number, y: number, gone: number, seed: number): boolean {
+  const parent = hash01(Math.floor(x / PIXEL), Math.floor(y / PIXEL), seed);
+  const jitter = hash01(x | 0, (y | 0) + 7919, seed) * 0.15;
+  return parent * 0.85 + jitter >= gone;
 }

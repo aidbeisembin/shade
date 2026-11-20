@@ -105,8 +105,8 @@ function ErrorAlert({ title, error, onRetry }: { title: string; error: FriendlyE
 function Title({ id, shown, editable, onRename }: { id: string; shown: string; editable: string; onRename: (next: string) => Promise<void> }) {
   useLang();
   const [editing, setEditing] = useState(false);
-  // Модель придумывает название: дата переливается; придумала: проявляется перебором букв (TitleReveal.tsx)
-  const reveal = useTitleReveal<HTMLButtonElement>(id, shown);
+  // Модель придумывает название: вместо даты мерцают пиксели; придумала: пиксели рассыпаются в название (TitleReveal.tsx)
+  const reveal = useTitleReveal<HTMLSpanElement>(id, shown);
   const begin = () => setEditing(true);
 
   if (editing) {
@@ -136,13 +136,14 @@ function Title({ id, shown, editable, onRename }: { id: string; shown: string; e
         type="button"
         onClick={begin}
         title={t('renameHint')}
-        aria-label={`${shown}. ${t('renameHint')}`}
-        ref={reveal.ref}
+        aria-label={`${reveal.pending ? t('titleGenerating') : shown}. ${t('renameHint')}`}
         aria-busy={reveal.pending || undefined}
         className="-mx-2 line-clamp-2 max-w-full cursor-text rounded-nested px-2 py-1 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {/* Перелив на тексте, а не на кнопке: background-clip: text срезал бы подложку наведения */}
-        <span className={reveal.pending ? 'shade-shimmer' : undefined}>{reveal.content}</span>
+        {/* Холст проявления лежит на этом span, а не на кнопке: так он привязан к самому тексту */}
+        <span ref={reveal.ref} className="relative">
+          {reveal.content}
+        </span>
       </button>
     </h1>
   );

@@ -31,7 +31,7 @@ const PENDING_EVENT = 'shade-title-pending';
 /** Встречи, для которых модель сейчас придумывает название: строка, появившаяся позже, тоже узнает. */
 const pending = new Set<string>();
 
-/** Модель придумывает название встречи id (перелив на дате в списке и шапке). */
+/** Модель придумывает название встречи id (полоса пикселей вместо названия в списке и шапке). */
 export function isTitlePending(id: string): boolean {
   return pending.has(id);
 }
