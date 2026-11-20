@@ -179,7 +179,7 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
 
   // После «Остановить» с речью название встречи не показываем вовсе: с первого кадра, где
   // известен id сохранённой встречи, держим ожидание названия (полоса пикселей вместо даты).
-  // До отрисовки: строка списка и карточка не успевают показать дату. Отпускает titleSaved
+  // До отрисовки: строка списка не успевает показать дату. Отпускает titleSaved
   const awaitingId = useRef<{ before: string | null; resolve: (id: string) => void } | null>(null);
   useIsoLayoutEffect(() => {
     const wait = awaitingId.current;

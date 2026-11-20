@@ -1,6 +1,6 @@
 // Название встречи, которое придумывает автоматика (title-service.ts), как пиксельная «генерация».
 // После «Остановить» и пока модель думает: вместо названия и даты мерцает полоса пикселей с бегущей
-// волной (строка обработки, строка встречи, шапка, карточка итога). Придумала: поверх
+// волной (строка обработки, строка встречи, шапка; карточка у кнопки записи показывает дату). Придумала: поверх
 // настоящего названия пиксели мельчают (4 → 2 → 1 px) и рассыпаются в случайном порядке, текст
 // проступает. Логика и время: lib/title-reveal.ts.
 //
@@ -54,7 +54,7 @@ function prepare(canvas: HTMLCanvasElement, w: number, h: number, color: string)
 
 /**
  * Текущее проявление: одна встреча за раз. Новое у другой встречи гасит прежние; у той же
- * (строка списка и карточка «Встреча сохранена» с одним названием) играют вместе.
+ * (одно название в нескольких местах) играют вместе.
  */
 let active: { id: string; ends: Set<() => void> } | null = null;
 
@@ -226,7 +226,7 @@ export function useTitleReveal<T extends HTMLElement>(id: string, text: string):
     const box = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
     const fontSize = parseFloat(cs.fontSize) || 16;
-    // У строчного элемента (шапка, карточка) clientWidth = 0: тогда только ширина текста; у блочного с многоточием не шире блока
+    // У строчного элемента (шапка встречи) clientWidth = 0: тогда только ширина текста; у блочного с многоточием не шире блока
     const w = Math.ceil(el.clientWidth ? Math.min(rr.width, el.clientWidth) : rr.width);
     const h = Math.ceil(fontSize * BAND_EM);
     const left = rr.left - box.left - el.clientLeft;

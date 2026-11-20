@@ -34,7 +34,7 @@ const pending = createPendingStore((id, on) => {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PENDING_EVENT, { detail: { id, on } }));
 });
 
-/** Название встречи id придумывается: вместо названия и даты полоса пикселей (список, шапка, карточка итога). */
+/** Название встречи id придумывается: вместо названия и даты полоса пикселей (список и шапка встречи). */
 export function isTitlePending(id: string): boolean {
   return pending.has(id);
 }
