@@ -38,6 +38,8 @@ openssl pkcs12 -export -inkey key.pem -in cert.pem -name "Shade Beta Signing" -c
 
 **Gatekeeper.** Без Developer ID и нотаризации macOS при первом запуске скачанного браузером приложения спрашивает «Всё равно открыть» (README, «Установка»). `install.sh` качает через `curl`, файлу не ставится карантин, и вопроса нет.
 
+**Образ .dmg без подписи.** Tauri подписывает и сам `.dmg`. Такой образ (подписан, не нотаризован) с карантином браузера macOS 27 молча убирает в Корзину: `open` отвечает -128, окна и кнопки «Всё равно открыть» нет, установить Shade нельзя. Проверено 21.11.2026 на `.dmg` из прогона `workflow_dispatch`, скачанном Chrome. Неподписанный образ с тем же приложением монтируется, и дальше путь из README. Поэтому шаг «Unsigned dmg» (`scripts/release/unsign-dmg.sh`, `hdiutil convert`) снимает подпись с образа; `Shade.app` внутри подписан, требование то же (проверка подписи монтирует образ после этого шага). С Developer ID так же: нотаризуется приложение, образ остаётся без подписи.
+
 ## Секреты (Settings → Secrets and variables → Actions)
 
 | Секрет | Что это |
@@ -94,7 +96,7 @@ Workflow не меняется:
 ## Проверки
 
 - `bash scripts/release/test-release.sh`: версия и тег, секреты, `latest.json`, подпись обновления (minisign), описание релиза.
-- `bash scripts/release/test-check-signature.sh` (macOS): требование без cdhash, одинаковое у двух версий; ad-hoc, без подписи и чужой сертификат отклоняются; `import-signing-cert.sh` принимает годный `.p12` и отклоняет сертификат с `basicConstraints`, неверный пароль, не то имя.
+- `bash scripts/release/test-check-signature.sh` (macOS): требование без cdhash, одинаковое у двух версий; ad-hoc, без подписи и чужой сертификат отклоняются; `unsign-dmg.sh` снимает подпись с образа, приложение внутри то же; `import-signing-cert.sh` принимает годный `.p12` и отклоняет сертификат с `basicConstraints`, неверный пароль, не то имя.
 - `bash scripts/test-install.sh`: `install.sh` на подставных командах.
 - `pnpm test`: `lib/updates.test.ts`, `components/update-card.test.tsx`, `lib/beta-chat.test.ts`.
 - Все четыре в CI `shade-check` (задача `release` на macOS и `frontend`).

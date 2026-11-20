@@ -4,6 +4,7 @@
 # Случаи: две версии с одной подписью (требование одно, без cdhash, CDHash разные); ad-hoc
 # подпись (требование привязано к cdhash) отклонена; неподписанное отклонено; другой сертификат
 # (macOS сочла бы его другим приложением) отклонён; не то имя сертификата отклонено.
+# unsign-dmg.sh: подписанный образ становится неподписанным, приложение внутри то же.
 # import-signing-cert.sh: годный .p12 принят; самоподписанный с basicConstraints, неверный пароль,
 # не то имя отклонены.
 # Запуск: bash scripts/release/test-check-signature.sh (только macOS).
@@ -21,6 +22,7 @@ KPW=$(openssl rand -hex 16)
 # отвечает «The specified item could not be found in the keychain». При выходе список прежний
 OLD_LIST=$(security list-keychains -d user | tr -d '"' | xargs)
 restore() {
+  hdiutil detach "$WORK/smnt" -quiet >/dev/null 2>&1 || true
   # shellcheck disable=SC2086
   security list-keychains -d user -s $OLD_LIST
   security delete-keychain "$KC" >/dev/null 2>&1 || true
@@ -113,6 +115,23 @@ check "другой сертификат: требования расходят�
 
 run env SHADE_SIGNING_IDENTITY="Shade Beta Signing" bash "$CHECK" "$A"
 check "не тот сертификат по имени: отклонено" test "$CODE" != 0
+
+# unsign-dmg.sh: подписанный образ (как у Tauri) становится неподписанным, приложение внутри то же
+mkdir -p "$WORK/dmgsrc"; ditto "$A" "$WORK/dmgsrc/Shade.app"
+hdiutil create -quiet -volname Shade -srcfolder "$WORK/dmgsrc" -format UDZO "$WORK/s.dmg"
+codesign --force --keychain "$KC" -s "Shade Test Signing" "$WORK/s.dmg"
+run codesign -dv "$WORK/s.dmg"
+check "dmg: до снятия подписан" test "$CODE" = 0
+run bash "$HERE/unsign-dmg.sh" "$WORK/s.dmg"
+check "dmg: скрипт отработал" test "$CODE" = 0
+run codesign -dv "$WORK/s.dmg"
+check "dmg: подписи больше нет" test "$CODE" != 0
+hdiutil attach -nobrowse -readonly -quiet -mountpoint "$WORK/smnt" "$WORK/s.dmg"
+run bash "$CHECK" "$WORK/smnt/Shade.app" "$A"
+hdiutil detach "$WORK/smnt" -quiet
+check "dmg: приложение внутри с той же подписью" test "$CODE" = 0
+run bash "$HERE/unsign-dmg.sh" "$WORK/нет.dmg"
+check "dmg: нет файла, отказ" test "$CODE" != 0
 
 # import-signing-cert.sh: секреты как в CI; сертификат с basicConstraints отклонён до сборки
 imp() {

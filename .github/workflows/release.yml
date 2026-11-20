@@ -159,6 +159,11 @@ jobs:
           echo "out=$out" >> "$GITHUB_OUTPUT"
           ls -la "$out"
 
+      # Образ без подписи (приложение внутри подписано): подписанный, но не нотаризованный .dmg
+      # macOS 27 молча убирает в Корзину. Подробно в скрипте и docs/release.md
+      - name: Unsigned dmg (scripts/release/unsign-dmg.sh)
+        run: bash scripts/release/unsign-dmg.sh "${{ steps.files.outputs.out }}/Shade_aarch64.dmg"
+
       # Требование подписи без cdhash и одинаковое у двух версий: копия с другой версией в Info.plist
       # подписывается тем же сертификатом (своя CDHash), требования обязаны совпасть
       - name: Signature check (scripts/release/check-signature.sh)
