@@ -40,6 +40,8 @@ pub mod audio;
 pub mod config;
 pub mod console_utils;
 pub mod crash_recovery;
+// Shade: жесты «назад» и «вперёд» в окне на macOS
+mod nav_gestures;
 pub mod database;
 pub mod notifications;
 pub mod ollama;
@@ -548,6 +550,9 @@ pub fn run() {
             };
 
             log::info!("Application setup complete");
+
+            // Shade: жесты «назад» и «вперёд» (тачпад, боковые кнопки мыши Logitech)
+            nav_gestures::enable(_app.handle());
 
             // Initialize system tray
             if let Err(e) = tray::create_tray(_app.handle()) {

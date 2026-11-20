@@ -2,14 +2,12 @@
 //
 // Встречи и настройки открываются на главной через history.pushState (open-meeting.ts,
 // in-place-router.tsx), так что history.back() и forward() возвращают на прошлый экран.
-// Само окно Tauri (WKWebView) этого не делает: кнопки мыши 4 и 5 оно не переводит в
-// переход, а жест «смахнуть назад» из Logi Options+ (OSX_GESTURE_BACK) пропускает, пока
-// у окна выключены жесты навигации (включаются только в src-tauri). Поэтому здесь:
+// Кнопки мыши 4 и 5 окно Tauri (WKWebView) в переход не переводит, поэтому здесь:
 // - кнопки мыши 4 и 5 (MouseEvent.button 3 и 4): назад и вперёд;
 // - ⌘[ и ⌘] (на Windows и Linux Ctrl), по коду клавиши, в любой раскладке;
 // - клавиши BrowserBack и BrowserForward.
-// Мышь MX Master в Logi Options+ шлёт жест, поэтому для Shade на её боковые кнопки
-// назначаются ⌘[ и ⌘] (docs/ui/frame.md, «Переходы между экранами»).
+// Жесты «смахнуть назад/вперёд» (тачпад, боковые кнопки MX Master через Logi Options+)
+// выполняет само окно: их включает src-tauri/src/nav_gestures.rs (docs/ui/frame.md).
 'use client';
 
 export type HistoryStep = 'back' | 'forward';
