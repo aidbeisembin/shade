@@ -1,6 +1,6 @@
 // Запись: плавает внизу по центру поверх контента на всех страницах.
 // Состояния:
-// - покой: круглая кнопка Mikado 88 px, на 28 px от низа с микрофоном, от неё расходятся две мягкие
+// - покой: круглая кнопка Mikado 104 px, на 28 px от низа с микрофоном, от неё расходятся две мягкие
 //   волны; сочетание клавиш в подсказке;
 // - запись: стеклянная капсула (.shade-glass): красная точка с кольцом на речь,
 //   таймер, полосы уровня звука, «Пауза» и красная «Остановить»; «Не слышу речи»
@@ -166,7 +166,7 @@ interface CardView {
   reason?: DiscardReason;
 }
 
-/** Кнопка записи в покое: круг 88 px, сплошной Mikado, от него расходятся две волны. */
+/** Кнопка записи в покое: круг 104 px, сплошной Mikado, от него расходятся две волны. */
 function RecordButton() {
   useLang();
   const c = useRecordingControls();
@@ -181,7 +181,7 @@ function RecordButton() {
             onClick={c.openMicCard}
             aria-label={t('micNeedsAccess')}
             data-shade-record="needs-access"
-            className="flex size-[88px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground shadow-lg transition-colors hover:bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
+            className="flex size-[104px] shrink-0 items-center justify-center rounded-full bg-muted text-foreground shadow-lg transition-colors hover:bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
           >
             <MicrophoneSlash className="size-7" aria-hidden />
           </button>
@@ -193,7 +193,7 @@ function RecordButton() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="group relative inline-flex size-[88px] shrink-0">
+        <span className="group relative inline-flex size-[104px] shrink-0">
           {!c.isStarting && (
             <>
               <span className="shade-record-wave pointer-events-none absolute inset-0 rounded-full" aria-hidden />
