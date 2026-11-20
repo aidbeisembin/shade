@@ -6,7 +6,7 @@
 # (macOS сочла бы его другим приложением) отклонён; не то имя сертификата отклонено.
 # Запуск: bash scripts/release/test-check-signature.sh (только macOS).
 
-set -euo pipefail
+set -eEuo pipefail
 
 [ "$(uname -s)" = Darwin ] || { echo "skip: нужна macOS"; exit 0; }
 
@@ -62,11 +62,11 @@ app() {
 EOF
   echo "$dir"
 }
-sign() { codesign --force --keychain "$KC" --options runtime -s "$1" "$2" >/dev/null 2>&1; }
+sign() { codesign --force --keychain "$KC" --options runtime -s "$1" "$2"; }
 
 A=$(app a 0.5.1); sign "Shade Test Signing" "$A"
 B=$(app b 0.5.2); sign "Shade Test Signing" "$B"
-C=$(app c 0.5.3); codesign --force -s - "$C" >/dev/null 2>&1
+C=$(app c 0.5.3); codesign --force -s - "$C"
 D=$(app d 0.5.4)
 E=$(app e 0.5.5); sign "Other Test Signing" "$E"
 
