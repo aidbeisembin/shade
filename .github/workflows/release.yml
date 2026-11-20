@@ -1,0 +1,217 @@
+name: "Shade release"
+
+# Релиз беты по тегу v* (только Apple Silicon): постоянная подпись, .dmg, .app.tar.gz с подписью
+# обновления, latest.json, install.sh, SHA256SUMS.txt в GitHub Release.
+# workflow_dispatch: та же сборка и проверки без публикации, файлы в артефакте прогона.
+#   signing=secrets (по умолчанию): подпись из секретов, без них прогон падает с понятной ошибкой;
+#   signing=throwaway: одноразовые сертификат и ключ обновлений внутри прогона, чтобы проверить
+#   весь путь до того, как заданы секреты. Публикации нет ни в одном режиме dispatch.
+# Секреты и шаги владельца: docs/release.md. Переход на Developer ID: заменить секреты MACOS_*
+# и добавить APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID (нотаризация включится сама), workflow тот же.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      signing:
+        description: 'Подпись: secrets (секреты репозитория) или throwaway (одноразовая, проверка пути)'
+        type: choice
+        options: [secrets, throwaway]
+        default: secrets
+
+concurrency:
+  group: shade-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: build, sign, publish
+    runs-on: macos-15 # arm64
+    timeout-minutes: 120
+    env:
+      PUBLISH: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+      REPO_URL: https://github.com/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version matches tag (scripts/release/check-version.sh)
+        id: version
+        run: |
+          if [ "$PUBLISH" = true ]; then
+            bash scripts/release/check-version.sh "$GITHUB_REF_NAME"
+          else
+            bash scripts/release/check-version.sh
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install (pnpm install --frozen-lockfile)
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Throwaway signing (dispatch signing=throwaway only)
+        if: inputs.signing == 'throwaway'
+        run: bash scripts/release/throwaway-signing.sh
+
+      # До часа компиляции: без любого секрета подписи сборка падает с понятной ошибкой
+      - name: Signing secrets present (scripts/release/require-secrets.sh)
+        env:
+          MACOS_CERTIFICATE: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_CERTIFICATE || secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_CERTIFICATE_PASSWORD || secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_SIGNING_IDENTITY || secrets.MACOS_SIGNING_IDENTITY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash scripts/release/require-secrets.sh
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release
+
+      # Сайдкар встроенной модели: tauri.conf.json, externalBin binaries/llama-helper
+      - name: llama-helper (cargo build --release -p llama-helper --features metal)
+        run: |
+          cargo build --release -p llama-helper --features metal --target aarch64-apple-darwin
+          mkdir -p frontend/src-tauri/binaries
+          cp target/aarch64-apple-darwin/release/llama-helper frontend/src-tauri/binaries/llama-helper-aarch64-apple-darwin
+
+      - name: Signing keychain (scripts/release/import-signing-cert.sh)
+        env:
+          MACOS_CERTIFICATE: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_CERTIFICATE || secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_CERTIFICATE_PASSWORD || secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_SIGNING_IDENTITY || secrets.MACOS_SIGNING_IDENTITY }}
+        run: bash scripts/release/import-signing-cert.sh
+
+      # Нотаризация только при секретах Apple (после Developer ID); пустые переменные Tauri
+      # принял бы за заданные, поэтому они попадают в окружение, только если не пустые
+      - name: Notarization credentials (only with Developer ID)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            { echo "APPLE_ID=$APPLE_ID"; echo "APPLE_PASSWORD=$APPLE_PASSWORD"; echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"; } >> "$GITHUB_ENV"
+            echo "Нотаризация: включена"
+          else
+            echo "Нотаризация: нет секретов APPLE_*, пропущена (самоподписанная бета)"
+          fi
+
+      # Подпись Tauri: codesign -s "$APPLE_SIGNING_IDENTITY" для сайдкаров и Shade.app.
+      # Артефакты обновления включаются только здесь: локальная pnpm tauri build не требует ключа
+      - name: Build (pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg)
+        working-directory: frontend
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_SIGNING_IDENTITY || secrets.MACOS_SIGNING_IDENTITY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
+        run: |
+          # В режиме throwaway публичный ключ одноразовый (сборка не публикуется)
+          config=$(jq -nc --arg k "${DRY_UPDATER_PUBKEY:-}" '{bundle: {createUpdaterArtifacts: true}} + (if $k == "" then {} else {plugins: {updater: {pubkey: $k}}} end)')
+          pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg --config "$config" --features coreml
+
+      - name: Collect files
+        id: files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          bundle=target/aarch64-apple-darwin/release/bundle
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          cp "$(ls "$bundle"/dmg/*.dmg | head -1)" "$out/Shade_aarch64.dmg"
+          cp "$bundle/macos/Shade.app.tar.gz" "$out/Shade_aarch64.app.tar.gz"
+          cp "$bundle/macos/Shade.app.tar.gz.sig" "$out/Shade_aarch64.app.tar.gz.sig"
+          cp scripts/install.sh "$out/install.sh"
+          echo "app=$bundle/macos/Shade.app" >> "$GITHUB_OUTPUT"
+          echo "out=$out" >> "$GITHUB_OUTPUT"
+          ls -la "$out"
+
+      # Требование подписи без cdhash и одинаковое у двух версий: копия с другой версией в Info.plist
+      # подписывается тем же сертификатом (своя CDHash), требования обязаны совпасть
+      - name: Signature check (scripts/release/check-signature.sh)
+        env:
+          SHADE_SIGNING_IDENTITY: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_SIGNING_IDENTITY || secrets.MACOS_SIGNING_IDENTITY }}
+          APP: ${{ steps.files.outputs.app }}
+        run: |
+          b="$RUNNER_TEMP/next/Shade.app"
+          mkdir -p "$(dirname "$b")"
+          ditto "$APP" "$b"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 99.0.0" -c "Set :CFBundleVersion 99.0.0" "$b/Contents/Info.plist"
+          codesign --force --options runtime --entitlements frontend/src-tauri/entitlements.plist -s "$SHADE_SIGNING_IDENTITY" "$b"
+          bash scripts/release/check-signature.sh "$APP" "$b"
+          # то же у приложения внутри .dmg
+          mnt="$RUNNER_TEMP/dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "${{ steps.files.outputs.out }}/Shade_aarch64.dmg" -quiet
+          bash scripts/release/check-signature.sh "$mnt/Shade.app" "$APP"
+          hdiutil detach "$mnt" -quiet
+
+      # Подпись обновления сверяется с публичным ключом из tauri.conf.json до публикации:
+      # при расхождении приложения молча пропускали бы все обновления
+      - name: Updater signature matches tauri.conf.json pubkey (minisign)
+        env:
+          OUT: ${{ steps.files.outputs.out }}
+        run: |
+          conf=frontend/src-tauri/tauri.conf.json
+          if [ -n "${DRY_UPDATER_PUBKEY:-}" ]; then
+            jq --arg k "$DRY_UPDATER_PUBKEY" '.plugins.updater.pubkey = $k' "$conf" > "$RUNNER_TEMP/throwaway-conf.json"
+            conf="$RUNNER_TEMP/throwaway-conf.json"
+          fi
+          bash scripts/release/verify-updater-signature.sh "$OUT/Shade_aarch64.app.tar.gz" "$OUT/Shade_aarch64.app.tar.gz.sig" "$conf"
+
+      - name: latest.json, notes, SHA256SUMS.txt
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          OUT: ${{ steps.files.outputs.out }}
+        run: |
+          tag="v$VERSION"
+          bash scripts/release/make-latest-json.sh "$VERSION" \
+            "$REPO_URL/releases/download/$tag/Shade_aarch64.app.tar.gz" \
+            "$OUT/Shade_aarch64.app.tar.gz.sig" \
+            "Shade $VERSION" > "$OUT/latest.json"
+          (cd "$OUT" && shasum -a 256 Shade_aarch64.dmg Shade_aarch64.app.tar.gz install.sh latest.json > SHA256SUMS.txt)
+          bash scripts/release/release-notes.sh "$VERSION" "$OUT/SHA256SUMS.txt" > "$RUNNER_TEMP/notes.md"
+          cat "$OUT/latest.json"
+          cat "$OUT/SHA256SUMS.txt"
+
+      - name: Upload build (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: shade-${{ steps.version.outputs.version }}-${{ github.run_number }}
+          path: |
+            ${{ steps.files.outputs.out }}/*
+            ${{ runner.temp }}/notes.md
+          retention-days: 14
+
+      # Обычный релиз, не pre-release: /releases/latest (эндпоинт обновлений и install.sh)
+      # pre-release не видит
+      - name: Publish GitHub Release (tag only)
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          OUT: ${{ steps.files.outputs.out }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "Shade $VERSION" --notes-file "$RUNNER_TEMP/notes.md" --latest --verify-tag \
+            "$OUT/Shade_aarch64.dmg" "$OUT/Shade_aarch64.app.tar.gz" "$OUT/Shade_aarch64.app.tar.gz.sig" \
+            "$OUT/latest.json" "$OUT/install.sh" "$OUT/SHA256SUMS.txt"
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/shade-signing.keychain-db" 2>/dev/null || true
