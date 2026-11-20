@@ -1,13 +1,15 @@
-// Заставка запуска: маскот, название и три точки на фоне темы. Она уже есть в
-// HTML страницы (статическая выгрузка и сервер разработки отдают её сразу),
-// поэтому вместо белого окна и полусобранного интерфейса (тема подписана наоборот,
-// приватность «Неизвестно», пока скрипты грузятся) человек видит знак приложения.
-// Уходит плавно, когда интерфейс ожил (после гидратации), но не раньше чем через
-// MIN_MS, чтобы не мигать. prefers-reduced-motion: без покачивания и точек.
+// Заставка запуска: логотип посередине на чёрном фоне (в обеих темах), медленно и
+// плавно пульсирует, пока грузится интерфейс. Она уже есть в HTML страницы
+// (статическая выгрузка и сервер разработки отдают её сразу), поэтому вместо пустого
+// окна и полусобранного интерфейса человек видит знак приложения. Окно на запуске
+// тоже чёрное (LAUNCH_BACKGROUND, window-boot.ts). Уходит плавно, когда интерфейс
+// ожил (после гидратации), но не раньше чем через MIN_MS, чтобы не мигать.
+// prefers-reduced-motion: логотип без пульсации.
 'use client';
 
 import { useEffect, useState } from 'react';
 import { BRAND_MARK_SRC } from './BrandMark';
+import { LAUNCH_BACKGROUND } from '@/shade/lib/window-boot';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 
@@ -34,16 +36,11 @@ export function LaunchScreen() {
       role="status"
       aria-label={t('launching')}
       data-tauri-drag-region
-      className={`shade-launch fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background ${state === 'leaving' ? 'shade-launch-leave' : ''}`}
+      style={{ backgroundColor: LAUNCH_BACKGROUND }}
+      className={`shade-launch fixed inset-0 z-[200] flex items-center justify-center ${state === 'leaving' ? 'shade-launch-leave' : ''}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- статическая выгрузка без оптимизатора изображений */}
-      <img src={BRAND_MARK_SRC} width={72} height={72} alt="" draggable={false} className="shade-launch-mark size-[72px]" />
-      <p className="mt-5 text-[15px] font-semibold tracking-tight text-foreground">{t('appName')}</p>
-      <span className="mt-4 flex gap-1.5" aria-hidden>
-        <span className="shade-launch-dot size-1.5 rounded-full bg-muted-foreground" />
-        <span className="shade-launch-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0.16s]" />
-        <span className="shade-launch-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0.32s]" />
-      </span>
+      <img src={BRAND_MARK_SRC} width={56} height={56} alt="" draggable={false} className="shade-launch-mark size-[56px] rounded-[14px]" />
     </div>
   );
 }
