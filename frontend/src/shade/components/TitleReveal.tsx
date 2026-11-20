@@ -1,5 +1,6 @@
 // Название встречи, которое придумывает автоматика (title-service.ts), как пиксельная «генерация».
-// Пока модель думает: вместо даты мерцает полоса пикселей с бегущей волной. Придумала: поверх
+// После «Остановить» и пока модель думает: вместо названия и даты мерцает полоса пикселей с бегущей
+// волной (строка обработки, строка встречи, шапка, карточка итога). Придумала: поверх
 // настоящего названия пиксели мельчают (4 → 2 → 1 px) и рассыпаются в случайном порядке, текст
 // проступает. Логика и время: lib/title-reveal.ts.
 //
@@ -18,6 +19,7 @@ import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 
 const DEV = process.env.NODE_ENV !== 'production';
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 /** Высота полосы пикселей в долях кегля: примерно высота строчных и прописных букв. */
 const BAND_EM = 0.85;
 
@@ -50,8 +52,11 @@ function prepare(canvas: HTMLCanvasElement, w: number, h: number, color: string)
   return ctx;
 }
 
-/** Текущее проявление: новое гасит прежнее (одно за раз). */
-let active: (() => void) | null = null;
+/**
+ * Текущее проявление: одна встреча за раз. Новое у другой встречи гасит прежние; у той же
+ * (строка списка и карточка «Встреча сохранена» с одним названием) играют вместе.
+ */
+let active: { id: string; ends: Set<() => void> } | null = null;
 
 // --- перезапуск для разработки ------------------------------------------------------------
 
@@ -143,6 +148,17 @@ function GeneratingPixels() {
   );
 }
 
+/** Название ещё придумывается: диктору «Придумываю название», глазу полоса пикселей. */
+export function TitlePixels() {
+  useLang();
+  return (
+    <>
+      <span className="sr-only">{t('titleGenerating')}</span>
+      <GeneratingPixels />
+    </>
+  );
+}
+
 // --- хук и компонент ----------------------------------------------------------------------
 
 export interface TitleRevealState<T extends HTMLElement> {
@@ -166,9 +182,19 @@ export function useTitleReveal<T extends HTMLElement>(id: string, text: string):
   const [run, setRun] = useState(0);
   const [pending, setPending] = useState(() => isTitlePending(id));
 
-  // Событие приходит раньше перерисовки с новым названием: запоминаем, какое название ждать
-  useEffect(() => onTitleSet((eventId, title) => eventId === id && (armed.current = { title, at: Date.now() })), [id]);
-  useEffect(() => {
+  // Событие приходит раньше перерисовки с новым названием: запоминаем, какое название ждать.
+  // Название пришло: полоса уходит сразу, даже если путь после «Остановить» ещё держит ожидание
+  useEffect(
+    () =>
+      onTitleSet((eventId, title) => {
+        if (eventId !== id) return;
+        armed.current = { title, at: Date.now() };
+        setPending(false);
+      }),
+    [id],
+  );
+  // До отрисовки: ожидание могли взять в том же кадре, где строка появилась (recording-outcome.tsx)
+  useIsoLayoutEffect(() => {
     setPending(isTitlePending(id));
     return onTitlePending((eventId, on) => eventId === id && setPending(on));
   }, [id]);
@@ -200,7 +226,8 @@ export function useTitleReveal<T extends HTMLElement>(id: string, text: string):
     const box = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
     const fontSize = parseFloat(cs.fontSize) || 16;
-    const w = Math.ceil(Math.min(rr.width, el.clientWidth));
+    // У строчного элемента (шапка, карточка) clientWidth = 0: тогда только ширина текста; у блочного с многоточием не шире блока
+    const w = Math.ceil(el.clientWidth ? Math.min(rr.width, el.clientWidth) : rr.width);
     const h = Math.ceil(fontSize * BAND_EM);
     const left = rr.left - box.left - el.clientLeft;
     const top = rr.top - box.top - el.clientTop + (Math.min(rr.height, fontSize * 1.6) - h) / 2;
@@ -243,15 +270,17 @@ export function useTitleReveal<T extends HTMLElement>(id: string, text: string):
       stopped = true;
       cancelAnimationFrame(raf);
       restore();
-      if (active === end) active = null;
+      active?.ends.delete(end);
+      if (active?.ends.size === 0) active = null;
     };
     const end = () => {
       const was = stopped;
       cancel();
       if (!was) setRun(0);
     };
-    active?.();
-    active = end;
+    if (active && active.id !== id) [...active.ends].forEach((stop) => stop());
+    if (!active) active = { id, ends: new Set() };
+    active.ends.add(end);
     const start = performance.now();
     const tick = (now: number) => {
       if (stopped) return;
@@ -261,6 +290,8 @@ export function useTitleReveal<T extends HTMLElement>(id: string, text: string):
     draw(0);
     raf = requestAnimationFrame(tick);
     return cancel;
+    // id у хука постоянный на время проигрыша; перезапуск только по run
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run]);
 
   const play = useCallback(() => setRun((n) => n + 1), []);
@@ -273,10 +304,7 @@ export function useTitleReveal<T extends HTMLElement>(id: string, text: string):
 
   const showPixels = pending && !run;
   const content: ReactNode = showPixels ? (
-    <>
-      <span className="sr-only">{t('titleGenerating')}</span>
-      <GeneratingPixels />
-    </>
+    <TitlePixels />
   ) : (
     <>
       {text}

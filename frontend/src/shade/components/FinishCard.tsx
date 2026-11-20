@@ -19,6 +19,8 @@ import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { displayTitleBrief } from '@/shade/lib/format';
 import { t, type StringKey } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { onTitleSet } from '@/shade/lib/title-service';
+import { TitlePixels, useTitleReveal } from '@/shade/components/TitleReveal';
 
 export type FinishCardStage = 'transcribing' | 'saving' | 'saved' | 'discarded';
 /** Почему записи нет в списке (recording-outcome.tsx, DiscardVerdict). */
@@ -52,8 +54,10 @@ const DISCARD_TITLE: Record<DiscardReason, StringKey> = {
 
 interface FinishCardProps {
   stage: FinishCardStage;
-  /** Название встречи (как в ядре); подписью под шагом. */
+  /** Название встречи (как в ядре); подписью под шагом, когда встреча сохранена. */
   title?: string | null;
+  /** Сохранённая встреча: подпись ждёт придуманное название (полоса пикселей) и проявляет его. */
+  meetingId?: string | null;
   reason?: DiscardReason;
   onOpen?: () => void;
   /** «Мало содержания»: вернуть встречу из корзины в список. */
@@ -65,7 +69,7 @@ interface FinishCardProps {
   still?: boolean;
 }
 
-export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onClose, onHold, still }: FinishCardProps) {
+export function FinishCard({ stage, title, meetingId, reason = 'empty', onOpen, onUndo, onClose, onHold, still }: FinishCardProps) {
   useLang();
   const [soundCheck, setSoundCheck] = useState(false);
   const [held, setHeld] = useState(false);
@@ -94,7 +98,15 @@ export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onC
   // Пока открыта «Проверить звук», карточка не уходит: иначе диалог закрылся бы вместе с ней
   useEffect(() => onHold?.('dialog', soundCheck), [onHold, soundCheck]);
 
-  const name = title ? displayTitleBrief(title) : null;
+  // Названия до сохранения нет: вместо даты полоса пикселей. Сохранена: название придумывается там же
+  const name =
+    stage === 'transcribing' || stage === 'saving' ? (
+      <TitlePixels />
+    ) : meetingId ? (
+      <FinishName id={meetingId} title={title ?? null} />
+    ) : title ? (
+      displayTitleBrief(title)
+    ) : null;
   const heading =
     stage === 'transcribing' ? t('finishTranscribing') : stage === 'saving' ? t('finishSaving') : stage === 'saved' ? t('finishSaved') : t(DISCARD_TITLE[reason]);
 
@@ -149,5 +161,27 @@ export function FinishCard({ stage, title, reason = 'empty', onOpen, onUndo, onC
       />
       {suspectSound && !still && <SoundCheckDialog open={soundCheck} onOpenChange={setSoundCheck} />}
     </>
+  );
+}
+
+/** Придуманные за эту сессию окна названия: для карточки, которая смонтировалась после события. */
+const titled = new Map<string, string>();
+if (typeof window !== 'undefined') onTitleSet((id, title) => void titled.set(id, title));
+
+/**
+ * Подпись «Встреча сохранена»: название встречи, как в строке списка. Пока оно придумывается,
+ * полоса пикселей; придумано (событие shade-title-set), проявляется из пикселей. Модель отказала:
+ * дата, как раньше.
+ */
+function FinishName({ id, title }: { id: string; title: string | null }) {
+  // Уходящая копия карточки появляется заново: берёт уже придуманное название, а не дату
+  const [name, setName] = useState(() => titled.get(id) ?? title);
+  useEffect(() => onTitleSet((eventId, next) => eventId === id && setName(next)), [id]);
+  const shown = displayTitleBrief(name);
+  const reveal = useTitleReveal<HTMLSpanElement>(id, shown);
+  return (
+    <span ref={reveal.ref} className="relative" aria-busy={reveal.pending || undefined}>
+      {reveal.content}
+    </span>
   );
 }

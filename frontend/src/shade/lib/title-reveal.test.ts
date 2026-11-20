@@ -6,6 +6,7 @@ import {
   REVEAL_MS,
   WAVE_MS,
   cellAlive,
+  createPendingStore,
   decideReveal,
   easeOut,
   hash01,
@@ -50,6 +51,45 @@ describe('decideReveal: таблица случаев', () => {
   test('пробелы по краям не мешают сравнению; пустое название не играет', () => {
     expect(decideReveal({ ...base, armed: { title: ' Сроки релиза ', at: 1000 } })).toBe(true);
     expect(decideReveal({ ...base, armed: { title: '', at: 1000 }, next: '' })).toBe(false);
+  });
+});
+
+describe('кто ждёт название: путь после «Остановить» и запрос к модели', () => {
+  const store = () => {
+    const events: string[] = [];
+    return { s: createPendingStore((id, on) => events.push(`${id}:${on ? 'on' : 'off'}`)), events };
+  };
+
+  test('после «Остановить» полоса с первого кадра, запрос к модели внутри её не гасит, гаснет в конце пути', () => {
+    const { s, events } = store();
+    s.set('m1', true); // встреча сохранена
+    s.set('m1', true); // модель начала
+    s.set('m1', false); // модель ответила
+    expect(s.has('m1')).toBe(true);
+    s.set('m1', false); // путь закончен
+    expect(s.has('m1')).toBe(false);
+    expect(events).toEqual(['m1:on', 'm1:off']);
+  });
+
+  test('модель отказала до запроса: путь отпускает, полоса гаснет (вернётся дата)', () => {
+    const { s, events } = store();
+    s.set('m1', true);
+    s.set('m1', false);
+    expect(events).toEqual(['m1:on', 'm1:off']);
+  });
+
+  test('лишнее «отпустить» не уводит в минус и не шлёт событий', () => {
+    const { s, events } = store();
+    s.set('m1', false);
+    s.set('m1', true);
+    expect(s.has('m1')).toBe(true);
+    expect(events).toEqual(['m1:on']);
+  });
+
+  test('встречи независимы', () => {
+    const { s } = store();
+    s.set('a', true);
+    expect(s.has('b')).toBe(false);
   });
 });
 

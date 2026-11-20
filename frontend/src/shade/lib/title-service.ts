@@ -9,6 +9,7 @@ import { pickDuration, recordedSeconds } from './recording-duration';
 import { isTrashed } from './meeting-trash';
 import { getLang } from './lang';
 import { createTitler, type SetResult, type TitleDeps } from './title-core';
+import { createPendingStore } from './title-reveal';
 
 export type { ModelInfo, SkipReason, TitleLog, TitleMode, TitleOutcome } from './title-core';
 export { createTitler, stillBusy } from './title-core';
@@ -28,19 +29,23 @@ export function onTitleSet(fn: (id: string, title: string) => void): () => void 
 }
 
 const PENDING_EVENT = 'shade-title-pending';
-/** Встречи, для которых модель сейчас придумывает название: строка, появившаяся позже, тоже узнает. */
-const pending = new Set<string>();
+/** Встречи, чьё название сейчас придумывается: строка, появившаяся позже, тоже узнает. */
+const pending = createPendingStore((id, on) => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PENDING_EVENT, { detail: { id, on } }));
+});
 
-/** Модель придумывает название встречи id (полоса пикселей вместо названия в списке и шапке). */
+/** Название встречи id придумывается: вместо названия и даты полоса пикселей (список, шапка, карточка итога). */
 export function isTitlePending(id: string): boolean {
   return pending.has(id);
 }
 
-/** Начало и конец работы модели над названием. Только сигнал для экрана, в данные не пишется. */
+/**
+ * Взять (true) или отпустить (false) ожидание названия. Держат путь после «Остановить»
+ * (recording-outcome.tsx) и запрос к модели (progress в title-core.ts); каждый отпускает своё.
+ * Только сигнал для экрана, в данные не пишется.
+ */
 export function setTitlePending(id: string, on: boolean): void {
-  if (on) pending.add(id);
-  else pending.delete(id);
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PENDING_EVENT, { detail: { id, on } }));
+  pending.set(id, on);
 }
 
 export function onTitlePending(fn: (id: string, on: boolean) => void): () => void {

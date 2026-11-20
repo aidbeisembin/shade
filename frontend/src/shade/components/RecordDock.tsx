@@ -428,6 +428,7 @@ export function RecordDock() {
           <FinishCard
             stage={card.stage}
             title={card.title}
+            meetingId={card.meetingId}
             reason={card.reason}
             still={preview !== null}
             onOpen={card.meetingId && !preview ? () => openSaved(card.meetingId!) : preview && card.meetingId ? () => undefined : undefined}
@@ -452,6 +453,7 @@ export function RecordDock() {
             <FinishCard
               stage={leaving.stage}
               title={leaving.title}
+              meetingId={leaving.meetingId}
               reason={leaving.reason}
               still
               onClose={() => undefined}

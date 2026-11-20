@@ -63,6 +63,27 @@ export function hash01(a: number, b: number, seed: number): number {
   return (h >>> 0) / 4294967296;
 }
 
+// --- кто ждёт название -----------------------------------------------------------------------
+
+/**
+ * Счётчик «название придумывается» по встречам. Держать могут двое сразу: путь после «Остановить»
+ * (с первого кадра сохранённой встречи до конца попытки) и запрос к модели внутри него. Полоса
+ * пикселей видна, пока держит хоть кто-то; emit зовётся только при смене «держат / не держат».
+ */
+export function createPendingStore(emit: (id: string, on: boolean) => void) {
+  const count = new Map<string, number>();
+  return {
+    has: (id: string) => (count.get(id) ?? 0) > 0,
+    set(id: string, on: boolean) {
+      const was = count.get(id) ?? 0;
+      const now = on ? was + 1 : Math.max(0, was - 1);
+      if (now) count.set(id, now);
+      else count.delete(id);
+      if (was > 0 !== now > 0) emit(id, now > 0);
+    },
+  };
+}
+
 // --- ожидание ------------------------------------------------------------------------------
 
 /**
