@@ -115,6 +115,17 @@ jobs:
             echo "Нотаризация: нет секретов APPLE_*, пропущена (самоподписанная бета)"
           fi
 
+      # Интерфейс отдельно и с повтором: next/font скачивает шрифты с Google Fonts при сборке, и на
+      # macOS-раннере ответ бывает неполным («Cannot read properties of null» в next/font)
+      - name: Frontend (pnpm build, up to 3 attempts)
+        working-directory: frontend
+        run: |
+          for i in 1 2 3; do
+            pnpm build && exit 0
+            echo "::warning::pnpm build: попытка $i не удалась"; sleep 20
+          done
+          exit 1
+
       # Подпись Tauri: codesign -s "$APPLE_SIGNING_IDENTITY" для сайдкаров и Shade.app.
       # Артефакты обновления включаются только здесь: локальная pnpm tauri build не требует ключа
       - name: Build (pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg)
@@ -125,8 +136,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
         run: |
-          # В режиме throwaway публичный ключ одноразовый (сборка не публикуется)
-          config=$(jq -nc --arg k "${DRY_UPDATER_PUBKEY:-}" '{bundle: {createUpdaterArtifacts: true}} + (if $k == "" then {} else {plugins: {updater: {pubkey: $k}}} end)')
+          # Интерфейс уже собран шагом выше (beforeBuildCommand снят). В режиме throwaway публичный ключ
+          # одноразовый (сборка не публикуется)
+          config=$(jq -nc --arg k "${DRY_UPDATER_PUBKEY:-}" '{build: {beforeBuildCommand: null}, bundle: {createUpdaterArtifacts: true}} + (if $k == "" then {} else {plugins: {updater: {pubkey: $k}}} end)')
           pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg --config "$config" --features coreml
 
       - name: Collect files

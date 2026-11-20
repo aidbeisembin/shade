@@ -16,6 +16,7 @@ WORK="$(mktemp -d)"
 KC="$WORK/test.keychain-db"
 KPW=$(openssl rand -hex 16)
 trap 'security delete-keychain "$KC" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+trap 'echo "test-check-signature: строка $LINENO: $BASH_COMMAND" >&2' ERR
 
 pass=0 fail=0
 run() { set +e; OUT=$("$@" 2>&1); CODE=$?; set -e; }
@@ -30,9 +31,9 @@ cert() {
   local name="$1" f="$WORK/$2"
   openssl req -x509 -newkey rsa:2048 -sha256 -days 2 -nodes -keyout "$f.key" -out "$f.pem" -subj "/CN=$name" \
     -addext "basicConstraints=critical,CA:false" -addext "keyUsage=critical,digitalSignature" \
-    -addext "extendedKeyUsage=critical,codeSigning" >/dev/null 2>&1
+    -addext "extendedKeyUsage=critical,codeSigning" >"$f.log" 2>&1 || { cat "$f.log" >&2; return 1; }
   openssl pkcs12 -export -inkey "$f.key" -in "$f.pem" -name "$name" -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES \
-    -macalg sha1 -passout pass:test -out "$f.p12" >/dev/null 2>&1
+    -macalg sha1 -passout pass:test -out "$f.p12" >"$f.log" 2>&1 || { cat "$f.log" >&2; return 1; }
   security import "$f.p12" -k "$KC" -f pkcs12 -P test -T /usr/bin/codesign >/dev/null
 }
 security create-keychain -p "$KPW" "$KC"
