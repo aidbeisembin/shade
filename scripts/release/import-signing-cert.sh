@@ -32,7 +32,7 @@ existing=$(security list-keychains -d user | tr -d '"' | xargs)
 security list-keychains -d user -s "$kc" $existing
 
 security find-identity -p codesigning "$kc" | grep -qF "\"$MACOS_SIGNING_IDENTITY\"" \
-  || fail "В .p12 нет сертификата «$MACOS_SIGNING_IDENTITY». Проверьте MACOS_SIGNING_IDENTITY."
+  || fail "В .p12 нет сертификата «${MACOS_SIGNING_IDENTITY}». Проверьте MACOS_SIGNING_IDENTITY."
 
-echo "Сертификат «$MACOS_SIGNING_IDENTITY» во временной связке ключей"
+echo "Сертификат «${MACOS_SIGNING_IDENTITY}» во временной связке ключей"
 if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "keychain=$kc" >> "$GITHUB_OUTPUT"; fi

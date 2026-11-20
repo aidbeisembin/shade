@@ -18,7 +18,7 @@ requirement() {
   authority=$(sed -n 's/^Authority=//p' <<<"$info" | head -1)
   [ -n "$authority" ] || fail "$app без сертификата подписи."
   if [ -n "${SHADE_SIGNING_IDENTITY:-}" ] && [ "$authority" != "$SHADE_SIGNING_IDENTITY" ]; then
-    fail "$app подписан «$authority», ожидался «$SHADE_SIGNING_IDENTITY»."
+    fail "$app подписан «${authority}», ожидался «${SHADE_SIGNING_IDENTITY}»."
   fi
   codesign --verify --deep --strict "$app" 2>/dev/null || fail "$app: подпись не проходит codesign --verify --deep --strict."
   req=$(codesign -d -r- "$app" 2>&1 | sed -n 's/^designated => //p')

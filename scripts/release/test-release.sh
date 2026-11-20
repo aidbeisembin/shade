@@ -37,6 +37,11 @@ fake_root() {
 }
 V=$(jq -r .version "$ROOT/frontend/src-tauri/tauri.conf.json")
 
+# --- Переменная вплотную к не-ASCII (кавычка-ёлочка или многоточие сразу после имени): bash без UTF-8
+# локали (раннер, curl | bash) читает байты как часть имени и падает на set -u. Писать ${x} ---
+OUT=$(LC_ALL=C perl -ne 'print "$ARGV:$.: $_" if /\$[A-Za-z_][A-Za-z0-9_]*[\x80-\xff]/; close ARGV if eof' "$HERE"/*.sh "$HERE/../install.sh")
+check "скрипты: нет \$имя вплотную к не-ASCII" test -z "$OUT"
+
 # --- версия ---
 fake_root
 run env SHADE_ROOT="$WORK/root" bash "$HERE/check-version.sh" "v$V"
