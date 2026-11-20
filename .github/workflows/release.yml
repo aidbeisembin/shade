@@ -89,9 +89,11 @@ jobs:
         env:
           CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
         run: |
-          cargo build --release -p llama-helper --features metal --target aarch64-apple-darwin
+          # Своя папка сборки: tauri-build кладёт сайдкар в target/<цель>/release/llama-helper и
+          # падает с EPERM, если там уже лежит бинарник, собранный cargo
+          cargo build --release -p llama-helper --features metal --target aarch64-apple-darwin --target-dir target/llama-helper
           mkdir -p frontend/src-tauri/binaries
-          cp target/aarch64-apple-darwin/release/llama-helper frontend/src-tauri/binaries/llama-helper-aarch64-apple-darwin
+          cp target/llama-helper/aarch64-apple-darwin/release/llama-helper frontend/src-tauri/binaries/llama-helper-aarch64-apple-darwin
 
       - name: Signing keychain (scripts/release/import-signing-cert.sh)
         env:
