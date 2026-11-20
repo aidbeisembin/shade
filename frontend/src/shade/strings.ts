@@ -474,6 +474,17 @@ export const ru = {
   feedbackRowHint: 'Оценка и пара слов о Shade. Уходит только по кнопке «Отправить».',
   feedbackAskRow: 'Иногда спрашивать оценку',
   feedbackAskHint: 'После записи от 10 минут, когда вы открыли её итоги: через неделю ещё раз, дальше раз в месяц. Не во время записи.',
+  betaChat: 'Чат беты в Telegram',
+
+  // Обновления (components/UpdateCard, lib/updates.ts, docs/release.md)
+  updateAvailable: 'Доступна версия {version}',
+  updateHint: 'Shade перезапустится, встречи и настройки останутся.',
+  updateAction: 'Обновить',
+  updateInstalling: 'Обновляю…',
+  updateFailed: 'Не получилось обновить',
+  updateFailedHint: 'Текущая версия на месте, попробуем при следующем запуске.',
+  updateLatest: 'У вас последняя версия',
+  updateCheckFailed: 'Не получилось проверить обновления',
 } satisfies Record<string, Entry>;
 
 type RuDict = typeof ru;
@@ -933,6 +944,16 @@ export const en: Mirror<RuDict> = {
   feedbackRowHint: 'A rating and a few words about Shade. Sent only when you press “Send”.',
   feedbackAskRow: 'Sometimes ask for a rating',
   feedbackAskHint: 'After a recording of 10+ minutes, when you open its summary: again a week later, then once a month. Never while recording.',
+  betaChat: 'Beta chat on Telegram',
+
+  updateAvailable: 'Version {version} is available',
+  updateHint: 'Shade will restart, your meetings and settings stay.',
+  updateAction: 'Update',
+  updateInstalling: 'Updating…',
+  updateFailed: 'Couldn’t update',
+  updateFailedHint: 'The current version is kept, we’ll try again next launch.',
+  updateLatest: 'You’re up to date',
+  updateCheckFailed: 'Couldn’t check for updates',
 };
 
 const DICTS: Record<Lang, Record<string, string | RuPlural | EnPlural>> = { ru, en };

@@ -2,7 +2,7 @@
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName": "Shade",
     "mainBinaryName": "Shade",
-    "version": "0.4.1",
+    "version": "0.5.0-beta.1",
     "identifier": "com.aidbeisembin.shade",
     "build": {
         "frontendDist": "../out",
@@ -141,8 +141,10 @@
     },
     "plugins": {
         "updater": {
-            "pubkey": "",
-            "endpoints": []
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGN0M0MzIwMUUyMDgyQzAKUldUQWdpQWVJRU44MzlRRERuSHpzQk9rcnkyQmFidmZUc3poWTZjTkQyRkh3Q1J1Y2N0RFZmSlMK",
+            "endpoints": [
+                "https://github.com/aidbeisembin/shade/releases/latest/download/latest.json"
+            ]
         }
     }
 }

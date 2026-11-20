@@ -9,6 +9,7 @@
 //  - Не ушло (нет сети, функция не настроена): «Не получилось отправить, попробуем позже», отзыв в
 //    очереди. Звезды на GitHub в карточке нет (будет отдельной иконкой).
 //  - Уходит из дока с тем видом, что был виден последним: шаг «закрыто» звёзды не возвращает.
+//  - Рядом с «Отправить» ссылка «Чат беты в Telegram», если адрес задан (lib/beta-chat.ts).
 'use client';
 
 import * as React from 'react';
@@ -25,6 +26,13 @@ import { THANKS_HOLD_MS } from '@/shade/lib/motion/shade-springs';
 import { cn } from '@/shade/lib/utils';
 import { useLang } from '@/shade/lib/lang';
 import { t } from '@/shade/strings';
+import { invoke } from '@tauri-apps/api/core';
+import { betaChatUrl } from '@/shade/lib/beta-chat';
+import { shadeToast } from '@/shade/lib/toasts';
+
+function openBetaChat(url: string) {
+  invoke('open_external_url', { url }).catch((error) => shadeToast.error(t('openLinkFailed'), { description: String(error) }));
+}
 
 /** «Не получилось отправить» держится дольше «Спасибо»: его надо успеть прочитать. */
 export const FAILED_HOLD_MS = 4000;
@@ -88,6 +96,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
   }, [flow.step, flow.dismissed, onDone]);
 
   const titleKey = inForm ? 'feedbackImproveTitle' : 'feedbackAskTitle';
+  const chat = betaChatUrl();
 
   return (
     <section
@@ -142,11 +151,16 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
                     onSubmit={() => dispatch({ type: 'send' })}
                     onCancel={() => dispatch({ type: 'cancel' })}
                   />
-                  <div>
+                  <div className="flex items-center gap-2">
                     <Button onClick={() => dispatch({ type: 'send' })} disabled={!canSend(view) || sending} aria-keyshortcuts="Meta+Enter Control+Enter">
                       {sending && <Spinner tone="inherit" />}
                       {sending ? t('feedbackSending') : t('feedbackSend')}
                     </Button>
+                    {chat && (
+                      <Button variant="link" className="px-2 text-sm" onClick={() => openBetaChat(chat)}>
+                        {t('betaChat')}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}

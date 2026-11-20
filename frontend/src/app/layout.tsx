@@ -60,6 +60,10 @@ if (process.env.NEXT_PUBLIC_UI === 'original') {
 }
 const isShadeUI = process.env.NEXT_PUBLIC_UI !== 'original'
 const PostProcessing = isShadeUI ? ShadeRecordingProvider : RecordingPostProcessingProvider
+// Shade: обновления проверяет и показывает RecordDock (shade/lib/updates.ts) своей карточкой
+// и только вне записи; провайдер оригинала со своим тостом и окном не монтируется
+const PassThrough = ({ children }: { children: React.ReactNode }) => <>{children}</>
+const Updates = isShadeUI ? PassThrough : UpdateCheckProvider
 // Shade: страховка от падения unregisterListener при ранней отписке в оригинальных хуках
 // и окно в цвет темы с самого старта
 if (isShadeUI) {
@@ -337,7 +341,7 @@ export default function RootLayout({
               <ConfigProvider>
                 <OllamaDownloadProvider>
                   <OnboardingProvider>
-                    <UpdateCheckProvider>
+                    <Updates>
                       <SidebarProvider>
                         <TooltipProvider>
                           {/* Shade: свой провайдер остановки (решение по содержанию записи, тот же путь для трея) */}
@@ -401,7 +405,7 @@ export default function RootLayout({
                           </PostProcessing>
                         </TooltipProvider>
                       </SidebarProvider>
-                    </UpdateCheckProvider>
+                    </Updates>
                   </OnboardingProvider>
 
                 </OllamaDownloadProvider>

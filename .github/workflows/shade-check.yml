@@ -113,6 +113,30 @@ jobs:
           test -n "$expected" && test "$expected" = "$actual"
           "./$bin" -hide_banner -version | head -1
 
+  release:
+    name: release scripts, signature, install.sh
+    # Скрипты релиза и установки (таблица случаев PR открытой беты): версия и тег, секреты подписи,
+    # latest.json, подпись обновления (minisign), требование подписи без cdhash (codesign нужен macOS),
+    # install.sh под /bin/bash 3.2, как у curl | bash. Сам релиз: release.yml.
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: minisign
+        run: brew install minisign
+
+      - name: Release scripts (bash scripts/release/test-release.sh)
+        env:
+          SHADE_REQUIRE_MINISIGN: '1'
+        run: bash scripts/release/test-release.sh
+
+      - name: Signature check (bash scripts/release/test-check-signature.sh)
+        run: bash scripts/release/test-check-signature.sh
+
+      - name: Installer (bash scripts/test-install.sh)
+        run: bash scripts/test-install.sh
+
   brand:
     name: check-brand
     runs-on: ubuntu-latest
