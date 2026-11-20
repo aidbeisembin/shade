@@ -12,6 +12,7 @@
 // (.shade-dock-out, уходящая копия), только transform, opacity и filter; prefers-reduced-motion
 // оставляет одну прозрачность. Док и тосты одна стопка (lib/notice-stack.ts): док внизу,
 // тосты над ним, друг на друга не ложатся.
+// Обновление: карточка «Доступна версия X» в той же стопке, только в покое (lib/updates.ts).
 // Страницы оставляют снизу запас --dock-space, капсула не закрывает последние строки.
 //
 // Полосы показывают уровень звука из ядра (событие recording-level, lib/recording-level.ts):
@@ -47,6 +48,9 @@ import { DockLeave, LEAVE_MS } from '@/shade/components/DockLeave';
 import { clearOffer, flushFeedbackOnLaunch, useOfferedMeeting } from '@/shade/lib/feedback/store';
 import { previewFeedback, previewMotion } from '@/shade/lib/feedback/preview';
 import type { Flow } from '@/shade/lib/feedback/flow';
+import { UpdateCard, isShownUpdate } from '@/shade/components/UpdateCard';
+import { previewUpdate, scheduleChecks, updateController, useUpdatePhase, type UpdatePhase } from '@/shade/lib/updates';
+import { shadeToast } from '@/shade/lib/toasts';
 
 /** Через сколько секунд без единой осмысленной реплики показать «Не слышу речи». */
 export const NO_SPEECH_HINT_SEC = 20;
@@ -330,6 +334,27 @@ export function RecordDock() {
   }, [c.isRecording]);
   const showFeedback = state === 'idle' && micBlocker === null && (offeredMeeting !== null || feedbackPreview !== null);
 
+  // Обновления: проверка при запуске и раз в сутки; во время записи не проверяем и не ставим.
+  // Карточка только в покое и не вместе с «Как вам Shade?» (та про только что записанную встречу)
+  const updates = updateController();
+  const update = useUpdatePhase(updates);
+  const [updatePreview, setUpdatePreview] = useState<UpdatePhase | null>(null);
+  useEffect(() => setUpdatePreview(previewUpdate(new URLSearchParams(window.location.search))), [pathname]);
+  useEffect(() => updates.setRecording(c.isRecording), [updates, c.isRecording]);
+  useEffect(() => scheduleChecks(() => void updates.check()), [updates]);
+  // «Проверить обновления» в меню трея: явный вопрос, поэтому ответ виден и когда обновления нет
+  useEffect(() => {
+    const onTray = () =>
+      void updates.check().then((r) => {
+        if (r === 'none') shadeToast(t('updateLatest'));
+        else if (r === 'skipped') shadeToast.error(t('updateCheckFailed'));
+      });
+    window.addEventListener('check-updates-from-tray', onTray);
+    return () => window.removeEventListener('check-updates-from-tray', onTray);
+  }, [updates]);
+  const updateShown = updatePreview ?? (update.visible ? update.phase : null);
+  const showUpdate = state === 'idle' && micBlocker === null && !showFeedback && updateShown !== null && isShownUpdate(updateShown);
+
   // Тосты встают над тем, что сейчас в доке (lib/notice-stack.ts)
   const sectionRef = useRef<HTMLElement>(null);
   useNoticeStackAnchor(sectionRef);
@@ -370,6 +395,18 @@ export function RecordDock() {
                 clearOffer();
                 setFeedbackPreview(null);
               }}
+            />
+          </div>
+        )}
+      </DockLeave>
+
+      <DockLeave show={showUpdate}>
+        {showUpdate && updateShown && isShownUpdate(updateShown) && (
+          <div key={`update-${updateShown.version}`} className="shade-dock-in pointer-events-auto flex w-full justify-center">
+            <UpdateCard
+              phase={updateShown}
+              onUpdate={() => void updates.install()}
+              onClose={() => (updatePreview ? setUpdatePreview(null) : updates.dismiss())}
             />
           </div>
         )}
