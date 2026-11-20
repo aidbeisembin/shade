@@ -12,7 +12,7 @@ import type { MockMeeting } from './fixtures/types';
 export type ScenarioId =
   | 'empty' | 'full' | 'long' | 'recording' | 'error' | 'onboarding'
   | 'silence-5s' | 'silence-15s' | 'silence-hallucination' | 'noise-30s' | 'words-3' | 'words-12' | 'words-20' | 'short-16s' | 'repeat-five' | 'heard-no-text'
-  | 'counting' | 'mic-check' | 'budget-9'
+  | 'counting' | 'mic-check' | 'budget-9' | 'title-reveal'
   | 'recognition-failed' | 'mid-silence'
   | 'long-empty' | 'sparse' | 'no-model' | 'no-permission'
   | 'mic-denied' | 'mic-missing' | 'mic-prompt' | 'mic-core-refuses' | 'mic-silent' | 'mic-lost' | 'model-downloading'
@@ -60,6 +60,10 @@ export interface Scenario {
   scriptSeconds?: number;
   /** После реплик script ядро сообщает сбой распознавания (transcription-warning). */
   warnAfterScript?: boolean;
+  /** Ответ «модели» на запрос названия для новой записи (встречи из базы берут TITLE_ANSWERS). */
+  titleAnswer?: string;
+  /** Сколько «модель» думает над названием, мс (по умолчанию 700). */
+  titleDelayMs?: number;
   /** false: нет доступа к микрофону (trigger_microphone_permission отвечает false). */
   micPermission?: boolean;
   /** Звук компьютера (trigger_system_audio_permission_command); по умолчанию как micPermission. */
@@ -152,6 +156,19 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     id: 'words-12', label: 'words-12', description: '12 значимых слов: встреча сохраняется и уходит на проверку моделью (исход задаёт &check=content|empty|unavailable|timeout), итогов нет (они от 80 слов)',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 20, script: ['Коротко: релиз переносим на четверг.', 'Тесты пока не прошли, жду отчёт.', 'Всё.'],
+  },
+  'title-reveal': {
+    id: 'title-reveal', label: 'title-reveal', description: 'Запись 75 с, 30 значимых слов: после «Остановить» и сохранения модель 3 с придумывает название (дата переливается), потом «Перенос релиза» проявляется перебором букв',
+    meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
+    live: 'script', startOffsetSec: 75,
+    script: [
+      'Давайте договоримся: релиз переносим на четверг, в среду не успеваем.',
+      'Лада до среды пришлёт отчёт по тестам мобильного приложения.',
+      'Если всё зелёное, выкатываем утром, а ночную выкладку отменяем.',
+      'Возражений нет, записываю решение и рассылаю всем.',
+    ],
+    titleAnswer: 'Перенос релиза',
+    titleDelayMs: 3000,
   },
   'words-20': {
     id: 'words-20', label: 'words-20', description: '20 значимых слов: обычное сохранение без проверки моделью',

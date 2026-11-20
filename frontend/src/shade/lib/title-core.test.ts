@@ -24,7 +24,7 @@ function world(opts: {
   uiLang?: 'ru' | 'en';
 }) {
   const meetings = new Map(opts.meetings.map((m) => [m.id, { ...m }]));
-  const calls = { generate: [] as Array<{ system: string; user: string; allowCloud: boolean }>, setAuto: [] as Array<{ id: string; expected: string; title: string }>, load: [] as string[], announced: [] as string[] };
+  const calls = { generate: [] as Array<{ system: string; user: string; allowCloud: boolean }>, setAuto: [] as Array<{ id: string; expected: string; title: string }>, load: [] as string[], announced: [] as string[], progress: [] as string[] };
   const logs: TitleLog[] = [];
   const answers = [...(opts.answers ?? [])];
   const summary = [...(opts.summary ?? [])];
@@ -61,6 +61,7 @@ function world(opts: {
     sleep: async () => undefined,
     log: (e) => logs.push(e),
     announce: (id) => calls.announced.push(id),
+    progress: (id, on) => calls.progress.push(`${id}:${on ? 'on' : 'off'}`),
   };
   return { titler: createTitler(deps), meetings, calls, logs };
 }
@@ -299,5 +300,34 @@ describe('название: слежение за итогами и запись
     let slept = 0;
     expect(await stillBusy(() => false, 10, 5000, async () => void slept++)).toBe(false);
     expect(slept).toBe(0);
+  });
+});
+
+describe('название: сигнал «модель придумывает» (полоса пикселей)', () => {
+  test('удача: включается до запроса, выключается после записи и объявления', async () => {
+    const w = world({ meetings: [meeting()], answers: ['Сроки релиза'] });
+    await w.titler.titleOne('m1', { mode: 'auto' });
+    expect(w.calls.progress).toEqual(['m1:on', 'm1:off']);
+    expect(w.calls.announced).toEqual(['m1']);
+  });
+
+  test('ошибка модели и негодный ответ: выключается, дата остаётся', async () => {
+    const err = world({ meetings: [meeting()], answers: [new Error('boom')] });
+    await err.titler.titleOne('m1', { mode: 'auto' });
+    expect(err.calls.progress).toEqual(['m1:on', 'm1:off']);
+    const bad = world({ meetings: [meeting()], answers: ['Обсуждение'] });
+    await bad.titler.titleOne('m1', { mode: 'auto' });
+    expect(bad.calls.progress).toEqual(['m1:on', 'm1:off']);
+    expect(bad.meetings.get('m1')!.title).toBe(DEFAULT);
+  });
+
+  test('отказ до запроса (нет модели, ручное название, короткая встреча): полосы нет', async () => {
+    const noModel = world({ meetings: [meeting()], model: { configured: false, level: 'unknown', provider: null } });
+    await noModel.titler.titleOne('m1', { mode: 'auto' });
+    const manual = world({ meetings: [meeting({ origin: 'manual' })] });
+    await manual.titler.titleOne('m1', { mode: 'auto' });
+    const short = world({ meetings: [meeting({ durationSec: 20 })] });
+    await short.titler.titleOne('m1', { mode: 'auto' });
+    expect([...noModel.calls.progress, ...manual.calls.progress, ...short.calls.progress]).toEqual([]);
   });
 });

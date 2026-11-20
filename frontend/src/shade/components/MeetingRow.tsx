@@ -22,6 +22,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 import { editableTitle, formatOffset, formatRowDate, formatTime, formatVolume, shownTitle } from '@/shade/lib/format';
 import type { TranscriptMatch } from '@/shade/lib/transcript-search';
 import { InlineRename } from '@/shade/components/InlineRename';
+import { TitlePixels, TitleRevealText } from '@/shade/components/TitleReveal';
 import type { MeetingDetails, MeetingStatus } from '@/shade/lib/meeting-details-cache';
 import { cn } from '@/shade/lib/utils';
 import { t, tp, type StringKey } from '@/shade/strings';
@@ -64,9 +65,9 @@ export function StatusThumb({ kind }: { kind: MeetingStatus }) {
  * Встреча, которая ещё обрабатывается после «Остановить»: первой строкой списка, в
  * миниатюре спиннер, под названием время и шаг. Та же геометрия, что у MeetingRow, без
  * действий и без перехода: встречи в базе ещё нет. Когда сохранится, на её месте
- * встанет обычная строка (Home.tsx).
+ * встанет обычная строка (Home.tsx). Названия ещё нет: вместо него и даты полоса пикселей.
  */
-export function PendingRow({ title, stage, done = false }: { title: string; stage: string; done?: boolean }) {
+export function PendingRow({ stage, done = false }: { stage: string; done?: boolean }) {
   useLang();
   const now = formatTime(new Date());
   return (
@@ -74,7 +75,9 @@ export function PendingRow({ title, stage, done = false }: { title: string; stag
       {/* Сохранена, а список ещё не перечитан (доли секунды): знак транскрипта вместо спиннера */}
       <StatusThumb kind={done ? 'transcript' : 'summarizing'} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-base font-medium">{title}</span>
+        <span className="block truncate text-base font-medium">
+          <TitlePixels />
+        </span>
         <span className="mt-0.5 block truncate text-sm text-muted-foreground" role="status">
           <span className="sr-only">, </span>
           {[now, stage].filter(Boolean).join(' · ')}
@@ -191,7 +194,7 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
           >
             <StatusThumb kind={kind} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-base font-medium" title={shown}>{shown}</span>
+              <TitleRevealText id={meeting.id} text={shown} className="block truncate text-base font-medium" title={shown} />
               {/* Разделители для диктора: иначе имя ссылки читается слитно, «НазваниеСегодня, 10:00» */}
               {kind === 'summary' && <span className="sr-only">, {t('statusSummary')}</span>}
               {meta && (

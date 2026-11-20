@@ -52,6 +52,7 @@ import { checkReadyToRecord, type StartBlocker } from '@/shade/lib/recording';
 import { shadeToast } from '@/shade/lib/toasts';
 import { editableTitle, formatDateTime, formatDuration, formatNumber, shownTitle as titleForDisplay } from '@/shade/lib/format';
 import { InlineRename } from '@/shade/components/InlineRename';
+import { useTitleReveal } from '@/shade/components/TitleReveal';
 import { countWords, isShownText, MIN_SUMMARY_WORDS } from '@/shade/lib/speech';
 import { useRecordingControls } from '@/shade/lib/recording-controls';
 import { cn } from '@/shade/lib/utils';
@@ -101,9 +102,11 @@ function ErrorAlert({ title, error, onRetry }: { title: string; error: FriendlyE
 }
 
 /** Название встречи с переименованием на месте. В базе хранится то, что ввёл человек. */
-function Title({ shown, editable, onRename }: { shown: string; editable: string; onRename: (next: string) => Promise<void> }) {
+function Title({ id, shown, editable, onRename }: { id: string; shown: string; editable: string; onRename: (next: string) => Promise<void> }) {
   useLang();
   const [editing, setEditing] = useState(false);
+  // Модель придумывает название: вместо даты мерцают пиксели; придумала: пиксели рассыпаются в название (TitleReveal.tsx)
+  const reveal = useTitleReveal<HTMLSpanElement>(id, shown);
   const begin = () => setEditing(true);
 
   if (editing) {
@@ -133,10 +136,14 @@ function Title({ shown, editable, onRename }: { shown: string; editable: string;
         type="button"
         onClick={begin}
         title={t('renameHint')}
-        aria-label={`${shown}. ${t('renameHint')}`}
+        aria-label={`${reveal.pending ? t('titleGenerating') : shown}. ${t('renameHint')}`}
+        aria-busy={reveal.pending || undefined}
         className="-mx-2 line-clamp-2 max-w-full cursor-text rounded-nested px-2 py-1 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {shown}
+        {/* Холст проявления лежит на этом span, а не на кнопке: так он привязан к самому тексту */}
+        <span ref={reveal.ref} className="relative">
+          {reveal.content}
+        </span>
       </button>
     </h1>
   );
@@ -636,7 +643,7 @@ function MeetingDetailsContent() {
   );
   const hero = (
     <div className="min-w-0">
-      <Title shown={shownTitle} editable={editableTitle(meta.title)} onRename={rename} />
+      <Title id={meta.id} shown={shownTitle} editable={editableTitle(meta.title)} onRename={rename} />
       <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
         {facts.map((f) => (
           <div key={f.label} className="min-w-0">
