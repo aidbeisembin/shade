@@ -73,7 +73,16 @@ app() {
 EOF
   echo "$dir"
 }
-sign() { codesign --force --keychain "$KC" --options runtime -s "$1" "$2"; }
+# По имени; если codesign имени не нашёл, печатаем, что видит связка, и подписываем по SHA-1
+sign() {
+  codesign --force --keychain "$KC" --options runtime -s "$1" "$2" 2>"$WORK/sign.err" && return 0
+  echo "sign: по имени «${1}» не вышло: $(cat "$WORK/sign.err")" >&2
+  security find-identity -p codesigning "$KC" >&2
+  security list-keychains -d user >&2
+  local h
+  h=$(security find-identity -p codesigning "$KC" | awk -v n="\"$1\"" 'index($0, n) {print $2; exit}')
+  codesign --force --keychain "$KC" --options runtime -s "$h" "$2" && echo "sign: по SHA-1 $h подписано" >&2
+}
 
 A=$(app a 0.5.1); sign "Shade Test Signing" "$A"
 B=$(app b 0.5.2); sign "Shade Test Signing" "$B"
