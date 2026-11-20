@@ -126,6 +126,9 @@ jobs:
       - name: minisign
         run: brew install minisign
 
+      - name: PROBE (temporary)
+        run: bash scripts/release/probe-cert.sh
+
       - name: Release scripts (bash scripts/release/test-release.sh)
         env:
           SHADE_REQUIRE_MINISIGN: '1'
