@@ -12,6 +12,7 @@ name: "Shade release"
 on:
   push:
     tags: ['v*']
+    branches: [feat/open-beta] # ВРЕМЕННО: регистрация workflow для dispatch до слияния, убрать
   workflow_dispatch:
     inputs:
       signing:
