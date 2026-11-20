@@ -169,7 +169,7 @@ interface CardView {
 /** Знак на кнопке записи: пять полос звука (контур от владельца 2026-11-20), цвет от кнопки. */
 function RecordGlyph({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={0.5} strokeLinejoin="round" aria-hidden className={className}>
       <path
         fillRule="evenodd"
         clipRule="evenodd"
