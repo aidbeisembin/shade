@@ -40,7 +40,7 @@ export function LaunchScreen() {
       className={`shade-launch fixed inset-0 z-[200] flex items-center justify-center ${state === 'leaving' ? 'shade-launch-leave' : ''}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- статическая выгрузка без оптимизатора изображений */}
-      <img src={BRAND_MARK_SRC} width={88} height={88} alt="" draggable={false} className="shade-launch-mark size-[88px] rounded-[22px]" />
+      <img src={BRAND_MARK_SRC} width={56} height={56} alt="" draggable={false} className="shade-launch-mark size-[56px] rounded-[14px]" />
     </div>
   );
 }
