@@ -84,7 +84,10 @@ jobs:
           shared-key: release
 
       # Сайдкар встроенной модели: tauri.conf.json, externalBin binaries/llama-helper
+      # OpenSSL из Homebrew на раннере ломает сборку cpp-httplib внутри llama.cpp (как в shade-check, core)
       - name: llama-helper (cargo build --release -p llama-helper --features metal)
+        env:
+          CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
         run: |
           cargo build --release -p llama-helper --features metal --target aarch64-apple-darwin
           mkdir -p frontend/src-tauri/binaries
