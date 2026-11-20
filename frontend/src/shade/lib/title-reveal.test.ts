@@ -1,14 +1,15 @@
-// «Пиксельное проявление» названия: когда играть и как идёт время. Запуск: bun test src/shade (pnpm test).
+// Проявление придуманного названия: когда играть и что видно во времени. Запуск: bun test src/shade (pnpm test).
 import { describe, expect, test } from 'bun:test';
 import {
   ARM_TTL_MS,
   REVEAL_MS,
-  blockSizes,
-  cellAlpha,
-  cellThreshold,
+  SCRAMBLE_TICK_MS,
   decideReveal,
   easeOut,
-  revealFrame,
+  hash01,
+  poolFor,
+  scrambleFrame,
+  settleAt,
   type RevealInput,
 } from './title-reveal';
 
@@ -51,10 +52,13 @@ describe('decideReveal: таблица случаев', () => {
   });
 });
 
-describe('время проявления', () => {
-  test('длительность в пределах 700-900 мс', () => {
+describe('перебор букв во времени', () => {
+  const text = 'Сроки релиза 2.3, Q4';
+
+  test('длительность в пределах 700-900 мс, буквы меняются не реже 20 раз в секунду', () => {
     expect(REVEAL_MS).toBeGreaterThanOrEqual(700);
     expect(REVEAL_MS).toBeLessThanOrEqual(900);
+    expect(SCRAMBLE_TICK_MS).toBeLessThanOrEqual(50);
   });
 
   test('easeOut: 0 → 0, 1 → 1, быстрее линейного в начале, за пределами зажат', () => {
@@ -65,59 +69,56 @@ describe('время проявления', () => {
     expect(easeOut(2)).toBe(1);
   });
 
-  test('лестница блоков: степени двойки до 1 px, крупнее у крупного кегля', () => {
-    expect(blockSizes(16)).toEqual([8, 4, 2, 1]);
-    expect(blockSizes(36)).toEqual([16, 8, 4, 2, 1]);
-    expect(blockSizes(4)[blockSizes(4).length - 1]).toBe(1);
+  test('в начале ни одна буква не на месте, пробелы и знаки не перебираются', () => {
+    const f = scrambleFrame(text, 0, 42);
+    Array.from(text).forEach((ch, i) => {
+      if (poolFor(ch)) expect(f.chars[i].settled).toBe(false);
+      else expect(f.chars[i]).toEqual({ ch, settled: true });
+    });
   });
 
-  test('кадры: блоки только уменьшаются, клеток открывается всё больше, зерно гаснет', () => {
-    const sizes = blockSizes(36);
-    let prev = revealFrame(0, sizes);
-    expect(prev.block).toBe(16);
-    expect(prev.open).toBe(0);
-    expect(prev.grain).toBe(1);
+  test('длина не меняется в любой момент: строка не прыгает по числу знаков', () => {
+    for (let t = 0; t <= REVEAL_MS; t += 16) expect(scrambleFrame(text, t, 3).chars).toHaveLength(Array.from(text).length);
+  });
+
+  test('случайная буква того же письма и регистра', () => {
+    const f = scrambleFrame('Аб Cd 7', 0, 5);
+    expect(f.chars[0].ch).toMatch(/^[А-Я]$/);
+    expect(f.chars[1].ch).toMatch(/^[а-я]$/);
+    expect(f.chars[3].ch).toMatch(/^[A-Z]$/);
+    expect(f.chars[4].ch).toMatch(/^[a-z]$/);
+    expect(f.chars[6].ch).toMatch(/^\d$/);
+  });
+
+  test('вставшая буква больше не уходит, к концу все на месте и текст итоговый', () => {
+    let prev = scrambleFrame(text, 0, 9).chars.map((c) => c.settled);
     for (let t = 16; t <= REVEAL_MS; t += 16) {
-      const f = revealFrame(t, sizes);
-      expect(f.block).toBeLessThanOrEqual(prev.block);
-      expect(f.open).toBeGreaterThanOrEqual(prev.open);
-      expect(f.grain).toBeLessThanOrEqual(prev.grain);
-      expect(f.text).toBeGreaterThanOrEqual(prev.text);
-      prev = f;
+      const now = scrambleFrame(text, t, 9).chars.map((c) => c.settled);
+      now.forEach((s, i) => prev[i] && expect(s).toBe(true));
+      prev = now;
     }
+    const end = scrambleFrame(text, REVEAL_MS, 9);
+    expect(end.done).toBe(true);
+    expect(end.chars.map((c) => c.ch).join('')).toBe(text);
   });
 
-  test('конец: блок 1 px, всё открыто, без зерна, обычный текст виден полностью', () => {
-    const f = revealFrame(REVEAL_MS, blockSizes(16));
-    expect(f).toEqual({ block: 1, open: 1, grain: 0, text: 1, done: true });
-    expect(revealFrame(REVEAL_MS * 2, blockSizes(16)).done).toBe(true);
+  test('порядок случайный, а не слева направо', () => {
+    const times = Array.from({ length: 30 }, (_, i) => settleAt(i, 11));
+    expect(times.every((v, i) => i === 0 || v >= times[i - 1])).toBe(false);
   });
 
-  test('обычный текст под холстом скрыт, пока идут блоки', () => {
-    expect(revealFrame(REVEAL_MS * 0.5, blockSizes(16)).text).toBe(0);
-  });
-});
-
-describe('случайный порядок клеток (dissolve)', () => {
-  test('порог в 0..1 и постоянный для клетки и зерна', () => {
-    for (let x = 0; x < 40; x++) {
-      const r = cellThreshold(x, 3, 7);
-      expect(r).toBeGreaterThanOrEqual(0);
-      expect(r).toBeLessThan(1);
-      expect(cellThreshold(x, 3, 7)).toBe(r);
-    }
+  test('ease-out: к середине времени на месте больше половины букв', () => {
+    const times = Array.from({ length: 400 }, (_, i) => settleAt(i, 13));
+    const half = times.filter((t) => t <= REVEAL_MS / 2).length / times.length;
+    expect(half).toBeGreaterThan(0.6);
   });
 
-  test('не слева направо: пороги соседних клеток в ряду не растут монотонно', () => {
-    const row = Array.from({ length: 30 }, (_, x) => cellThreshold(x, 0, 1));
-    const rising = row.every((v, i) => i === 0 || v >= row[i - 1]);
-    expect(rising).toBe(false);
-  });
-
-  test('видимость клетки: 0 в начале, 1 в конце при любом пороге', () => {
-    for (const r of [0, 0.3, 0.99]) {
-      expect(cellAlpha(0, r)).toBe(0);
-      expect(cellAlpha(1, r)).toBe(1);
+  test('хеш: 0..1 и одинаковый для тех же входов', () => {
+    for (let i = 0; i < 50; i++) {
+      const v = hash01(i, 2, 3);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+      expect(hash01(i, 2, 3)).toBe(v);
     }
   });
 });

@@ -1,7 +1,6 @@
-// «Пиксельное проявление» названия встречи: чистая часть без React и без canvas.
-// Здесь решается, КОГДА играть (decideReveal), и КАК выглядит кадр в момент времени
-// (revealFrame, blockSizes, cellThreshold, easeOut). Рисует и подключает к экрану
-// components/PixelRevealText.tsx. Тесты: title-reveal.test.ts. Вид: docs/ui/meetings-list.md.
+// Проявление придуманного названия встречи перебором букв: чистая часть без React.
+// Здесь решается, КОГДА играть (decideReveal), и что видно в момент времени (scrambleFrame).
+// Показывает components/TitleReveal.tsx. Тесты: title-reveal.test.ts. Вид: docs/ui/foundations.md.
 //
 // Признак «название только что придумано» один: событие shade-title-set (onTitleSet,
 // title-service.ts). Его шлёт только автоматика после записи названия ядром. Ручное
@@ -11,12 +10,11 @@
 export const REVEAL_MS = 800;
 /** Сколько ждать, пока экран покажет название из события. Позже: проявление не играет. */
 export const ARM_TTL_MS = 3000;
-/** Доля времени на смену блоков; остаток уходит на переход от холста к обычному тексту. */
-export const PIXEL_PHASE = 0.85;
-/** К этой доле времени все клетки открыты (случайный порядок, dissolve). */
-export const DISSOLVE_PHASE = 0.6;
-/** Сторона клетки маски проявления, CSS px. Порядок клеток случайный, но постоянный за проигрыш. */
-export const DISSOLVE_CELL = 8;
+/** Как часто меняются случайные буквы, мс: чаще мельтешит, реже выглядит как зависание. */
+export const SCRAMBLE_TICK_MS = 50;
+/** Доли длительности, в которые буквы встают на место: первая чуть позже начала, последняя до конца. */
+export const SETTLE_FROM = 0.1;
+export const SETTLE_TO = 0.9;
 
 export interface Armed {
   /** Название из события, как его записало ядро. */
@@ -53,54 +51,60 @@ export function easeOut(t: number): number {
   return 1 - (1 - x) ** 3;
 }
 
-/**
- * Размеры блоков от крупного к 1 px: крупный около 0,4 кегля, степень двойки
- * (16 px кегль → 8, 4, 2, 1; 36 px → 16, 8, 4, 2, 1).
- */
-export function blockSizes(fontSizePx: number): number[] {
-  const start = 2 ** Math.max(1, Math.min(5, Math.round(Math.log2(Math.max(2, fontSizePx * 0.4)))));
-  const out: number[] = [];
-  for (let s = start; s >= 1; s /= 2) out.push(s);
-  return out;
-}
-
-export interface RevealFrame {
-  /** Сторона блока, CSS px; 1 в конце. */
-  block: number;
-  /** Сколько клеток открыто, 0..1 (с ease-out). */
-  open: number;
-  /** Сила зерна, 0..1: убывает к чёткому тексту. */
-  grain: number;
-  /** Видимость обычного текста под холстом, 0..1: растёт в последней фазе. */
-  text: number;
-  done: boolean;
-}
-
-/** Кадр в момент elapsed (мс) для заданной лестницы блоков. */
-export function revealFrame(elapsed: number, sizes: number[], duration = REVEAL_MS): RevealFrame {
-  const p = Math.min(1, Math.max(0, elapsed / duration));
-  const pix = Math.min(1, p / PIXEL_PHASE);
-  const step = Math.min(sizes.length - 1, Math.floor(pix * sizes.length));
-  return {
-    block: sizes[step] ?? 1,
-    open: easeOut(Math.min(1, p / DISSOLVE_PHASE)),
-    grain: Math.max(0, 1 - pix),
-    text: p <= PIXEL_PHASE ? 0 : easeOut((p - PIXEL_PHASE) / (1 - PIXEL_PHASE)),
-    done: p >= 1,
-  };
-}
-
-/** Псевдослучайное число 0..1 для клетки (x, y) и зерна seed: одинаковое внутри одного проигрыша. */
-export function cellThreshold(x: number, y: number, seed: number): number {
-  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 2246822519)) | 0;
+/** Псевдослучайное число 0..1 для (a, b) и зерна seed: одно и то же внутри проигрыша. */
+export function hash01(a: number, b: number, seed: number): number {
+  let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(seed | 0, 2246822519)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
 
-/** Видимость клетки с порогом r при доле открытых open: мягкий край, а не щелчок. */
-export function cellAlpha(open: number, r: number, soft = 0.2): number {
-  // open 0 → ничего, open 1 → все клетки целиком (порог r < 1 всегда пройден)
-  const v = (open * (1 + soft) - r) / soft;
-  return Math.min(1, Math.max(0, v));
+/**
+ * Когда буква i встаёт на место, мс. Порядок случайный (не слева направо), а сколько букв
+ * уже на месте, растёт по ease-out: большая часть встаёт быстро, последние медленнее.
+ */
+export function settleAt(i: number, seed: number, duration = REVEAL_MS): number {
+  const r = hash01(i, 7, seed);
+  // обратная к easeOut: доля встающих букв к моменту p равна easeOut(p)
+  const p = 1 - Math.cbrt(1 - r);
+  return duration * (SETTLE_FROM + (SETTLE_TO - SETTLE_FROM) * p);
+}
+
+const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, k) => String.fromCharCode(from + k));
+// Буквы того же письма, что и в названии: без кириллицы в коде (страж языка), по кодам Unicode
+const CYR_LOWER = range(0x430, 0x44f);
+const CYR_UPPER = range(0x410, 0x42f);
+const LAT_LOWER = range(0x61, 0x7a);
+const LAT_UPPER = range(0x41, 0x5a);
+const DIGITS = range(0x30, 0x39);
+
+/** Чем заменять букву, пока она не на месте; null: показывать как есть (пробел, знаки). */
+export function poolFor(ch: string): string[] | null {
+  if (/\p{Script=Cyrillic}/u.test(ch)) return ch === ch.toUpperCase() ? CYR_UPPER : CYR_LOWER;
+  if (/[a-z]/.test(ch)) return LAT_LOWER;
+  if (/[A-Z]/.test(ch)) return LAT_UPPER;
+  if (/\d/.test(ch)) return DIGITS;
+  return null;
+}
+
+export interface ScrambleChar {
+  ch: string;
+  /** Буква уже на месте (настоящая). */
+  settled: boolean;
+}
+
+export interface ScrambleFrame {
+  chars: ScrambleChar[];
+  done: boolean;
+}
+
+/** Что видно в момент elapsed: стоящие на месте буквы и случайные на месте остальных. */
+export function scrambleFrame(text: string, elapsed: number, seed: number, duration = REVEAL_MS): ScrambleFrame {
+  const tick = Math.floor(Math.max(0, elapsed) / SCRAMBLE_TICK_MS);
+  const chars = Array.from(text).map((ch, i) => {
+    const pool = poolFor(ch);
+    if (!pool || elapsed >= settleAt(i, seed, duration)) return { ch, settled: true };
+    return { ch: pool[Math.floor(hash01(i, tick, seed) * pool.length)], settled: false };
+  });
+  return { chars, done: elapsed >= duration };
 }

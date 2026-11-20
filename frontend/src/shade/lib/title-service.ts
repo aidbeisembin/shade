@@ -1,5 +1,5 @@
 // Название встречи: настоящие зависимости (ядро Tauri, корзина, язык интерфейса) для createTitler
-// из title-core.ts и точки входа для экранов: titler, onTitleSet,
+// из title-core.ts и точки входа для экранов: titler, onTitleSet, onTitlePending,
 // markTitleManual, titleMany. Правила и тесты: title-core.ts, meeting-title.ts.
 
 import { invoke } from '@tauri-apps/api/core';
@@ -25,6 +25,32 @@ export function onTitleSet(fn: (id: string, title: string) => void): () => void 
   };
   window.addEventListener(TITLE_EVENT, handler);
   return () => window.removeEventListener(TITLE_EVENT, handler);
+}
+
+const PENDING_EVENT = 'shade-title-pending';
+/** Встречи, для которых модель сейчас придумывает название: строка, появившаяся позже, тоже узнает. */
+const pending = new Set<string>();
+
+/** Модель придумывает название встречи id (перелив на дате в списке и шапке). */
+export function isTitlePending(id: string): boolean {
+  return pending.has(id);
+}
+
+/** Начало и конец работы модели над названием. Только сигнал для экрана, в данные не пишется. */
+export function setTitlePending(id: string, on: boolean): void {
+  if (on) pending.add(id);
+  else pending.delete(id);
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PENDING_EVENT, { detail: { id, on } }));
+}
+
+export function onTitlePending(fn: (id: string, on: boolean) => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const handler = (e: Event) => {
+    const d = (e as CustomEvent<{ id: string; on: boolean }>).detail;
+    if (d) fn(d.id, d.on);
+  };
+  window.addEventListener(PENDING_EVENT, handler);
+  return () => window.removeEventListener(PENDING_EVENT, handler);
 }
 
 interface TranscriptRow {
@@ -74,6 +100,7 @@ const realDeps: TitleDeps = {
   announce(id, title) {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(TITLE_EVENT, { detail: { id, title } }));
   },
+  progress: setTitlePending,
 };
 
 export const titler = createTitler(realDeps);
