@@ -74,6 +74,11 @@ export interface TitleDeps {
   log(entry: TitleLog): void;
   /** Название записано: список и страница встречи обновляются. */
   announce(id: string, title: string): void;
+  /**
+   * Модель придумывает название (true) и закончила (false), чем бы ни кончилось: экран
+   * показывает полосу пикселей вместо названия. Только вокруг запроса к модели, проверки до него не в счёт.
+   */
+  progress?(id: string, generating: boolean): void;
 }
 
 /** Запись журнала: структура, а не текст (текст собирает console в настоящих зависимостях, тесты читают поля). */
@@ -103,6 +108,7 @@ export function createTitler(deps: TitleDeps) {
   async function titleOne(id: string, opts: TitleOptions): Promise<TitleOutcome> {
     if (inflight.has(id)) return skip(id, 'busy');
     inflight.add(id);
+    let generating = false;
     try {
       // Сети и текста ещё нет: сначала то, что решается без них
       const model = await deps.model().catch(() => null);
@@ -122,6 +128,8 @@ export function createTitler(deps: TitleDeps) {
       const lang = detectMeetingLang(text, deps.uiLang());
       const prompt = buildTitlePrompt(sampleTranscript(meeting.texts), lang);
       let answer: string;
+      generating = true;
+      deps.progress?.(id, true);
       try {
         answer = await deps.generate(prompt.system, prompt.user, allowCloud);
       } catch (error) {
@@ -142,6 +150,7 @@ export function createTitler(deps: TitleDeps) {
       return { status: 'set', title: checked.title };
     } finally {
       inflight.delete(id);
+      if (generating) deps.progress?.(id, false);
     }
   }
 

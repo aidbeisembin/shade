@@ -530,7 +530,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
   const listIds = state.kind === 'ready' ? state.meetings : [];
   const pending =
     finish && !search && filter === 'all' && (finish.stage !== 'saved' || (finish.meetingId !== null && !listIds.some((m) => m.id === finish.meetingId)))
-      ? { title: finish.title ? displayTitle(finish.title) : t('recording'), stage: finish.stage === 'saving' ? t('finishSaving') : finish.stage === 'saved' ? t('finishSaved') : t('finishTranscribing') }
+      ? { stage: finish.stage === 'saving' ? t('finishSaving') : finish.stage === 'saved' ? t('finishSaved') : t('finishTranscribing') }
       : null;
   const shownGroups = pending && !dated.some((g) => g.group === 'today') ? [{ group: 'today' as DateGroup, items: [] as MeetingListItem[] }, ...dated] : dated;
 
@@ -725,7 +725,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
                   {t(GROUP_LABEL[group])}
                 </h2>
                 <ul className="grid grid-cols-1 gap-x-6 gap-y-1 @[1100px]:grid-cols-2">
-                  {group === 'today' && pending && <PendingRow title={pending.title} stage={pending.stage} done={finish?.stage === 'saved'} />}
+                  {group === 'today' && pending && <PendingRow stage={pending.stage} done={finish?.stage === 'saved'} />}
                   {items.map((m) => (
                     <MeetingRow
                       key={m.id}

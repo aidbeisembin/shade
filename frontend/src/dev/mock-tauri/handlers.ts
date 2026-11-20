@@ -149,14 +149,16 @@ export const handlers: Record<string, Handler> = {
   },
   // «Ответ модели»: встреча узнаётся по тексту, который интерфейс положил в запрос
   api_generate_title_text: async (a, be) => {
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, be.scenario.titleDelayMs ?? 700));
     const prompt = String(a?.userPrompt ?? '');
     const found = be.meetings.find((m) => {
       const line = m.transcripts[1]?.text ?? '';
       const body = line.includes(': ') ? line.slice(line.indexOf(': ') + 2) : line;
       return body.length > 10 && prompt.includes(body);
     });
-    return (found && TITLE_ANSWERS[found.id]) || '';
+    // Новая запись сценария (её id заранее не известен): ответ из сценария, если в запросе его реплики
+    const fromScript = (be.scenario.script ?? []).some((line) => prompt.includes(line.slice(0, 30)));
+    return (found && TITLE_ANSWERS[found.id]) || (fromScript && be.scenario.titleAnswer) || '';
   },
   get_meeting_folder_path: ok(`${MOCK_ROOT}/recordings/current`),
   open_meeting_folder: warnNative('Открытие папки встречи'),

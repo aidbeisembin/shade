@@ -13,7 +13,7 @@
 
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRecordingState } from '@/contexts/RecordingStateContext';
 import { useTranscripts } from '@/contexts/TranscriptContext';
 import { useRecordingStop } from '@/hooks/useRecordingStop';
@@ -29,7 +29,7 @@ import { markDiscarded, purgeDiscarded } from './recording-marks';
 import { purgeExpiredTrash, restoreMeeting, trashMeeting } from './meeting-trash';
 import { shadeToast } from './toasts';
 import { runCrashRecovery } from './crash-recovery';
-import { stillBusy, titleMany, titler } from './title-service';
+import { setTitlePending, stillBusy, titleMany, titler } from './title-service';
 import { displayTitleBrief } from './format';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
@@ -127,6 +127,9 @@ const EMPTY: LiveSpeech = { tracking: false, vadSegments: 0, textSegments: 0, la
 const RecordingOutcomeContext = createContext<Ctx | null>(null);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+/** Сколько ждать id сохранённой встречи после «Остановить», мс. */
+const SAVED_ID_WAIT_MS = 10_000;
 
 async function notifyNotSaved() {
   try {
@@ -173,6 +176,19 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
   refetchRef.current = refetchMeetings;
   const recordingNow = useRef(recording.isRecording);
   recordingNow.current = recording.isRecording;
+
+  // После «Остановить» с речью название встречи не показываем вовсе: с первого кадра, где
+  // известен id сохранённой встречи, держим ожидание названия (полоса пикселей вместо даты).
+  // До отрисовки: строка списка не успевает показать дату. Отпускает titleSaved
+  const awaitingId = useRef<{ before: string | null; resolve: (id: string) => void } | null>(null);
+  useIsoLayoutEffect(() => {
+    const wait = awaitingId.current;
+    const cur = currentMeeting?.id ?? null;
+    if (!wait || !cur || cur === wait.before) return;
+    awaitingId.current = null;
+    setTitlePending(cur, true);
+    wait.resolve(cur);
+  }, [currentMeeting?.id]);
 
   const [live, setLive] = useState<LiveSpeech>(EMPTY);
   const [finishing, setFinishing] = useState<Ctx['finishing']>(null);
@@ -321,25 +337,30 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
    * Название по сути разговора: встреча сохранена, текст финальный. Работает только локальная
    * модель (title-service.ts, режим auto: облачному провайдеру ничего не уходит), в фоне, без
    * уведомлений. Идёт новая запись: ждём её конца, чтобы модель не делила процессор с распознаванием.
-   * Не получилось: название остаётся датой, причина в журнале.
+   * Ожидание названия (полоса пикселей) держится с первого кадра встречи до конца попытки; на время
+   * ожидания конца новой записи отпускается. Не получилось: возвращается дата, причина в журнале.
    */
-  const titleSaved = useCallback(async (before: string | null, folder: string | null, review: Promise<void> | null) => {
+  const titleSaved = useCallback(async (savedId: Promise<string | null>, folder: string | null, review: Promise<void> | null) => {
+    const id = await savedId;
+    if (!id) return;
+    let held = true;
+    const release = () => {
+      if (held) setTitlePending(id, false);
+      held = false;
+    };
     try {
-      let id: string | null = null;
-      for (let i = 0; i < 100 && !id; i++) {
-        const cur = meetingRef.current?.id ?? null;
-        if (cur && cur !== before) id = cur;
-        else await sleep(100);
-      }
-      if (!id) return;
       // Проверка моделью могла отправить встречу в корзину («Мало содержания»): тогда названия не нужно
       if (review) await review.catch(() => undefined);
       const meta = await invoke<{ folder_path?: string | null } | null>('api_get_meeting_metadata', { meetingId: id }).catch(() => null);
       if (!meta || folderMismatch(folder, meta.folder_path)) return;
+      // Новая запись может идти часами: столько полоса не мерцает, модель включит её сама
+      if (recordingNow.current) release();
       if (await stillBusy(() => recordingNow.current, TITLE_WAIT_TRIES, TITLE_WAIT_MS, sleep)) return;
       await titler.titleOne(id, { mode: 'auto' });
     } catch (error) {
       console.info('[shade] Название встречи не придумано:', error);
+    } finally {
+      release();
     }
   }, []);
 
@@ -461,10 +482,19 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
               ? checkContent(cleanSegments(segments).map((x) => x.text).join(' '))
               : null;
           const before = meetingRef.current?.id ?? null;
+          // id сохранённой встречи ловит эффект выше (тот же кадр, что и сама встреча); нет за 10 с: без названия
+          const savedId = new Promise<string | null>((resolve) => {
+            awaitingId.current = { before, resolve };
+            setTimeout(() => {
+              if (awaitingId.current?.resolve !== resolve) return;
+              awaitingId.current = null;
+              resolve(null);
+            }, SAVED_ID_WAIT_MS);
+          });
           setFinishing(null);
           await handle(true);
           const review = check ? reviewSaved(check, before, folder) : null;
-          void titleSaved(before, folder, review);
+          void titleSaved(savedId, folder, review);
           return verdict;
         }
 
