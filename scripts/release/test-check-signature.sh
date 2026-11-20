@@ -53,6 +53,11 @@ cert "Other Test Signing" b
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPW" "$KC" >/dev/null
 # shellcheck disable=SC2086
 security list-keychains -d user -s "$KC" $OLD_LIST
+# На раннере (macOS 15) codesign не берёт самоподписанный сертификат без доверия: то же, что
+# делает import-signing-cert.sh. Локально настройки доверия не трогаем (на macOS 27 не нужно)
+if [ "${CI:-}" = true ]; then
+  for f in a b; do sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$KC" "$WORK/$f.pem"; done
+fi
 
 # Минимальное приложение с идентификатором Shade; версия в Info.plist и в коде
 app() {
@@ -73,15 +78,12 @@ app() {
 EOF
   echo "$dir"
 }
-# По имени; если codesign имени не нашёл, печатаем, что видит связка, и подписываем по SHA-1
+# По имени, как Tauri; если не вышло, печатаем, что видит связка
 sign() {
   codesign --force --keychain "$KC" --options runtime -s "$1" "$2" 2>"$WORK/sign.err" && return 0
-  echo "sign: по имени «${1}» не вышло: $(cat "$WORK/sign.err")" >&2
+  echo "sign: «${1}» не вышло: $(cat "$WORK/sign.err")" >&2
   security find-identity -p codesigning "$KC" >&2
-  security list-keychains -d user >&2
-  local h
-  h=$(security find-identity -p codesigning "$KC" | awk -v n="\"$1\"" 'index($0, n) {print $2; exit}')
-  codesign --force --keychain "$KC" --options runtime -s "$h" "$2" && echo "sign: по SHA-1 $h подписано" >&2
+  return 1
 }
 
 A=$(app a 0.5.1); sign "Shade Test Signing" "$A"

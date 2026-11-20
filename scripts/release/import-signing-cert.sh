@@ -34,5 +34,19 @@ security list-keychains -d user -s "$kc" $existing
 security find-identity -p codesigning "$kc" | grep -qF "\"$MACOS_SIGNING_IDENTITY\"" \
   || fail "В .p12 нет сертификата «${MACOS_SIGNING_IDENTITY}». Проверьте MACOS_SIGNING_IDENTITY."
 
+# Самоподписанный сертификат: на macOS 15 codesign без доверия к нему отвечает «The specified
+# item could not be found in the keychain». Доверие только для подписи кода и только на раннере
+# (sudo без пароля); у Developer ID издатель Apple, шаг пропускается
+cert_pem="$RUNNER_TEMP/shade-signing-cert.pem"
+security find-certificate -c "$MACOS_SIGNING_IDENTITY" -p "$kc" > "$cert_pem"
+subject=$(openssl x509 -in "$cert_pem" -noout -subject -nameopt RFC2253 | sed 's/^subject=//')
+issuer=$(openssl x509 -in "$cert_pem" -noout -issuer -nameopt RFC2253 | sed 's/^issuer=//')
+if [ "$subject" = "$issuer" ]; then
+  sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$kc" "$cert_pem" \
+    || fail "Не удалось доверить самоподписанный сертификат для подписи кода."
+  echo "Самоподписанный сертификат: доверие для подписи кода на этом раннере"
+fi
+rm -f "$cert_pem"
+
 echo "Сертификат «${MACOS_SIGNING_IDENTITY}» во временной связке ключей"
 if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "keychain=$kc" >> "$GITHUB_OUTPUT"; fi
