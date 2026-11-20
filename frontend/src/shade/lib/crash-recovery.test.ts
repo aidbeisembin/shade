@@ -7,7 +7,10 @@ const toasts: Call[] = [];
 let reply: () => Promise<unknown> = async () => undefined;
 const opened: string[] = [];
 
-mock.module('@tauri-apps/api/core', () => ({ invoke: (cmd: string) => (cmd === 'recover_interrupted_meetings' ? reply() : Promise.resolve([])) }));
+// mock.module в bun действует и на другие файлы тестов в том же процессе: незнакомые команды
+// отвечают отказом, как вне Tauri, иначе, например, getVersion() в тестах отзыва получает [].
+const known: Record<string, () => Promise<unknown>> = { recover_interrupted_meetings: () => reply(), api_get_meetings: async () => [] };
+mock.module('@tauri-apps/api/core', () => ({ invoke: (cmd: string) => known[cmd]?.() ?? Promise.reject(new Error(`нет команды ${cmd} вне Tauri`)) }));
 mock.module('./toasts', () => ({ shadeToast: { info: (title: string, data: Call['data']) => toasts.push({ title, data }) } }));
 mock.module('./open-meeting', () => ({ openMeeting: (id: string) => opened.push(id), meetingHref: (id: string) => `/?id=${id}` }));
 

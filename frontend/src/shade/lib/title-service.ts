@@ -1,5 +1,5 @@
 // Название встречи: настоящие зависимости (ядро Tauri, корзина, язык интерфейса) для createTitler
-// из title-core.ts и точки входа для экранов: titler, onTitleSet,
+// из title-core.ts и точки входа для экранов: titler, onTitleSet, onTitlePending,
 // markTitleManual, titleMany. Правила и тесты: title-core.ts, meeting-title.ts.
 
 import { invoke } from '@tauri-apps/api/core';
@@ -9,6 +9,7 @@ import { pickDuration, recordedSeconds } from './recording-duration';
 import { isTrashed } from './meeting-trash';
 import { getLang } from './lang';
 import { createTitler, type SetResult, type TitleDeps } from './title-core';
+import { createPendingStore } from './title-reveal';
 
 export type { ModelInfo, SkipReason, TitleLog, TitleMode, TitleOutcome } from './title-core';
 export { createTitler, stillBusy } from './title-core';
@@ -25,6 +26,36 @@ export function onTitleSet(fn: (id: string, title: string) => void): () => void 
   };
   window.addEventListener(TITLE_EVENT, handler);
   return () => window.removeEventListener(TITLE_EVENT, handler);
+}
+
+const PENDING_EVENT = 'shade-title-pending';
+/** Встречи, чьё название сейчас придумывается: строка, появившаяся позже, тоже узнает. */
+const pending = createPendingStore((id, on) => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PENDING_EVENT, { detail: { id, on } }));
+});
+
+/** Название встречи id придумывается: вместо названия и даты полоса пикселей (список и шапка встречи). */
+export function isTitlePending(id: string): boolean {
+  return pending.has(id);
+}
+
+/**
+ * Взять (true) или отпустить (false) ожидание названия. Держат путь после «Остановить»
+ * (recording-outcome.tsx) и запрос к модели (progress в title-core.ts); каждый отпускает своё.
+ * Только сигнал для экрана, в данные не пишется.
+ */
+export function setTitlePending(id: string, on: boolean): void {
+  pending.set(id, on);
+}
+
+export function onTitlePending(fn: (id: string, on: boolean) => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const handler = (e: Event) => {
+    const d = (e as CustomEvent<{ id: string; on: boolean }>).detail;
+    if (d) fn(d.id, d.on);
+  };
+  window.addEventListener(PENDING_EVENT, handler);
+  return () => window.removeEventListener(PENDING_EVENT, handler);
 }
 
 interface TranscriptRow {
@@ -74,6 +105,7 @@ const realDeps: TitleDeps = {
   announce(id, title) {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(TITLE_EVENT, { detail: { id, title } }));
   },
+  progress: setTitlePending,
 };
 
 export const titler = createTitler(realDeps);
