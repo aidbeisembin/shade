@@ -22,6 +22,18 @@ identifier "com.aidbeisembin.shade" and certificate leaf = H"<SHA-1 сертиф
 
 Встроенный импорт сертификата Tauri (`APPLE_CERTIFICATE`) ищет сертификаты Apple, поэтому сертификат импортирует `scripts/release/import-signing-cert.sh` во временную связку ключей, а Tauri получает только имя (`APPLE_SIGNING_IDENTITY`) и подписывает через `codesign`. Доверие к самоподписанному сертификату для подписи не нужно.
 
+**Расширения сертификата.** Только `keyUsage = critical, digitalSignature`, `extendedKeyUsage = critical, codeSigning` и `subjectKeyIdentifier`. Расширения `basicConstraints` быть не должно: с ним `codesign` на macOS 15 (раннер) не находит ключ («The specified item could not be found in the keychain»), и доверие к сертификату не помогает. Проверено на раннере на шести вариантах расширений. `openssl req -x509` без своего конфига сам добавляет `basicConstraints CA:TRUE` из системного `openssl.cnf`, поэтому выпускать только с `-config`. `import-signing-cert.sh` отклоняет самоподписанный сертификат с этим расширением до сборки. Выпуск нового (тогда у всех сбросятся разрешения, раз в 10 лет или при потере):
+
+```bash
+cd ~/.shade-signing && umask 077
+printf '[req]\ndistinguished_name = dn\nprompt = no\nx509_extensions = ext\n[dn]\nCN = Shade Beta Signing\n[ext]\nkeyUsage = critical, digitalSignature\nextendedKeyUsage = critical, codeSigning\nsubjectKeyIdentifier = hash\n' > cert.cnf
+openssl rand -base64 32 | tr -d '\n' > p12-password.txt
+openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes -keyout key.pem -out cert.pem -config cert.cnf
+openssl pkcs12 -export -inkey key.pem -in cert.pem -name "Shade Beta Signing" -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1 -passout file:p12-password.txt -out shade-beta-signing.p12 && rm key.pem
+```
+
+Шифрование `.p12` старое (3DES, SHA-1): новое по умолчанию у OpenSSL 3 `security import` не читает.
+
 Локальная `pnpm tauri build` по-прежнему подписывает ad-hoc (`signingIdentity: "-"` в конфиге) и не требует ключа обновлений: артефакты обновлений включаются только в CI (`--config`).
 
 **Gatekeeper.** Без Developer ID и нотаризации macOS при первом запуске скачанного браузером приложения спрашивает «Всё равно открыть» (README, «Установка»). `install.sh` качает через `curl`, файлу не ставится карантин, и вопроса нет.
@@ -82,7 +94,7 @@ Workflow не меняется:
 ## Проверки
 
 - `bash scripts/release/test-release.sh`: версия и тег, секреты, `latest.json`, подпись обновления (minisign), описание релиза.
-- `bash scripts/release/test-check-signature.sh` (macOS): требование без cdhash, одинаковое у двух версий; ad-hoc, без подписи и чужой сертификат отклоняются.
+- `bash scripts/release/test-check-signature.sh` (macOS): требование без cdhash, одинаковое у двух версий; ad-hoc, без подписи и чужой сертификат отклоняются; `import-signing-cert.sh` принимает годный `.p12` и отклоняет сертификат с `basicConstraints`, неверный пароль, не то имя.
 - `bash scripts/test-install.sh`: `install.sh` на подставных командах.
 - `pnpm test`: `lib/updates.test.ts`, `components/update-card.test.tsx`, `lib/beta-chat.test.ts`.
 - Все четыре в CI `shade-check` (задача `release` на macOS и `frontend`).

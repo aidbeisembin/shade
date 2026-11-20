@@ -15,9 +15,11 @@ name="Shade Dry Run Signing"
 pw=$(openssl rand -hex 16)
 echo "::add-mask::$pw"
 
-openssl req -x509 -newkey rsa:2048 -sha256 -days 2 -nodes -keyout "$dir/key.pem" -out "$dir/cert.pem" -subj "/CN=$name" \
-  -addext "basicConstraints=critical,CA:false" -addext "keyUsage=critical,digitalSignature" \
-  -addext "extendedKeyUsage=critical,codeSigning" >/dev/null 2>&1
+# Те же расширения, что у «Shade Beta Signing» (docs/release.md): без basicConstraints, иначе codesign
+# на macOS 15 не подписывает. Свой конфиг: без него openssl добавляет CA:TRUE из системного openssl.cnf
+printf '[req]\ndistinguished_name = dn\nprompt = no\nx509_extensions = ext\n[dn]\nCN = %s\n[ext]\nkeyUsage = critical, digitalSignature\nextendedKeyUsage = critical, codeSigning\nsubjectKeyIdentifier = hash\n' \
+  "$name" > "$dir/cert.cnf"
+openssl req -x509 -newkey rsa:2048 -sha256 -days 2 -nodes -keyout "$dir/key.pem" -out "$dir/cert.pem" -config "$dir/cert.cnf" >/dev/null 2>&1
 openssl pkcs12 -export -inkey "$dir/key.pem" -in "$dir/cert.pem" -name "$name" -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES \
   -macalg sha1 -passout "pass:$pw" -out "$dir/cert.p12" >/dev/null 2>&1
 (cd "$root/frontend" && pnpm -s tauri signer generate --ci -w "$dir/updater.key" -p "$pw" >/dev/null 2>&1)
