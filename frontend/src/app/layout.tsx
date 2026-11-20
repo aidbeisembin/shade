@@ -44,6 +44,7 @@ import { ShadeIcons } from '@/shade/components/ShadeIcons'
 import { installTauriEventGuard } from '@/shade/lib/tauri-events'
 import { markTitlebarOverlay, syncWindowTheme } from '@/shade/lib/window-theme'
 import { installNavDebug } from '@/shade/lib/nav-debug'
+import { installHistoryNav } from '@/shade/lib/history-nav'
 import { showWindow, windowBootScript, windowShowScript } from '@/shade/lib/window-boot'
 import { applySystemLanguageDefault } from '@/shade/lib/system-language'
 
@@ -66,6 +67,8 @@ if (isShadeUI) {
   if (typeof window !== 'undefined') markTitlebarOverlay()
   // ВРЕМЕННО: журнал кликов по списку встреч для проверки на Mac (nav-debug.ts)
   if (typeof window !== 'undefined') installNavDebug()
+  // «Назад» и «Вперёд»: боковые кнопки мыши и ⌘[ / ⌘] (history-nav.ts)
+  installHistoryNav()
   void syncWindowTheme()
   // Язык распознавания по умолчанию из системы, если человек его не выбирал.
   // До монтирования ConfigProvider: он прочитает ключ и сам отправит язык в ядро
