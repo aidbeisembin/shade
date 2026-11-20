@@ -15,7 +15,16 @@ CHECK="$HERE/check-signature.sh"
 WORK="$(mktemp -d)"
 KC="$WORK/test.keychain-db"
 KPW=$(openssl rand -hex 16)
-trap 'security delete-keychain "$KC" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+# Связка в списке поиска, как в import-signing-cert.sh: на macOS 15 codesign --keychain без этого
+# отвечает «The specified item could not be found in the keychain». При выходе список прежний
+OLD_LIST=$(security list-keychains -d user | tr -d '"' | xargs)
+restore() {
+  # shellcheck disable=SC2086
+  security list-keychains -d user -s $OLD_LIST
+  security delete-keychain "$KC" >/dev/null 2>&1 || true
+  rm -rf "$WORK"
+}
+trap restore EXIT
 trap 'echo "test-check-signature: строка $LINENO: $BASH_COMMAND" >&2' ERR
 
 pass=0 fail=0
@@ -42,6 +51,8 @@ security unlock-keychain -p "$KPW" "$KC"
 cert "Shade Test Signing" a
 cert "Other Test Signing" b
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPW" "$KC" >/dev/null
+# shellcheck disable=SC2086
+security list-keychains -d user -s "$KC" $OLD_LIST
 
 # Минимальное приложение с идентификатором Shade; версия в Info.plist и в коде
 app() {
