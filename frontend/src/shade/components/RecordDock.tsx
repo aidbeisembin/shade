@@ -1,6 +1,6 @@
 // Запись: плавает внизу по центру поверх контента на всех страницах.
 // Состояния:
-// - покой: круглая кнопка Mikado 104 px, на 28 px от низа с микрофоном, от неё расходятся две мягкие
+// - покой: круглая кнопка Mikado 104 px, на 28 px от низа со знаком из полос звука, от неё расходятся две мягкие
 //   волны; сочетание клавиш в подсказке;
 // - запись: стеклянная капсула (.shade-glass): красная точка с кольцом на речь,
 //   таймер, полосы уровня звука, «Пауза» и красная «Остановить»; «Не слышу речи»
@@ -22,7 +22,7 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Microphone, MicrophoneSlash, Pause, Play, SpeakerHigh, Stop, Waveform } from '@phosphor-icons/react';
+import { MicrophoneSlash, Pause, Play, SpeakerHigh, Stop, Waveform } from '@phosphor-icons/react';
 import { FinishCard, type FinishCardStage, type DiscardReason } from '@/shade/components/FinishCard';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
@@ -166,6 +166,19 @@ interface CardView {
   reason?: DiscardReason;
 }
 
+/** Знак на кнопке записи: пять полос звука (контур от владельца 2026-11-20), цвет от кнопки. */
+function RecordGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={0.5} strokeLinejoin="round" aria-hidden className={className}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 3.25C12.4142 3.25 12.75 3.58579 12.75 4V20C12.75 20.4142 12.4142 20.75 12 20.75C11.5858 20.75 11.25 20.4142 11.25 20V4C11.25 3.58579 11.5858 3.25 12 3.25ZM8 6.25C8.41421 6.25 8.75 6.58579 8.75 7V17C8.75 17.4142 8.41421 17.75 8 17.75C7.58579 17.75 7.25 17.4142 7.25 17V7C7.25 6.58579 7.58579 6.25 8 6.25ZM16 6.25C16.4142 6.25 16.75 6.58579 16.75 7V17C16.75 17.4142 16.4142 17.75 16 17.75C15.5858 17.75 15.25 17.4142 15.25 17V7C15.25 6.58579 15.5858 6.25 16 6.25ZM4 10.25C4.41421 10.25 4.75 10.5858 4.75 11V13C4.75 13.4142 4.41421 13.75 4 13.75C3.58579 13.75 3.25 13.4142 3.25 13V11C3.25 10.5858 3.58579 10.25 4 10.25ZM20 10.25C20.4142 10.25 20.75 10.5858 20.75 11V13C20.75 13.4142 20.4142 13.75 20 13.75C19.5858 13.75 19.25 13.4142 19.25 13V11C19.25 10.5858 19.5858 10.25 20 10.25Z"
+      />
+    </svg>
+  );
+}
+
 /** Кнопка записи в покое: круг 104 px, сплошной Mikado, от него расходятся две волны. */
 function RecordButton() {
   useLang();
@@ -208,7 +221,7 @@ function RecordButton() {
             aria-keyshortcuts="Meta+Shift+R Control+Shift+R"
             className="shade-record-button relative flex size-full items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 disabled:opacity-80"
           >
-            {c.isStarting ? <Spinner tone="inherit" /> : <Microphone className="size-7" aria-hidden />}
+            {c.isStarting ? <Spinner tone="inherit" /> : <RecordGlyph className="size-7" />}
           </button>
         </span>
       </TooltipTrigger>
