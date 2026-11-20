@@ -49,6 +49,7 @@ Shade проверяет обновления при запуске и раз в
 
 - Оценка и отзыв в самом Shade: карточка «Как вам Shade?» после записи.
 <!-- beta-chat -->
+- Обсудить в чате беты в Telegram: [t.me/shadebeta](https://t.me/shadebeta).
 <!-- /beta-chat -->
 - Ошибки и предложения: [Issues](https://github.com/aidbeisembin/shade/issues).
 
