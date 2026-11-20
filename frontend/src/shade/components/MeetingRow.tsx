@@ -22,6 +22,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 import { editableTitle, formatOffset, formatRowDate, formatTime, formatVolume, shownTitle } from '@/shade/lib/format';
 import type { TranscriptMatch } from '@/shade/lib/transcript-search';
 import { InlineRename } from '@/shade/components/InlineRename';
+import { PixelRevealText } from '@/shade/components/PixelRevealText';
 import type { MeetingDetails, MeetingStatus } from '@/shade/lib/meeting-details-cache';
 import { cn } from '@/shade/lib/utils';
 import { t, tp, type StringKey } from '@/shade/strings';
@@ -191,7 +192,7 @@ export function MeetingRow({ meeting, onRename, onDelete, onOpenFolder, timeOnly
           >
             <StatusThumb kind={kind} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-base font-medium" title={shown}>{shown}</span>
+              <PixelRevealText id={meeting.id} text={shown} className="block truncate text-base font-medium" title={shown} />
               {/* Разделители для диктора: иначе имя ссылки читается слитно, «НазваниеСегодня, 10:00» */}
               {kind === 'summary' && <span className="sr-only">, {t('statusSummary')}</span>}
               {meta && (
