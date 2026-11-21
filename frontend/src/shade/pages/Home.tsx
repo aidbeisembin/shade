@@ -277,7 +277,8 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
           {t('emptyTrash')}
         </Button>
       </div>
-      <ul className="flex flex-col gap-1">
+      {/* -ml-2: значок строки на линии заголовка, подложка выступает на внутренний отступ строки (8 px) */}
+      <ul className="-ml-2 flex flex-col gap-1">
         {items.map((m) => {
           const left = tf('trashDaysLeft', { n: daysLeft(m) });
           return (
@@ -660,7 +661,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
           {filter === 'trash' && <TrashPanel items={trashed} onRestored={() => void reload()} />}
           {listFilter && (<>
           {state.kind === 'loading' && (
-            <div className="space-y-1" role="status" aria-busy="true" aria-label={t('loading')}>
+            <div className="-ml-2 space-y-1" role="status" aria-busy="true" aria-label={t('loading')}>
               {/* Та же геометрия, что у MeetingRow: иконка 20 px, две строки, шеврон; без скачка.
                   Строки загораются волной сверху вниз (.shade-skeleton-wave) */}
               {[0, 1, 2, 3].map((i) => (
@@ -703,7 +704,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
           )}
 
           {search && filtered.length > 0 && (
-            <ul className="grid grid-cols-1 gap-x-6 gap-y-1 @[1100px]:grid-cols-2" aria-label={t('meetingsList')}>
+            <ul className="-ml-2 grid grid-cols-1 gap-x-6 gap-y-1 @[1100px]:grid-cols-2" aria-label={t('meetingsList')}>
               {filtered.map((m) => (
                 <MeetingRow
                   key={m.id}
@@ -724,7 +725,8 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
                 <h2 id={`shade-group-${group}`} className="pb-2 text-sm font-medium text-muted-foreground">
                   {t(GROUP_LABEL[group])}
                 </h2>
-                <ul className="grid grid-cols-1 gap-x-6 gap-y-1 @[1100px]:grid-cols-2">
+                {/* -ml-2: значки строк на одной линии с заголовком, фильтрами и заголовками групп */}
+                <ul className="-ml-2 grid grid-cols-1 gap-x-6 gap-y-1 @[1100px]:grid-cols-2">
                   {group === 'today' && pending && <PendingRow stage={pending.stage} done={finish?.stage === 'saved'} />}
                   {items.map((m) => (
                     <MeetingRow
