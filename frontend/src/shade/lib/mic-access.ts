@@ -98,7 +98,7 @@ interface Device {
 }
 
 /** Входы и выходы по списку ядра; null, если список не получен. */
-async function listDevices(): Promise<{ inputs: string[]; outputs: string[] } | null> {
+export async function listDevices(): Promise<{ inputs: string[]; outputs: string[] } | null> {
   try {
     const devices = await invoke<Device[]>('get_audio_devices');
     return {
@@ -221,4 +221,15 @@ export async function checkSystemAudio(): Promise<boolean> {
 export function isMicRefusal(error: unknown): boolean {
   const text = error instanceof Error ? error.message : String(error ?? '');
   return /Microphone access required|Microphone permission not granted|Cannot access microphone|Cannot start microphone/i.test(text);
+}
+
+/**
+ * Проблема с микрофоном, известная без вопроса macOS и без открытия микрофона: входов в списке
+ * ядра нет или отказ уже известен (первый запуск, прошлая запись, проверка). Статус разрешения
+ * macOS сам по себе без вопроса не узнать (команды ядра нет), поэтому «не знаю» - не проблема.
+ */
+export function passiveMicProblem(known: KnownMicAccess, inputs: number | null): 'mic-denied' | 'no-microphone' | null {
+  if (inputs === 0) return 'no-microphone';
+  if (known === 'denied') return 'mic-denied';
+  return null;
 }

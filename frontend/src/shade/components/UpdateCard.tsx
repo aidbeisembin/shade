@@ -1,16 +1,14 @@
-// Карточка обновления в стопке у дока (RecordDock), как остальные уведомления (ui/notice.tsx).
-// Когда она видна и что делает «Обновить»: lib/updates.ts.
-//  - ready: «Доступна версия X», подпись «Shade перезапустится…», «Обновить» и крестик;
-//  - installing: та же карточка, кнопка с индикатором «Обновляю…», без крестика;
-//  - failed: «Не получилось обновить», текущая версия на месте, крестик.
+// Карточка обновления в правом нижнем углу (CornerStack, RecordDock ставит её в угол), одним
+// устройством сообщения (ui/notice.tsx). Без таймера. Когда она видна и что делает «Обновить»:
+// lib/updates.ts (во время записи не показывается, сбой фоновой проверки молчит).
+//  - ready: «Доступна версия X» / «Встречи и настройки останутся», «Обновить» и крестик;
+//  - installing: та же карточка, крутилка в кнопке «Обновляю…», без крестика;
+//  - failed: только после нажатия «Обновить»: «Не получилось обновить» / «Текущая версия на
+//    месте», role="alert", крестик.
 'use client';
 
-import { ArrowFatUp, Warning } from '@phosphor-icons/react';
-import { Button } from '@/shade/components/ui/button';
-import { Notice, NOTICE_SECONDARY } from '@/shade/components/ui/notice';
-import { Spinner } from '@/shade/components/ui/spinner';
+import { Notice, NoticeButton } from '@/shade/components/ui/notice';
 import type { UpdatePhase } from '@/shade/lib/updates';
-import { cn } from '@/shade/lib/utils';
 import { useLang } from '@/shade/lib/lang';
 import { t, tf } from '@/shade/strings';
 
@@ -26,21 +24,17 @@ export function UpdateCard({ phase, onUpdate, onClose }: { phase: Shown; onUpdat
   const installing = phase.kind === 'installing';
   return (
     <Notice
-      role="status"
+      role={failed ? 'alert' : 'status'}
       aria-live="polite"
       data-shade-update={phase.kind}
-      className="w-[min(560px,calc(100vw-8rem))]"
-      icon={failed ? <Warning /> : <ArrowFatUp />}
+      className="w-full"
+      icon={failed ? 'problem' : 'update'}
       tone={failed ? 'error' : 'neutral'}
       title={failed ? t('updateFailed') : tf('updateAvailable', { version: phase.version })}
       hint={failed ? t('updateFailedHint') : t('updateHint')}
-      wrapHint
       actions={
         failed ? undefined : (
-          <Button variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0 px-4 text-sm font-medium')} onClick={onUpdate} disabled={installing}>
-            {installing && <Spinner tone="inherit" />}
-            {installing ? t('updateInstalling') : t('updateAction')}
-          </Button>
+          <NoticeButton action={{ label: installing ? t('updateInstalling') : t('updateAction'), onClick: onUpdate }} disabled={installing} busy={installing} />
         )
       }
       onClose={installing ? undefined : onClose}

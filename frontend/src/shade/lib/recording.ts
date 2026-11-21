@@ -35,6 +35,8 @@ import {
   checkSystemAudio,
   isMicRefusal,
   knownMicAccess,
+  listDevices,
+  passiveMicProblem,
   onMicAccessChange,
   rememberMicAccess,
   type KnownMicAccess,
@@ -48,8 +50,11 @@ import { t } from '@/shade/strings';
 export type StartBlocker =
   | { kind: 'no-model' }
   | { kind: 'model-downloading' }
-  /** Микрофона нет в списке устройств. systemAudio: можно записать только звук компьютера. */
-  | { kind: 'no-microphone'; systemAudio?: boolean }
+  /**
+   * Микрофона нет в списке устройств. systemAudio: можно записать только звук компьютера.
+   * passive: найдено без нажатия «Записать» (passiveMicProblem), уходит само, когда микрофон появился.
+   */
+  | { kind: 'no-microphone'; systemAudio?: boolean; passive?: boolean }
   /**
    * macOS не даёт доступ к микрофону. systemAudio: можно записать только звук
    * компьютера; coreRefused: ядро само отказалось стартовать без микрофона;
@@ -64,6 +69,8 @@ export type StartBlocker =
       zeros?: boolean;
       /** Проверить доступ не удалось, а в записи не оказалось речи. */
       unverified?: boolean;
+      /** Отказ известен без нажатия «Записать» (запомнен): уходит сам, когда доступ появился. */
+      passive?: boolean;
     }
   | { kind: 'check-failed'; raw: string };
 
@@ -246,6 +253,41 @@ export function useShadeRecording() {
     );
   }, []);
 
+  // Проблема с микрофоном видна сразу, как только известна, без нажатия «Записать»
+  // (docs/ui/notifications.md, «Док»): при запуске, при возврате в окно, при смене устройств и
+  // когда меняется запомненный доступ. Ушла проблема - карточка уходит сама. Закрыл человек -
+  // та же проблема не возвращается до её смены (кнопка «нужен доступ» остаётся)
+  const passiveClosed = useRef<string | null>(null);
+  useEffect(() => {
+    if (recording.isRecording) return;
+    let alive = true;
+    const probe = async () => {
+      const devices = await listDevices();
+      if (!alive) return;
+      const problem = passiveMicProblem(knownMicAccess(), devices ? devices.inputs.length : null);
+      if (problem !== passiveClosed.current) passiveClosed.current = null;
+      setBlocker((b) => {
+        if (!problem) return b && isMicBlocker(b) && (b.passive || b.kind === 'no-microphone') ? null : b;
+        if (b || passiveClosed.current === problem) return b;
+        return problem === 'no-microphone' ? { kind: 'no-microphone', passive: true } : { kind: 'mic-denied', systemAudio: false, passive: true };
+      });
+    };
+    void probe();
+    const onFocus = () => document.visibilityState !== 'hidden' && void probe();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    const md = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+    md?.addEventListener?.('devicechange', onFocus);
+    const offAccess = onMicAccessChange(() => void probe());
+    return () => {
+      alive = false;
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      md?.removeEventListener?.('devicechange', onFocus);
+      offAccess();
+    };
+  }, [recording.isRecording]);
+
   // Страховка: доступ не подтверждён, а первые секунды с микрофона одни нули.
   // Остановить без сохранения и показать карточку
   const aborting = useRef(false);
@@ -344,7 +386,11 @@ export function useShadeRecording() {
     /** Текст ошибки старта из RecordingStateContext. */
     startError: status === RecordingStatus.ERROR ? recording.statusMessage ?? null : null,
     blocker,
-    dismissBlocker: () => setBlocker(null),
+    dismissBlocker: () =>
+      setBlocker((b) => {
+        if (b && isMicBlocker(b) && b.passive) passiveClosed.current = b.kind;
+        return null;
+      }),
     recheckMicrophone,
     /** Как пишется текущая запись: с микрофоном или только звук компьютера. */
     micMode,

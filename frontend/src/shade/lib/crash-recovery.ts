@@ -2,9 +2,10 @@
 // (src-tauri/src/crash_recovery, команда recover_interrupted_meetings): находит
 // прерванные записи в папке записей, собирает звук, создаёт встречу. Здесь:
 // 1. при запуске один вызов команды;
-// 2. тихое уведомление «Встреча от 16 ноября, 15:02 / Восстановлена после сбоя · 29 мин»
-//    с «Открыть»: без модальных окон и без вопроса «восстановить?», данные
-//    сохраняются всегда;
+// 2. тихая карточка в правом нижнем углу «Восстановлена после сбоя / 16 ноября, 15:02 · 29 мин»
+//    с «Открыть», без таймера (corner-messages.ts, notifyRecovered); две и больше склеиваются
+//    в «Восстановлено 2 встречи» с «Показать». Без модальных окон и без вопроса «восстановить?»,
+//    данные сохраняются всегда;
 // 3. пометки встреч (список, страница встречи), прочитанные из recovered.json папки
 //    встречи (источник правды диск, здесь только копия в памяти);
 // 4. повтор через минуту, если ядро нашло папку, в которую писали только что (живая
@@ -12,13 +13,10 @@
 // Док: docs/ui/recording-outcome.md, «Восстановление после сбоя».
 'use client';
 
-import { createElement, useSyncExternalStore } from 'react';
-import { ClockCounterClockwise } from '@phosphor-icons/react';
+import { useSyncExternalStore } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { displayTitle, formatDuration } from './format';
-import { openMeeting } from './open-meeting';
-import { shadeToast } from './toasts';
-import { t, tp } from '@/shade/strings';
+import { notifyRecovered } from './corner-messages';
+import { t } from '@/shade/strings';
 
 export interface RecoveredMeeting {
   meeting_id: string;
@@ -49,10 +47,6 @@ export interface RecoveredMark {
 export const RETRY_AFTER_MS = 65_000;
 /** Сколько повторов за запуск: дальше это не живая запись, а то, что подберёт следующий запуск. */
 export const MAX_RETRIES = 3;
-/** Уведомление не пропадает за секунды: после сбоя человек может смотреть в окно не сразу. Под курсором стоит. */
-export const RECOVERED_NOTICE_MS = 20_000;
-/** Больше стольких встреч сразу: одно сводное уведомление вместо стопки. */
-export const MAX_NOTICES = 2;
 
 // --- пометки --------------------------------------------------------------
 
@@ -92,24 +86,9 @@ export function recoveredLabel(mark: RecoveredMark): string {
 // --- уведомление ----------------------------------------------------------
 
 export function announceRecovered(items: RecoveredMeeting[]) {
-  if (items.length === 0) return;
-  const icon = createElement(ClockCounterClockwise, { weight: 'fill' });
-  if (items.length > MAX_NOTICES) {
-    shadeToast.info(t('recoveredManyTitle'), { icon, description: tp('recoveredManyHint', items.length), duration: RECOVERED_NOTICE_MS });
-    return;
-  }
-  for (const m of items) {
-    const duration = formatDuration(m.duration_seconds);
-    const what = recoveredLabel({ partial: m.partial });
-    shadeToast.info(displayTitle(m.title), {
-      icon,
-      description: [what, duration].filter(Boolean).join(' · '),
-      duration: RECOVERED_NOTICE_MS,
-      action: { label: t('finishOpen'), onClick: () => openMeeting(m.meeting_id) },
-    });
-  }
+  // Каждая встреча в одну группу угла: одна - с «Открыть», несколько - одна карточка с «Показать»
+  for (const m of items) notifyRecovered(m);
 }
-
 // --- запуск ---------------------------------------------------------------
 
 let attempt = 0;

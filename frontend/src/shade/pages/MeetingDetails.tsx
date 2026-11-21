@@ -604,7 +604,7 @@ function MeetingDetailsContent() {
       await deleteMeeting(meta.id);
       await refetchMeetings();
       setConfirmDelete(false);
-      toastTrashed(meta.id);
+      toastTrashed(meta.id, meta.title);
       router.push('/');
     } catch (error) {
       shadeToast.error(t('deleteFailed'), { description: String(error) });

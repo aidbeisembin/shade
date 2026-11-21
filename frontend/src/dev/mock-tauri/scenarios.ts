@@ -88,6 +88,11 @@ export interface Scenario {
    * Без поля: не macOS, решает trigger_microphone_permission.
    */
   macMic?: 'granted' | 'denied' | 'unknown' | 'prompt-granted' | 'prompt-denied';
+  /**
+   * Что Shade уже знает о доступе к микрофону к запуску (localStorage shade.micAccess.v1): так
+   * было бы после отказа в первом запуске. Карточка «Нет доступа к микрофону» стоит сразу.
+   */
+  micKnown?: 'denied';
   /** Уведомления как в ядре по умолчанию: согласие есть, показ выключен. */
   notificationsCoreDefault?: boolean;
   /**
@@ -123,37 +128,37 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     meetings: () => [], onboardingCompleted: false, modelsReady: false, recordingOnLoad: false, failing: false,
   },
   'silence-5s': {
-    id: 'silence-5s', label: 'silence-5s', description: 'Короткая пустая запись: VAD молчит, остановите до 10 секунд. Тихая карточка «Пустая запись - не сохранена» на 3 с',
+    id: 'silence-5s', label: 'silence-5s', description: 'Короткая пустая запись: VAD молчит, остановите до 10 секунд. В доке «Пустая запись» / «Запись не сохранена» на 4 с, потом снова кнопка',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'none',
   },
   'silence-15s': {
-    id: 'silence-15s', label: 'silence-15s', description: 'Пустая запись длиннее 10 секунд, VAD молчит: «Речи не было» и «Проверить звук»',
+    id: 'silence-15s', label: 'silence-15s', description: 'Пустая запись длиннее 10 секунд, VAD молчит: в доке «Речи не было» и «Проверить звук» на 8 с',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'none', startOffsetSec: 15,
   },
   'silence-hallucination': {
-    id: 'silence-hallucination', label: 'silence-hallucination', description: 'Три минуты тишины, на шум модель выдала «Продолжение следует...»: галлюцинация не значима, «Пустая запись - не сохранена»',
+    id: 'silence-hallucination', label: 'silence-hallucination', description: 'Три минуты тишины, на шум модель выдала «Продолжение следует...»: галлюцинация не значима, «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'hallucination', startOffsetSec: 180,
   },
   'noise-30s': {
-    id: 'noise-30s', label: 'noise-30s', description: '30 секунд тишины с шумом: VAD трижды срабатывает, модель выдаёт мусор: «Пустая запись - не сохранена»',
+    id: 'noise-30s', label: 'noise-30s', description: '30 секунд тишины с шумом: VAD трижды срабатывает, модель выдаёт мусор: «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'noise', startOffsetSec: 25,
   },
   'recognition-failed': {
-    id: 'recognition-failed', label: 'recognition-failed', description: 'Речь была, распознана одна фраза из двух слов и сбой распознавания: «Речь не распознана», встреча не создаётся',
+    id: 'recognition-failed', label: 'recognition-failed', description: 'Речь была, распознана одна фраза из двух слов и сбой распознавания: в доке «Речь не распознана» на 4 с, встреча не создаётся',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 20, script: ['Так, начинаем.'], scriptSeconds: 4, warnAfterScript: true,
   },
   'words-3': {
-    id: 'words-3', label: 'words-3', description: '«Да, хорошо, давай»: «да» заполнитель, 2 значимых слова, «Пустая запись - не сохранена»',
+    id: 'words-3', label: 'words-3', description: '«Да, хорошо, давай»: «да» заполнитель, 2 значимых слова, «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 10, script: ['Да, хорошо, давай.'],
   },
   'words-12': {
-    id: 'words-12', label: 'words-12', description: '12 значимых слов: встреча сохраняется и уходит на проверку моделью (исход задаёт &check=content|empty|unavailable|timeout), итогов нет (они от 80 слов)',
+    id: 'words-12', label: 'words-12', description: '12 значимых слов: встреча сохраняется и уходит на проверку моделью (исход задаёт &check=content|empty|unavailable|timeout; empty: в доке «Мало содержания» и «Вернуть»), итогов нет (они от 80 слов)',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 20, script: ['Коротко: релиз переносим на четверг.', 'Тесты пока не прошли, жду отчёт.', 'Всё.'],
   },
@@ -191,23 +196,23 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     ],
   },
   'repeat-five': {
-    id: 'repeat-five', label: 'repeat-five', description: '«Пять, пять, пять» (счёт) и «Да. Да. Да.» (повтор заполнителя): 0 значимых слов, «Пустая запись - не сохранена»',
+    id: 'repeat-five', label: 'repeat-five', description: '«Пять, пять, пять» (счёт) и «Да. Да. Да.» (повтор заполнителя): 0 значимых слов, «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 8, scriptSeconds: 3, script: ['Пять, пять, пять.', 'Да. Да. Да.'],
   },
   'heard-no-text': {
-    id: 'heard-no-text', label: 'heard-no-text', description: 'VAD слышит речь, текста нет и причины нет: «Пустая запись - не сохранена»',
+    id: 'heard-no-text', label: 'heard-no-text', description: 'VAD слышит речь, текста нет и причины нет: «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'vad-only', startOffsetSec: 30,
   },
   counting: {
-    id: 'counting', label: 'counting', description: 'Счёт «Раз, два, три… десять, а?»: 0 значимых слов, «Пустая запись - не сохранена»',
+    id: 'counting', label: 'counting', description: 'Счёт «Раз, два, три… десять, а?»: 0 значимых слов, «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 12, scriptSeconds: 4,
     script: ['Раз, два, три, четыре, пять.', 'Шесть, семь, восемь, девять, десять, а?'],
   },
   'mic-check': {
-    id: 'mic-check', label: 'mic-check', description: '«Алло, слышно меня? Проверка»: проверочные фразы, 0 значимых слов, «Пустая запись - не сохранена»',
+    id: 'mic-check', label: 'mic-check', description: '«Алло, слышно меня? Проверка»: проверочные фразы, 0 значимых слов, «Пустая запись» в доке',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'script', startOffsetSec: 15, scriptSeconds: 4,
     script: ['Алло, слышно меня?', 'Проверка.'],
@@ -244,13 +249,13 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     micPermission: false,
   },
   'mic-denied': {
-    id: 'mic-denied', label: 'mic-denied', description: 'Отказ в микрофоне, звук компьютера есть: карточка и «Записать только звук компьютера»',
+    id: 'mic-denied', label: 'mic-denied', description: 'Отказ в микрофоне уже известен: в доке сразу, без нажатия, «Нет доступа к микрофону» и «Открыть настройки»',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
     // микрофон в записи даёт нули: в режиме «только звук компьютера» «Не слышу микрофон» не показывается
-    micPermission: false, systemAudioPermission: true, micLive: 'silent', macMic: 'denied',
+    micPermission: false, systemAudioPermission: true, micLive: 'silent', macMic: 'denied', micKnown: 'denied',
   },
   'mic-missing': {
-    id: 'mic-missing', label: 'mic-missing', description: 'Микрофона нет в списке устройств, звук компьютера есть',
+    id: 'mic-missing', label: 'mic-missing', description: 'Микрофона нет в списке устройств: в доке сразу «Микрофон не найден» и «Открыть настройки», пока не подключат',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
     micDeviceMissing: true, systemAudioPermission: true,
   },
@@ -260,7 +265,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     micPromptMs: 2500, micLive: 'ok', macMic: 'prompt-granted',
   },
   'mic-prompt-deny': {
-    id: 'mic-prompt-deny', label: 'mic-prompt-deny', description: 'Доступ не спрашивали: по «Записать» «вопрос macOS», человек отказывает: карточка, кнопка «нужен доступ»',
+    id: 'mic-prompt-deny', label: 'mic-prompt-deny', description: 'Доступ не спрашивали: по «Записать» «вопрос macOS», человек отказывает: в доке «Нет доступа к микрофону» и «Открыть настройки»',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
     micPromptMs: 2000, macMic: 'prompt-denied', systemAudioPermission: true,
   },

@@ -1,24 +1,20 @@
-// Карточки про микрофон у кнопки записи (в стиле NoticeCard из RecordDock):
-// - MicAccessCard: запись не началась, потому что нет доступа к микрофону или самого
-//   микрофона. «Открыть настройки» ведёт в Системные настройки, при возврате в окно
-//   доступ перепроверяется сам. «Записать только звук компьютера» — явный выбор.
-// - MicHint: во время записи «Не слышу микрофон», «Микрофон отключился» и
+// Карточки про микрофон в доке записи (docs/ui/notifications.md, «Док»), одним устройством
+// сообщения (ui/notice.tsx):
+// - MicAccessCard: на месте кнопки записи, пока проблема есть: «Нет доступа к микрофону»
+//   (Системные настройки, при возврате в окно доступ перепроверяется сам) и «Микрофон не
+//   найден» (настройки Shade, вкладка «Запись»). Видна сразу, как только проблема известна,
+//   без нажатия «Записать» (recording.ts, passiveMicProblem). Фокус не забирает.
+// - MicHint: над капсулой во время записи «Не слышу микрофон», «Микрофон отключился» и
 //   напоминание «Пишу только звук компьютера». Запись не обрывается.
 'use client';
 
-import { CLOSE_RESERVE, CloseButton as CloseButtonBase } from '@/shade/components/ui/close-button';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GearSix, MicrophoneSlash, SpeakerHigh } from '@phosphor-icons/react';
-import { Button } from '@/shade/components/ui/button';
-import { NOTICE_HINT, NOTICE_SECONDARY, NOTICE_TITLE, NoticeMark, NoticeSurface } from '@/shade/components/ui/notice';
-import { Spinner } from '@/shade/components/ui/spinner';
+import { Notice, NoticeButton } from '@/shade/components/ui/notice';
+import { DOCK_CARD } from '@/shade/components/FinishCard';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { openPrivacySettings } from '@/shade/lib/onboarding';
 import type { StartBlocker } from '@/shade/lib/recording';
 import type { MicWatchState } from '@/shade/lib/mic-watch';
-import { shadeToast } from '@/shade/lib/toasts';
-import { BRAND_MARK_SRC } from '@/shade/components/BrandMark';
-import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 
@@ -60,50 +56,40 @@ function useWindowReturn(cb: () => void) {
   }, []);
 }
 
-// Подложка и знак общие с остальными уведомлениями (ui/notice.tsx), чтобы карточки не расходились
-function CardShell({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <NoticeSurface className={cn('w-[min(560px,calc(100vw-8rem))]', CLOSE_RESERVE, className)}>{children}</NoticeSurface>;
+/** Настройки Shade на месте (in-place-router.tsx): вкладка «Запись», выбор микрофона. */
+export function openRecordingSettings() {
+  window.history.pushState(null, '', '/?view=settings&tab=recording');
+  window.scrollTo({ top: 0 });
 }
 
-function Sign({ children }: { children: React.ReactNode }) {
-  return <NoticeMark>{children}</NoticeMark>;
-}
+/** Чем кончилась перепроверка после настроек: доступ есть или проверить не удалось. */
+export type MicResolved = 'granted' | 'unknown';
 
-function CloseButton({ onClick, className }: { onClick: () => void; className?: string }) {
-  useLang();
-  return (
-    // Общий круглый крестик (ui/close-button.tsx): справа по центру высоты, отступ от края равен отступу карточки
-    <CloseButtonBase label={t('close')} onClick={onClick} className={className} />
-  );
-}
-
-/** Запись не началась: нет доступа к микрофону или микрофона. */
+/** Запись не начнётся: нет доступа к микрофону или микрофона. В доке вместо кнопки записи. */
 export function MicAccessCard({
   blocker,
   onRecheck,
-  onSystemOnly,
   onClose,
+  onResolved,
 }: {
   blocker: MicBlocker;
   /** Перепроверить доступ: есть, нет или проверить не удалось. */
   onRecheck: () => Promise<'granted' | 'denied' | 'unknown'>;
-  onSystemOnly: () => void;
   onClose: () => void;
+  /** Доступ появился или проверить не удалось: док показывает итог 4 с и снова кнопку. */
+  onResolved?: (answer: MicResolved) => void;
 }) {
   useLang();
   const [checking, setChecking] = useState(false);
   const awaiting = useRef(false);
-  const primary = useRef<HTMLButtonElement>(null);
-  useEffect(() => primary.current?.focus(), [blocker.kind]);
 
   const recheck = useCallback(async () => {
     setChecking(true);
     const answer = await onRecheck().catch(() => 'denied' as const);
     setChecking(false);
-    if (answer === 'granted') shadeToast.success(t('micAccessBack'));
     // Проверить не удалось: карточка уходит, но «доступ есть» не утверждаем
-    else if (answer === 'unknown') shadeToast.info(t('micAccessUnknownBack'));
-  }, [onRecheck]);
+    if (answer !== 'denied') onResolved?.(answer);
+  }, [onRecheck, onResolved]);
 
   // Вернулись из Системных настроек: перепроверяем сами, без лишнего нажатия
   useWindowReturn(() => {
@@ -119,100 +105,27 @@ export function MicAccessCard({
   }, [onClose]);
 
   const denied = blocker.kind === 'mic-denied';
-  const systemAudio = Boolean(blocker.systemAudio) && !(denied && blocker.coreRefused);
-  // Мелкая строка под заголовком только там, где без неё непонятно, что случилось
-  const note = denied ? (blocker.zeros ? t('micNotSaved') : blocker.stillDenied ? t('micRestartNote') : null) : null;
+  // Подпись: что с записью или что сделать (шаблон текстов, notifications.md)
+  const hint = denied ? (blocker.zeros ? t('micNotSaved') : blocker.stillDenied ? t('micRestartNote') : t('micDeniedHint')) : t('micMissingHint');
+  const open = () => {
+    if (denied) {
+      awaiting.current = true;
+      void openPrivacySettings('microphone');
+    } else openRecordingSettings();
+  };
 
   return (
-    // Крестик в строке знака, не по центру карточки: справа запаса под него не нужно
-    <CardShell className="pr-5">
-      <div role="alert" data-shade-mic={blocker.kind} className="w-full min-w-0">
-        {/* Знак и крестик по центру блока «заголовок + подпись»; картинка и кнопки ниже, по левому краю текста */}
-        <div className="flex min-w-0 items-center gap-4">
-          <Sign>
-            <MicrophoneSlash />
-          </Sign>
-          <div className="min-w-0 flex-1">
-            <p className={NOTICE_TITLE}>{denied ? t('micDeniedTitle') : t('micMissingTitle')}</p>
-            {note && <p className={cn('mt-0.5', NOTICE_HINT)}>{note}</p>}
-          </div>
-          <CloseButton onClick={onClose} className="static translate-y-0" />
-        </div>
-        <div className="pl-[60px]">
-          {/* Подсказка картинкой: строка «Shade» с включающимся переключателем, как в Системных настройках */}
-          {denied && <SettingsHint />}
-          <div className="mt-3 flex flex-wrap items-center gap-1">
-            {denied ? (
-              <Button
-                ref={primary}
-                disabled={checking}
-                onClick={() => {
-                  awaiting.current = true;
-                  void openPrivacySettings('microphone');
-                }}
-              >
-                {checking && <Spinner tone="inherit" />}
-                {t('micOpenSettings')}
-              </Button>
-            ) : (
-              <Button ref={primary} disabled={checking} onClick={() => void recheck()}>
-                {checking && <Spinner tone="inherit" />}
-                {t('checkAgain')}
-              </Button>
-            )}
-            {systemAudio && (
-              <Button variant="ghost" className="px-4 text-muted-foreground hover:text-foreground" disabled={checking} onClick={onSystemOnly}>
-                {t('systemOnlyShort')}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </CardShell>
-  );
-}
-
-/**
- * Мини-иллюстрация «включите в настройках». Это картинка, а не элемент управления:
- * - миниатюрное окно Системных настроек (кнопки окна, подпись «Микрофон»), мельче
- *   интерфейса, на подложке, читается как снимок экрана;
- * - переключатель нажимает нарисованный указатель, тот же, что в показе онбординга;
- * - на картинку нельзя навести и нажать (pointer-events: none), курсор обычный.
- * Цикл 2,8 с (.shade-mic-demo в globals.css); при «уменьшить движение» переключатель
- * включён, указатель стоит на нём. Для читалки экрана одна фраза.
- */
-function SettingsHint() {
-  useLang();
-  return (
-    <div className="mt-3 w-[240px] max-w-full">
-      <div aria-hidden className="shade-mic-demo pointer-events-none select-none overflow-hidden rounded-nested bg-muted p-2.5">
-        <div className="rounded-[10px] bg-card px-2.5 pb-2.5 pt-2 shadow-sm">
-          <div className="flex items-center gap-1">
-            <span className="size-[6px] rounded-full bg-foreground/15" />
-            <span className="size-[6px] rounded-full bg-foreground/15" />
-            <span className="size-[6px] rounded-full bg-foreground/15" />
-            <span className="ml-1.5 text-[11px] font-semibold leading-none text-muted-foreground">{t('micDemoPane')}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element -- статическая выгрузка без оптимизатора изображений */}
-            <img src={BRAND_MARK_SRC} width={16} height={16} alt="" className="size-4 rounded-[4px]" />
-            <span className="flex-1 text-[12px] font-medium leading-none">Shade</span>
-            <span className="relative">
-              <span className="shade-mic-demo-track relative block h-[15px] w-[26px] rounded-full">
-                <span className="shade-mic-demo-knob absolute left-[1.5px] top-[1.5px] size-3 rounded-full bg-white shadow-sm" />
-              </span>
-              {/* Указатель: кончик на переключателе */}
-              <span className="shade-mic-demo-cursor absolute left-[14px] top-[7px]">
-                <svg viewBox="0 0 16 22" className="block h-[18px] w-[13px] drop-shadow-sm">
-                  <path d="M1 1v17.5l4.6-4.4 3 6.7 2.9-1.3-3-6.6H15L1 1Z" fill="hsl(var(--foreground))" stroke="hsl(var(--card))" strokeWidth="1.4" strokeLinejoin="round" />
-                </svg>
-              </span>
-            </span>
-          </div>
-        </div>
-      </div>
-      <span className="sr-only">{t('micSwitchHint')}</span>
-    </div>
+    <Notice
+      role="alert"
+      data-shade-mic={blocker.kind}
+      className={DOCK_CARD}
+      icon="problem"
+      title={denied ? t('micDeniedTitle') : t('micMissingTitle')}
+      hint={hint}
+      actions={<NoticeButton action={{ label: t('micOpenSettings'), onClick: open }} disabled={checking} busy={checking} />}
+      onClose={onClose}
+      closeLabel={t('close')}
+    />
   );
 }
 
@@ -239,28 +152,27 @@ export function micHintKind(watch: MicWatchState, systemOnly: boolean, blind: bo
 export function MicHint({ kind, onClose }: { kind: MicHintKind; onClose: () => void }) {
   useLang();
   const [soundCheck, setSoundCheck] = useState(false);
+  const action =
+    kind === 'blind'
+      ? { label: t('micOpenSettings'), onClick: () => void openPrivacySettings('microphone') }
+      : kind !== 'system-only'
+        ? { label: t('soundCheck'), onClick: () => setSoundCheck(true) }
+        : null;
   return (
-    // Крестик у подложки дока (у неё relative и p-4): 16 px от края, как её отступ; справа запас 52 px, кнопки и текст не заходят под него
-    <div className="flex min-w-0 items-center gap-3 pr-[52px]" role="status" data-shade-mic-hint={kind}>
-      <div className="min-w-0 flex-1">
-        <p className={NOTICE_TITLE}>{t(HINT[kind].title)}</p>
-        <p className={cn('mt-0.5', NOTICE_HINT)}>{t(HINT[kind].hint)}</p>
-      </div>
-      {kind === 'blind' ? (
-        <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => void openPrivacySettings('microphone')}>
-          <GearSix />
-          {t('micOpenSettings')}
-        </Button>
-      ) : (
-        kind !== 'system-only' && (
-          <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => setSoundCheck(true)}>
-            <SpeakerHigh />
-            {t('soundCheck')}
-          </Button>
-        )
-      )}
-      <CloseButton onClick={onClose} className="right-4" />
+    <>
+      <Notice
+        role="status"
+        data-shade-mic-hint={kind}
+        className={DOCK_CARD}
+        icon={kind === 'system-only' ? 'info' : 'problem'}
+        title={t(HINT[kind].title)}
+        hint={t(HINT[kind].hint)}
+        hintTitle={t(HINT[kind].hint)}
+        actions={action && <NoticeButton action={action} />}
+        onClose={onClose}
+        closeLabel={t('close')}
+      />
       <SoundCheckDialog open={soundCheck} onOpenChange={setSoundCheck} />
-    </div>
+    </>
   );
 }
