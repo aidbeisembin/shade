@@ -2,14 +2,17 @@
 // показывать, решает lib/feedback/policy.ts; шаги и переходы в lib/feedback/flow.ts.
 //  - 3-5 звёзд: оценка уходит сразу. Звезда допрыгивает (FOLD_DELAY_MS), и как только ответ пришёл,
 //    карточка сжимается в плашку «Спасибо / Отзыв отправлен» с зелёной галочкой (высота и ширина на
-//    пружине, отступ со всех сторон 16 px), через THANKS_HOLD_MS уходит.
+//    пружине, отступ со всех сторон 16 px), через THANKS_HOLD_MS уходит. Если адрес чата беты задан,
+//    под «Отзыв отправлен» ссылка «Обсудить в чате беты»: тогда плашка держится CHAT_HOLD_MS и не
+//    уходит, пока на карточке указатель или фокус (иначе ссылку не успеть нажать).
 //  - 1-2 звезды: карточка раскрывается в форму «Что улучшить?» (заголовок перекатывается, высота на
 //    пружине), поле в фокусе, Cmd+Enter отправляет, Esc закрывает. Без «Отправить» ничего не уходит.
 //  - Наведение и стрелки ничего не отправляют. Крестик или Esc до выбора: закрыто, ничего не ушло.
 //  - Не ушло (нет сети, функция не настроена): «Не получилось отправить, попробуем позже», отзыв в
 //    очереди. Звезды на GitHub в карточке нет (будет отдельной иконкой).
 //  - Уходит из дока с тем видом, что был виден последним: шаг «закрыто» звёзды не возвращает.
-//  - Рядом с «Отправить» ссылка «Обсудить в чате беты», если адрес задан (lib/beta-chat.ts).
+//  - Рядом с «Отправить» ссылка «Обсудить в чате беты», если адрес задан (lib/beta-chat.ts). В плашках
+//    «не получилось» ссылки нет: сети нет, чат тоже не откроется.
 'use client';
 
 import * as React from 'react';
@@ -33,6 +36,9 @@ import { shadeToast } from '@/shade/lib/toasts';
 function openBetaChat(url: string) {
   invoke('open_external_url', { url }).catch((error) => shadeToast.error(t('openLinkFailed'), { description: String(error) }));
 }
+
+/** «Спасибо» со ссылкой на чат беты держится дольше: ссылку надо успеть заметить и нажать. */
+export const CHAT_HOLD_MS = 6000;
 
 /** «Не получилось отправить» держится дольше «Спасибо»: его надо успеть прочитать. */
 export const FAILED_HOLD_MS = 4000;
@@ -80,11 +86,17 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
     return after(prefersReducedMotion() ? 0 : FOLD_DELAY_MS, () => setFolded(true));
   }, [direct, folded]);
 
-  // Плашка итога видна и уходит сама (таймер во времени движка: на ×0,25 ждёт вчетверо дольше)
+  // Плашка итога видна и уходит сама (таймер во времени движка: на ×0,25 ждёт вчетверо дольше).
+  // Со ссылкой на чат: дольше, и пока указатель или фокус на карточке, не уходит (отсчёт заново после)
+  const chat = betaChatUrl();
+  const chatInPlaque = plaque === 'sent' && chat !== null;
+  const [held, setHeld] = React.useState(false);
+  const paused = chatInPlaque && held;
   React.useEffect(() => {
-    if (!plaque) return;
-    return after(plaque === 'sent' ? THANKS_HOLD_MS : FAILED_HOLD_MS, () => dispatch({ type: 'close' }));
-  }, [plaque]);
+    if (!plaque || paused) return;
+    const hold = plaque !== 'sent' ? FAILED_HOLD_MS : chatInPlaque ? CHAT_HOLD_MS : THANKS_HOLD_MS;
+    return after(hold, () => dispatch({ type: 'close' }));
+  }, [plaque, paused, chatInPlaque]);
 
   // Закрыто: закрытие без отправки записывается (журнал; следующий показ по расписанию policy.ts)
   const closedOnce = React.useRef(false);
@@ -96,7 +108,6 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
   }, [flow.step, flow.dismissed, onDone]);
 
   const titleKey = inForm ? 'feedbackImproveTitle' : 'feedbackAskTitle';
-  const chat = betaChatUrl();
 
   return (
     <section
@@ -109,6 +120,12 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
       // одном элементе перестаёт размывать, и строки под карточкой просвечивают
       // Ширину ведёт useSpringWidth: до CARD_MAX со звёздами и формой, по содержимому в плашке
       className="shade-glass shade-glass-dense relative max-w-full rounded-tile"
+      onPointerEnter={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false);
+      }}
       onKeyDown={(e) => {
         // Esc вне поля: закрыть (в поле Esc обрабатывает само поле)
         if (e.key === 'Escape' && !e.defaultPrevented) {
@@ -123,7 +140,24 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
         <div ref={inner} className={cn('shrink-0', plaque ? 'p-4' : cn('p-5', !direct && 'pr-[72px]'))}>
           {plaque ? (
             <div className="shade-dock-in">
-              <OutcomePlaque outcome={plaque} />
+              <OutcomePlaque
+                outcome={plaque}
+                action={
+                  chatInPlaque &&
+                  chat && (
+                    <Button
+                      variant="link"
+                      className="mt-1 h-auto p-0 text-sm"
+                      onClick={() => {
+                        openBetaChat(chat);
+                        dispatch({ type: 'close' });
+                      }}
+                    >
+                      {t('betaChat')}
+                    </Button>
+                  )
+                }
+              />
             </div>
           ) : (
             <div className="flex min-w-0 flex-col">
