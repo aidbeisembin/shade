@@ -1,8 +1,8 @@
 // Уведомления Shade: sonner в наших токенах и теме. Сами тосты рисует общий компонент Notice
 // (ui/notice.tsx, через installShadeToasts в lib/toasts.tsx), как итог записи у капсулы.
-// Место одно на все уведомления: стопка внизу по центру колонки страницы, над тем, что
-// сейчас в доке записи (кнопка, капсула, карточка итога; lib/notice-stack.ts, .shade-toaster в
-// globals.css). Тосты раскрыты списком через 8 px (expand, gap), а не сложены колодой друг
+// Место одно на все уведомления: правый нижний угол колонки страницы, на высоте низа дока
+// записи; если содержимое дока заходит под угол, тосты встают над ним (lib/notice-stack.ts,
+// .shade-toaster в globals.css). Тосты раскрыты списком через 8 px (expand, gap), а не сложены колодой друг
 // под другом: непрозрачно друг на друга не ложатся. Появление и уход размытием там же.
 // ICONS и крестик sonner остаются для toast.promise, если появится.
 'use client';
@@ -14,6 +14,10 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { getStoredTheme, onThemeChange, type ThemeMode } from '@/shade/lib/theme';
 import { installShadeToasts } from '@/shade/lib/toasts';
 import { STACK_GAP } from '@/shade/lib/notice-stack';
+
+/** Сколько тост висит, если вызов не задал своё: 4 с хватает прочесть две строки и нажать
+ *  «Вернуть»; под курсором и в свёрнутом окне sonner время не считает. Было 5 с. */
+export const TOAST_DURATION_MS = 4000;
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 
@@ -43,12 +47,12 @@ export function ShadeToaster() {
   return (
     <Toaster
       theme={theme}
-      position="bottom-center"
+      position="bottom-right"
       expand
       gap={STACK_GAP}
       closeButton
       icons={ICONS}
-      duration={5000}
+      duration={TOAST_DURATION_MS}
       visibleToasts={3}
       className="shade-toaster"
       toastOptions={{ closeButtonAriaLabel: t('toasterClose') }}
