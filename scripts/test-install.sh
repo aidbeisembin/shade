@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Тест scripts/install.sh на подставных командах (curl, hdiutil, ditto, pgrep, sysctl, uname, open)
-# и временной папке вместо /Applications. Случаи из таблицы PR: установка с нуля, Shade уже стоит
-# (данные не тронуты), Shade запущен, нет сети, SHA-256 не совпал, суммы нет в SHA256SUMS.txt,
-# не Apple Silicon, не macOS, тексты на английском.
+# Тест scripts/install.sh на подставных командах (curl, hdiutil, ditto, codesign, pgrep, sysctl,
+# uname, open) и временной папке вместо /Applications. Случаи из таблицы PR: установка с нуля, Shade
+# уже стоит (данные не тронуты), Shade запущен, нет сети, SHA-256 не совпал, суммы нет в
+# SHA256SUMS.txt, не Apple Silicon, не macOS, тексты на английском; подписи нет, подпись чужая,
+# подпись ad-hoc, подпись повреждена (codesign --verify не проходит).
+# Настоящий codesign: tests в scripts/release/test-check-signature.sh (macOS) и шаг «install.sh
+# ставит этот .dmg» в release.yml.
 # Сам install.sh исполняется /bin/bash, если он есть (на Mac это bash 3.2, как у curl | bash).
 # Запуск: bash scripts/test-install.sh (macOS и Linux).
 
@@ -30,6 +33,16 @@ stub ditto 'cp -R "$1" "$2"'
 stub curl 'url="${!#}"; echo "curl $url" >> "$LOG"; [ "${FAKE_OFFLINE:-0}" = 1 ] && exit 6
 out=""; while [ $# -gt 0 ]; do if [ "$1" = -o ]; then out="$2"; shift; fi; shift; done
 cp "$FIX/${url##*/}" "$out"'
+# codesign --verify --deep --strict <app> | codesign -dvv <app> (вывод в stderr, как у настоящего)
+# FAKE_SIG: ok (Shade Beta Signing), none (без подписи), foreign (чужой сертификат), adhoc, broken
+stub codesign 'sig="${FAKE_SIG:-ok}"
+if [ "$1" = --verify ]; then case "$sig" in none) echo "code object is not signed at all" >&2; exit 1 ;; broken) echo "a sealed resource is missing or invalid" >&2; exit 1 ;; esac; exit 0; fi
+case "$sig" in
+  none) echo "code object is not signed at all" >&2; exit 1 ;;
+  adhoc) printf "Executable=x\nSignature=adhoc\nTeamIdentifier=not set\n" >&2 ;;
+  foreign) printf "Executable=x\nAuthority=Someone Else Signing\nTeamIdentifier=not set\n" >&2 ;;
+  *) printf "Executable=x\nAuthority=Shade Beta Signing\nTeamIdentifier=not set\n" >&2 ;;
+esac'
 # hdiutil attach ... -mountpoint <папка> <dmg> | hdiutil detach <папка>
 stub hdiutil 'if [ "$1" = attach ]; then m=""; while [ $# -gt 0 ]; do if [ "$1" = -mountpoint ]; then m="$2"; shift; fi; shift; done
 mkdir -p "$m" && cp -R "$FIX/Shade.app" "$m/"; else exit 0; fi'
@@ -54,7 +67,7 @@ fresh() {
 run() {
   set +e
   OUT=$(env PATH="$STUB:$PATH" HOME="$WORK/home" LOG="$WORK/log" FIX="$FIX" \
-    FAKE_UNAME="${FAKE_UNAME:-Darwin}" FAKE_ARM64="${FAKE_ARM64:-1}" FAKE_RUNNING="${FAKE_RUNNING:-0}" FAKE_OFFLINE="${FAKE_OFFLINE:-0}" \
+    FAKE_UNAME="${FAKE_UNAME:-Darwin}" FAKE_ARM64="${FAKE_ARM64:-1}" FAKE_RUNNING="${FAKE_RUNNING:-0}" FAKE_OFFLINE="${FAKE_OFFLINE:-0}" FAKE_SIG="${FAKE_SIG:-ok}" \
     SHADE_APPS_DIR="$WORK/apps" SHADE_RELEASE_URL="https://example.test/latest/download" \
     LANG="${TEST_LANG:-ru_RU.UTF-8}" "$RUN_BASH" "$INSTALL" 2>&1)
   CODE=$?
@@ -112,6 +125,26 @@ check "сумма не совпала: не запускали" bash -c "! grep 
 NO_SUM=1 fresh; run
 check "суммы нет: код не 0" test "$CODE" != 0
 check "суммы нет: приложения нет" test ! -e "$WORK/apps/Shade.app"
+
+# 6a-6d. Подпись приложения из .dmg не та: отказ, ничего не поставлено, прежняя версия на месте
+sig_case() {
+  local sig="$1" title="$2"
+  fresh; mkdir -p "$WORK/apps/Shade.app/Contents"; echo old > "$WORK/apps/Shade.app/Contents/version"
+  FAKE_SIG="$sig" run
+  check "$title: код не 0" test "$CODE" != 0
+  check "$title: сказано" has "подпись не совпала, ничего не установлено"
+  check "$title: прежняя версия на месте" test "$(app_version)" = old
+  check "$title: в папке только Shade.app" test "$(ls "$WORK/apps")" = Shade.app
+  check "$title: не запускали" bash -c "! grep -q '^open' '$WORK/log'"
+}
+sig_case none "подписи нет"
+sig_case foreign "подпись чужая"
+sig_case adhoc "подпись ad-hoc"
+sig_case broken "подпись повреждена"
+fresh; FAKE_SIG=foreign run
+check "подпись чужая, с нуля: приложения нет" test ! -e "$WORK/apps/Shade.app"
+fresh; FAKE_SIG=none TEST_LANG=en_US.UTF-8 run
+check "подписи нет, en: по-английски" has "signature mismatch, nothing was installed"
 
 # 7. Не Apple Silicon: понятный отказ до скачивания
 fresh; FAKE_ARM64=0 run

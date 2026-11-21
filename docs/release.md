@@ -36,7 +36,11 @@ openssl pkcs12 -export -inkey key.pem -in cert.pem -name "Shade Beta Signing" -c
 
 Локальная `pnpm tauri build` по-прежнему подписывает ad-hoc (`signingIdentity: "-"` в конфиге) и не требует ключа обновлений: артефакты обновлений включаются только в CI (`--config`).
 
-**Gatekeeper.** Без Developer ID и нотаризации macOS при первом запуске скачанного браузером приложения спрашивает «Всё равно открыть» (README, «Установка»). `install.sh` качает через `curl`, файлу не ставится карантин, и вопроса нет.
+**Gatekeeper.** Без Developer ID и нотаризации macOS при первом запуске скачанного браузером приложения спрашивает «Всё равно открыть» (README, «Установка», способ 2). `install.sh` качает через `curl`, файлу не ставится карантин, и вопроса нет; поэтому в README и описании релиза он первый. Если кнопки «Всё равно открыть» нет совсем, README даёт запасную команду `xattr -cr /Applications/Shade.app`: она снимает карантин с уже перенесённого приложения (решение владельца 21.11.2026, `docs/case/decisions.md`).
+
+**install.sh сверяет подпись.** После SHA-256 скрипт проверяет приложение из `.dmg`: `codesign --verify --deep --strict` и первая строка `Authority` у `codesign -dvv` равна `SIGNER` (сейчас «Shade Beta Signing»). Иначе «подпись не совпала, ничего не установлено», `/Applications` не тронута. Шаг релиза «install.sh installs this .dmg» ставит собранный `.dmg` этим же скриптом (`curl` по `file://`, настоящие `hdiutil` и `codesign`) и падает, если подпись в секретах другая: так `SIGNER` и `MACOS_SIGNING_IDENTITY` не разойдутся незаметно.
+
+**Окно .dmg.** Фон с шагами по-русски и по-английски: стрелка «Перетащите в Программы», «Первый запуск: Системные настройки → Конфиденциальность и безопасность → Всё равно открыть», мелко `xattr`. Картинка `scripts/release/dmg/background.png` (680x480 pt, 2x, 144 dpi) рисуется `swift scripts/release/dmg/make-background.swift`; меняя текст, перерисовать и закоммитить PNG. Раскладка (размер окна, места значков) передаётся Tauri через `--config` в шаге Build (`bundle.macOS.dmg`), `tauri.conf.json` не меняется. На CI Tauri по умолчанию пропускает оформление окна (AppleScript в Finder, флаг `--skip-jenkins` при `CI=true`), поэтому в шаге задано `TAURI_BUNDLER_DMG_IGNORE_CI=true`. Шаг «dmg window layout» проверяет, что в образе есть фон, `.DS_Store` и ярлык `Applications`; как окно выглядит, смотреть глазами на `.dmg` из артефакта прогона.
 
 **Образ .dmg без подписи.** Tauri подписывает и сам `.dmg`. Такой образ (подписан, не нотаризован) с карантином браузера macOS 27 молча убирает в Корзину: `open` отвечает -128, окна и кнопки «Всё равно открыть» нет, установить Shade нельзя. Проверено 21.11.2026 на `.dmg` из прогона `workflow_dispatch`, скачанном Chrome. Неподписанный образ с тем же приложением монтируется, и дальше путь из README. Поэтому шаг «Unsigned dmg» (`scripts/release/unsign-dmg.sh`, `hdiutil convert`) снимает подпись с образа; `Shade.app` внутри подписан, требование то же (проверка подписи монтирует образ после этого шага). С Developer ID так же: нотаризуется приложение, образ остаётся без подписи.
 
@@ -69,11 +73,12 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo aidbeisembin/shade < ~/.
 
 ## Переход на Developer ID
 
-Workflow не меняется:
+Workflow не меняется, меняются секреты и одна строка в `install.sh`:
 
 1. `MACOS_CERTIFICATE` и `MACOS_CERTIFICATE_PASSWORD`: `.p12` сертификата «Developer ID Application».
 2. `MACOS_SIGNING_IDENTITY`: его полное имя, `Developer ID Application: … (TEAMID)`.
 3. `APPLE_ID`, `APPLE_PASSWORD` (пароль приложения), `APPLE_TEAM_ID`: шаг «Notarization credentials» передаст их Tauri, и он нотаризует сборку.
+4. `SIGNER` в `scripts/install.sh`: то же имя, что в `MACOS_SIGNING_IDENTITY`; заодно строку про подпись в README и `scripts/release/release-notes.sh`. Без этого релиз упадёт на шаге «install.sh installs this .dmg».
 
 Требование подписи сменится на `anchor apple generic and certificate leaf[subject.OU] = TEAMID`: с самоподписанной версии на первую подписанную Developer ID macOS один раз попросит разрешения заново. Дальше они снова переживают обновления.
 
@@ -95,8 +100,8 @@ Workflow не меняется:
 
 ## Проверки
 
-- `bash scripts/release/test-release.sh`: версия и тег, секреты, `latest.json`, подпись обновления (minisign), описание релиза.
-- `bash scripts/release/test-check-signature.sh` (macOS): требование без cdhash, одинаковое у двух версий; ad-hoc, без подписи и чужой сертификат отклоняются; `unsign-dmg.sh` снимает подпись с образа, приложение внутри то же; `import-signing-cert.sh` принимает годный `.p12` и отклоняет сертификат с `basicConstraints`, неверный пароль, не то имя.
-- `bash scripts/test-install.sh`: `install.sh` на подставных командах.
+- `bash scripts/release/test-release.sh`: версия и тег, секреты, `latest.json`, подпись обновления (minisign), описание релиза и README (сначала Терминал, потом `.dmg`, запасная команда `xattr`).
+- `bash scripts/release/test-check-signature.sh` (macOS): требование без cdhash, одинаковое у двух версий; ad-hoc, без подписи и чужой сертификат отклоняются; `unsign-dmg.sh` снимает подпись с образа, приложение внутри то же; `import-signing-cert.sh` принимает годный `.p12` и отклоняет сертификат с `basicConstraints`, неверный пароль, не то имя; `install.sh` с настоящими `codesign` и `hdiutil` ставит приложение своего сертификата и не ставит чужое, ad-hoc, неподписанное и изменённое после подписи.
+- `bash scripts/test-install.sh`: `install.sh` на подставных командах, в том числе подписи нет, чужая, ad-hoc, повреждена.
 - `pnpm test`: `lib/updates.test.ts`, `components/update-card.test.tsx`, `lib/beta-chat.test.ts`.
 - Все четыре в CI `shade-check` (задача `release` на macOS и `frontend`).

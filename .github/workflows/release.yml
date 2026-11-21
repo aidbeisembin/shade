@@ -137,10 +137,17 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.signing == 'throwaway' && env.DRY_TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
+          # На CI Tauri пропускает оформление окна .dmg (AppleScript в Finder): без этого нет ни фона,
+          # ни мест значков
+          TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
         run: |
           # Интерфейс уже собран шагом выше (beforeBuildCommand снят). В режиме throwaway публичный ключ
-          # одноразовый (сборка не публикуется)
-          config=$(jq -nc --arg k "${DRY_UPDATER_PUBKEY:-}" '{build: {beforeBuildCommand: null}, bundle: {createUpdaterArtifacts: true}} + (if $k == "" then {} else {plugins: {updater: {pubkey: $k}}} end)')
+          # одноразовый (сборка не публикуется).
+          # Окно .dmg: фон с шагами установки (scripts/release/dmg/make-background.swift, 680x480 pt);
+          # места значков совпадают с картинкой. tauri.conf.json не трогаем: всё через --config
+          dmg=$(jq -nc --arg bg "$GITHUB_WORKSPACE/scripts/release/dmg/background.png" '{background: $bg, windowSize: {width: 680, height: 480}, appPosition: {x: 170, y: 150}, applicationFolderPosition: {x: 510, y: 150}}')
+          config=$(jq -nc --arg k "${DRY_UPDATER_PUBKEY:-}" --argjson dmg "$dmg" '{build: {beforeBuildCommand: null}, bundle: {createUpdaterArtifacts: true, macOS: {dmg: $dmg}}} + (if $k == "" then {} else {plugins: {updater: {pubkey: $k}}} end)')
+          echo "$config" | jq .
           pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg --config "$config" --features coreml
 
       - name: Collect files
@@ -211,6 +218,7 @@ jobs:
           cat "$OUT/latest.json"
           cat "$OUT/SHA256SUMS.txt"
 
+      # До проверок ниже: если они упадут, .dmg всё равно можно скачать и посмотреть
       - name: Upload build (artifact)
         uses: actions/upload-artifact@v4
         with:
@@ -219,6 +227,37 @@ jobs:
             ${{ steps.files.outputs.out }}/*
             ${{ runner.temp }}/notes.md
           retention-days: 14
+
+      # Окно .dmg оформлено: фон, раскладка Finder (.DS_Store), ярлык «Программы». Смотреть глазами:
+      # .dmg из артефакта прогона (docs/release.md)
+      - name: dmg window layout (background, .DS_Store, Applications link)
+        env:
+          OUT: ${{ steps.files.outputs.out }}
+        run: |
+          mnt="$RUNNER_TEMP/dmg-layout"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$OUT/Shade_aarch64.dmg" -quiet
+          trap 'hdiutil detach "$mnt" -quiet' EXIT
+          /bin/ls -la "$mnt" "$mnt/.background"
+          cmp "$mnt/.background/background.png" scripts/release/dmg/background.png
+          test -s "$mnt/.DS_Store"
+          test "$(readlink "$mnt/Applications")" = /Applications
+          test -d "$mnt/Shade.app"
+
+      # install.sh ставит именно этот .dmg (curl по file://, настоящие hdiutil и codesign; open подставной):
+      # сумма из SHA256SUMS.txt и подпись. С секретами install.sh ждёт свой SIGNER: если подпись в
+      # секретах другая (переход на Developer ID), релиз падает здесь, а не у людей
+      - name: install.sh installs this .dmg (scripts/install.sh)
+        env:
+          OUT: ${{ steps.files.outputs.out }}
+          DRY_SIGNER: ${{ inputs.signing == 'throwaway' && env.DRY_MACOS_SIGNING_IDENTITY || '' }}
+        run: |
+          stub="$RUNNER_TEMP/install-stub" apps="$RUNNER_TEMP/install-apps"
+          mkdir -p "$stub" "$apps"
+          printf '#!/bin/sh\necho "open $*"\n' > "$stub/open"; chmod +x "$stub/open"
+          if [ -n "$DRY_SIGNER" ]; then export SHADE_SIGNER="$DRY_SIGNER"; fi
+          PATH="$stub:$PATH" SHADE_RELEASE_URL="file://$OUT" SHADE_APPS_DIR="$apps" /bin/bash scripts/install.sh \
+            || { echo "::error::install.sh не поставил этот .dmg. Подпись в секретах (MACOS_SIGNING_IDENTITY) и SIGNER в scripts/install.sh должны совпадать"; exit 1; }
+          test -d "$apps/Shade.app"
 
       # Обычный релиз, не pre-release: /releases/latest (эндпоинт обновлений и install.sh)
       # pre-release не видит

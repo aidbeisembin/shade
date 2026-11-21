@@ -5,6 +5,8 @@
 # подпись (требование привязано к cdhash) отклонена; неподписанное отклонено; другой сертификат
 # (macOS сочла бы его другим приложением) отклонён; не то имя сертификата отклонено.
 # unsign-dmg.sh: подписанный образ становится неподписанным, приложение внутри то же.
+# install.sh с настоящими codesign, hdiutil и curl (file://): ставит приложение нужного сертификата;
+# чужой сертификат, ad-hoc, без подписи и изменённое после подписи приложение не ставит.
 # import-signing-cert.sh: годный .p12 принят; самоподписанный с basicConstraints, неверный пароль,
 # не то имя отклонены.
 # Запуск: bash scripts/release/test-check-signature.sh (только macOS).
@@ -132,6 +134,34 @@ hdiutil detach "$WORK/smnt" -quiet
 check "dmg: приложение внутри с той же подписью" test "$CODE" = 0
 run bash "$HERE/unsign-dmg.sh" "$WORK/нет.dmg"
 check "dmg: нет файла, отказ" test "$CODE" != 0
+
+# install.sh: настоящие codesign, hdiutil и curl (file://), подставной только open (не запускать)
+inst() {
+  local app="$1" rel="$WORK/rel-$2"; shift 2
+  mkdir -p "$rel/src" "$rel/apps" "$rel/stub"
+  ditto "$app" "$rel/src/Shade.app"
+  hdiutil create -quiet -volname Shade -srcfolder "$rel/src" -format UDZO "$rel/Shade_aarch64.dmg"
+  (cd "$rel" && shasum -a 256 Shade_aarch64.dmg > SHA256SUMS.txt)
+  printf '#!/bin/sh\necho "open $*"\n' > "$rel/stub/open"; chmod +x "$rel/stub/open"
+  run env PATH="$rel/stub:$PATH" LANG=ru_RU.UTF-8 SHADE_RELEASE_URL="file://$rel" SHADE_APPS_DIR="$rel/apps" "$@" \
+    /bin/bash "$HERE/../install.sh"
+  INST_APPS="$rel/apps"
+}
+refused() { test "$CODE" != 0 && has "подпись не совпала, ничего не установлено" && test ! -e "$INST_APPS/Shade.app"; }
+inst "$A" ok SHADE_SIGNER="Shade Test Signing"
+check "install.sh: свой сертификат, поставлено" test "$CODE" = 0 -a -x "$INST_APPS/Shade.app/Contents/MacOS/Shade"
+check "install.sh: свой сертификат, запущено" has "open $INST_APPS/Shade.app"
+inst "$A" default
+check "install.sh: ждёт «Shade Beta Signing», подпись другая, отказ" refused
+inst "$E" other SHADE_SIGNER="Shade Test Signing"
+check "install.sh: чужой сертификат, отказ" refused
+inst "$C" adhoc SHADE_SIGNER="Shade Test Signing"
+check "install.sh: ad-hoc, отказ" refused
+inst "$D" unsigned SHADE_SIGNER="Shade Test Signing"
+check "install.sh: без подписи, отказ" refused
+T="$WORK/t.app"; ditto "$A" "$T"; /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 9.9.9" "$T/Contents/Info.plist"
+inst "$T" tampered SHADE_SIGNER="Shade Test Signing"
+check "install.sh: изменён после подписи, отказ" refused
 
 # import-signing-cert.sh: секреты как в CI; сертификат с basicConstraints отклонён до сборки
 imp() {
