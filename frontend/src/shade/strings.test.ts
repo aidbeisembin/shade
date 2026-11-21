@@ -209,7 +209,7 @@ describe('t, tf, tp на текущем языке', () => {
   test('tDays подставляет срок корзины на текущем языке', () => {
     expect(tDays('deletedHint')).toContain('30 дней');
     setLang('en');
-    expect(tDays('deletedHint')).toBe('Restore it from “Trash” within 30 days');
+    expect(tDays('deletedHint')).toBe('Deleted for good in 30\u00A0days');
   });
 
   test('tp на текущем языке', () => {
@@ -251,18 +251,24 @@ describe('пропущенный ключ', () => {
   });
 });
 
-// Подпись в уведомлениях и всплывающих окнах не длиннее двух строк (владелец 2026-11-21).
-// Две строки дают ширина контейнера и длина текста; бюджет в символах с подставленными
-// {days}, {n}, взят с запасом на перенос по словам:
-//  - тост: колонка текста 188 px при тосте 340 px (окно 960 рядом с кнопкой записи), ~26 знаков в строке;
-//  - карточка дока (подсказки про микрофон, обновление): колонка ~290 px рядом с кнопкой действия;
-//  - диалог: max-w-md без полей, 400 px, ~55 знаков в строке.
-describe('подпись уведомлений и окон не длиннее двух строк', () => {
+// Подпись карточки уведомления в одну строку, окна не длиннее двух (docs/ui/notifications.md).
+// Бюджет в символах с подставленными {days}, {n}; ширины замерены в окне 1100 × 700, SF 14 px:
+//  - угол: карточка 500 px, рядом с кнопкой действия колонка текста ~253 px, ~33 знака;
+//  - док: карточка по содержимому, не уже 500 px, рядом с кнопкой ~36 знаков в одну строку;
+//  - диалог: max-w-md без полей, 400 px, ~55 знаков в строке, две строки.
+// Что длиннее, обрезается многоточием с полным текстом в подсказке (ui/notice.tsx).
+describe('подпись карточек в одну строку, окон не длиннее двух', () => {
   const BUDGET = {
-    toast: { max: 40, keys: ['deletedHint', 'lowContentHint', 'recordsDeleteFailed', 'recoveredManyHint', 'recordsCount'] },
+    corner: {
+      max: 33,
+      keys: ['deletedHint', 'lowContentHint', 'recordsDeleteFailed', 'recordsCount', 'recoveredManyHint', 'restoredManyHint', 'updateHint', 'updateFailedHint'],
+    },
     dock: {
-      max: 70,
-      keys: ['micSilentHint', 'micLostHint', 'systemOnlyHint', 'micBlindHint', 'silenceCauseGeneric', 'silenceCauseNoAccess', 'updateHint', 'updateFailedHint', 'discardedNotSaved'],
+      max: 36,
+      keys: [
+        'micSilentHint', 'micLostHint', 'systemOnlyHint', 'micBlindHint', 'silenceCauseGeneric', 'silenceCauseNoAccess', 'discardedNotSaved',
+        'discardedUnrecognizedHint', 'micDeniedHint', 'micMissingHint', 'micRestartNote', 'micNotSaved', 'micAccessBackHint', 'micAccessUnknownBackHint',
+      ],
     },
     dialog: {
       max: 100,

@@ -28,6 +28,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { markDiscarded, purgeDiscarded } from './recording-marks';
 import { purgeExpiredTrash, restoreMeeting, trashMeeting } from './meeting-trash';
 import { shadeToast } from './toasts';
+import { RESULT_ACTION_MS, RESULT_MS, outcomeTimeout } from './notice-timing';
+import { corner } from './corner';
+import { notifyRestored } from './corner-messages';
 import { runCrashRecovery } from './crash-recovery';
 import { setTitlePending, stillBusy, titleMany, titler } from './title-service';
 import { displayTitleBrief } from './format';
@@ -40,15 +43,19 @@ const TITLE_WAIT_MS = 5000;
 const TITLE_WAIT_TRIES = (3 * 60 * 60 * 1000) / TITLE_WAIT_MS;
 
 /**
- * Сколько показывать карточку «Тишина»: короткий заголовок, подсказка и одно
- * действие читаются за 3–4 с, с запасом 8 с. Под курсором, в фокусе и с открытой
- * «Проверить звук» время не идёт, но не дольше NOTICE_MAX_MS, чтобы карточка
- * не зависала (курсор просто остался на месте после «Остановить»).
+ * Сколько показывать итог отбракованной записи в доке (notice-timing.ts): без действия
+ * («Пустая запись», «Речь не распознана») 4 с, с действием («Речи не было» и «Проверить звук»,
+ * «Мало содержания» и «Вернуть») 8 с. Под указателем, в фокусе и с открытой «Проверить звук»
+ * время не идёт, но не дольше NOTICE_MAX_MS, чтобы карточка не зависала.
  */
-export const NOTICE_MS = 8_000;
+export const NOTICE_MS = RESULT_ACTION_MS;
 export const NOTICE_MAX_MS = 30_000;
-/** «Пустая запись - не сохранена» тихая: уходит сама через 3 с, наведение её не держит. */
-export const EMPTY_NOTICE_MS = 3_000;
+/** «Пустая запись» без действия: 4 с. */
+export const EMPTY_NOTICE_MS = RESULT_MS;
+/** Срок итога по причине: с действием дольше. */
+export function noticeMs(verdict: DiscardVerdict): number {
+  return outcomeTimeout(verdict);
+}
 /**
  * Детектор слышал речь, а слов пока меньше порога: ждём, пока ядро допишет последние
  * фразы (очередь распознавания пуста), не дольше этого, и только потом решаем.
@@ -251,9 +258,9 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         setNotice({ verdict, ...extra, hold, dismiss: closeNotice });
         return;
       }
-      // Пустая запись уходит сама через 3 с и не задерживается под курсором
-      const ms = verdict === 'empty' ? EMPTY_NOTICE_MS : NOTICE_MS;
-      const max = verdict === 'empty' ? EMPTY_NOTICE_MS : NOTICE_MAX_MS;
+      // Без действия 4 с, с действием 8 с; под указателем и в фокусе ждёт, не дольше NOTICE_MAX_MS
+      const ms = noticeMs(verdict);
+      const max = NOTICE_MAX_MS;
       countdown.current = { remaining: ms, startedAt: null, hardStop: Date.now() + max };
       hardTimer.current = setTimeout(closeNotice, max);
       setNotice({ verdict, ...extra, hold, dismiss: closeNotice });
@@ -315,16 +322,15 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         try {
           await restoreMeeting(meetingId);
           noteMeetingCompleted(meetingId);
-          shadeToast.success(t('restored'), { description: title ? displayTitleBrief(title) : undefined });
+          notifyRestored({ id: meetingId, title });
         } catch (error) {
           shadeToast.error(t('restoreFailed'), { description: String(error) });
         }
       };
-      // Идёт новая запись: карточки у кнопки записи не видно, говорим уведомлением
+      // Идёт новая запись: док занят ею, итог прошлой записи уходит в правый нижний угол
       if (recordingNow.current) {
-        shadeToast.info(t('lowContentTitle'), {
-          description: `${t('lowContentHint')}${title ? `: ${displayTitleBrief(title)}` : ''}`,
-          action: { label: t('undoDelete'), onClick: () => void undo() },
+        corner.show({
+          view: { icon: 'info', title: t('lowContentTitle'), hint: title ? `${t('lowContentHint')} · ${displayTitleBrief(title)}` : t('lowContentHint'), action: { label: t('undoDelete'), onClick: () => void undo() } },
         });
         return;
       }

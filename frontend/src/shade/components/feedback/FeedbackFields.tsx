@@ -91,17 +91,14 @@ export function OutcomePlaque({ outcome, compact, action }: { outcome: Outcome; 
   return (
     <div className="flex min-w-0 items-center gap-3">
       {/* Отправлено: зелёная галочка на зелёной подложке (--ok), не лаймом: так читается «готово» */}
-      <NoticeMark
-        tone={ok ? 'success' : 'giants'}
-        className={cn(ok && 'bg-[hsl(var(--ok)/0.14)] text-[hsl(var(--ok))]', compact && 'size-8 [&_svg]:size-4')}
-      >
+      <NoticeMark tone={ok ? 'ok' : outcome === 'failed' ? 'error' : 'neutral'} className={cn(compact && 'size-8 [&_svg]:size-4')}>
         {ok ? <CheckFat /> : <Warning />}
       </NoticeMark>
       <div role="status" className="min-w-0 flex-1">
         <p className={cn(compact ? 'truncate text-sm font-semibold leading-5' : NOTICE_TITLE)}>{title}</p>
         {ok && !compact && <p className={cn('mt-0.5', NOTICE_HINT)}>{t('feedbackSentHint')}</p>}
       </div>
-      {action && <div className="ml-3 shrink-0">{action}</div>}
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
     </div>
   );
 }

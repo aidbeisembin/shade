@@ -5,10 +5,9 @@
 'use client';
 
 import { invoke } from '@tauri-apps/api/core';
-import { restoreMeeting, trashMeeting } from './meeting-trash';
+import { trashMeeting } from './meeting-trash';
+import { notifyTrashed } from './corner-messages';
 import { markTitleManual } from './title-service';
-import { shadeToast } from './toasts';
-import { t, tDays } from '@/shade/strings';
 
 export async function renameMeeting(meetingId: string, title: string) {
   // Пометка «название задал человек» до записи: после неё автоматика встречу не трогает
@@ -22,19 +21,9 @@ export async function deleteMeeting(meetingId: string) {
   await trashMeeting(meetingId);
 }
 
-/** Уведомление после удаления: «Встреча в корзине» и «Вернуть» прямо в нём. */
-export function toastTrashed(meetingId: string) {
-  shadeToast.success(t('deleted'), {
-    description: tDays('deletedHint'),
-    action: {
-      label: t('undoDelete'),
-      onClick: () =>
-        void restoreMeeting(meetingId).then(
-          () => shadeToast.success(t('restored')),
-          (error) => shadeToast.error(t('restoreFailed'), { description: String(error) }),
-        ),
-    },
-  });
+/** Уведомление в углу после удаления: «Встреча в корзине» и «Вернуть»; вторая склеивается с первой (corner-messages.ts). */
+export function toastTrashed(meetingId: string, title?: string | null) {
+  notifyTrashed({ id: meetingId, title });
 }
 
 export async function openMeetingFolder(meetingId: string) {

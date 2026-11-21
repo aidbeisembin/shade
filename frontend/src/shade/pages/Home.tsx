@@ -26,6 +26,7 @@ import { findInTranscript, type TranscriptMatch } from '@/shade/lib/transcript-s
 import { deleteMeeting, toastTrashed, openMeetingFolder, renameMeeting } from '@/shade/lib/meeting-actions';
 import { warmUpRoutes } from '@/shade/lib/open-meeting';
 import { shadeToast } from '@/shade/lib/toasts';
+import { notifyRestored } from '@/shade/lib/corner-messages';
 import { RecordingView } from '@/shade/pages/Recording';
 import MeetingDetails from '@/shade/pages/MeetingDetails';
 import { type StartBlocker } from '@/shade/lib/recording';
@@ -244,7 +245,7 @@ function TrashPanel({ items, onRestored }: { items: TrashedMeeting[]; onRestored
     try {
       await restoreMeeting(m.id);
       onRestored();
-      shadeToast.success(t('restored'), { description: displayTitleBrief(m.title) });
+      notifyRestored({ id: m.id, title: m.title });
     } catch (error) {
       shadeToast.error(t('restoreFailed'), { description: String(error) });
     } finally {
@@ -465,7 +466,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
       patch((list) => list.filter((x) => x.id !== toDelete.id));
       setMeetings(sidebarMeetings.filter((x) => x.id !== toDelete.id));
       setToDelete(null);
-      toastTrashed(toDelete.id);
+      toastTrashed(toDelete.id, toDelete.title);
     } catch (error) {
       shadeToast.error(t('deleteFailed'), { description: String(error) });
     }

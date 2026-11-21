@@ -1,9 +1,7 @@
 // Тесты интерфейсной части восстановления после сбоя: bun test src/shade (pnpm test).
-// Ядро и тосты подставлены: проверяем, что происходит с ответом ядра.
+// Ядро подставлено, карточки читаются из угла (lib/corner.ts): проверяем, что происходит с ответом ядра.
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 
-type Call = { title: string; data: { description?: string; action?: { label: string; onClick: () => void }; duration?: number } };
-const toasts: Call[] = [];
 let reply: () => Promise<unknown> = async () => undefined;
 const opened: string[] = [];
 
@@ -11,12 +9,13 @@ const opened: string[] = [];
 // отвечают отказом, как вне Tauri, иначе, например, getVersion() в тестах отзыва получает [].
 const known: Record<string, () => Promise<unknown>> = { recover_interrupted_meetings: () => reply(), api_get_meetings: async () => [] };
 mock.module('@tauri-apps/api/core', () => ({ invoke: (cmd: string) => known[cmd]?.() ?? Promise.reject(new Error(`нет команды ${cmd} вне Tauri`)) }));
-mock.module('./toasts', () => ({ shadeToast: { info: (title: string, data: Call['data']) => toasts.push({ title, data }) } }));
 mock.module('./open-meeting', () => ({ openMeeting: (id: string) => opened.push(id), meetingHref: (id: string) => `/?id=${id}` }));
 
 const g = globalThis as unknown as Record<string, unknown>;
 g.window = { location: { search: '' } };
 const { MAX_RETRIES, RETRY_AFTER_MS, recoveredLabel, recoveredMark, resetCrashRecoveryForTests, runCrashRecovery } = await import('./crash-recovery');
+const { corner } = await import('./corner');
+const cards = () => corner.getSnapshot();
 
 const meeting = (n: number, partial = false) => ({
   meeting_id: `meeting-${n}`,
@@ -39,43 +38,55 @@ const realSetTimeout = globalThis.setTimeout;
 g.setTimeout = ((_fn: () => void, ms: number) => timers.push(ms)) as unknown as typeof setTimeout;
 
 beforeEach(() => {
-  toasts.length = 0;
+  corner.reset();
   opened.length = 0;
   timers.length = 0;
   refetched = 0;
   resetCrashRecoveryForTests();
 });
 
-describe('уведомление о восстановленной встрече', () => {
-  test('одна встреча: тихое уведомление с названием, подписью, длительностью и «Открыть»', async () => {
+describe('карточка о восстановленной встрече в углу', () => {
+  test('одна встреча: «Восстановлена после сбоя», дата и длительность, «Открыть», без таймера', async () => {
     reply = async () => report({ recovered: [meeting(1)], marked: [{ meeting_id: 'meeting-1', partial: false, recovered_at: 'x' }] });
     await runCrashRecovery(refetch);
-    expect(toasts).toHaveLength(1);
-    expect(toasts[0].title).toContain('15:02');
-    expect(toasts[0].data.description).toBe(`${recoveredLabel({ partial: false })} · 29 мин`);
-    expect(toasts[0].data.action?.label).toBe('Открыть');
-    toasts[0].data.action?.onClick();
+    expect(cards()).toHaveLength(1);
+    const v = cards()[0].view;
+    expect(v.icon).toBe('recovery');
+    expect(v.title).toBe(recoveredLabel({ partial: false }));
+    expect(String(v.hint)).toContain('15:02');
+    expect(String(v.hint)).toContain('29 мин');
+    expect(v.action?.label).toBe('Открыть');
+    expect(cards()[0].timeout).toBeNull();
+    v.action?.onClick();
     expect(opened).toEqual(['meeting-1']);
     expect(refetched).toBe(1);
     expect(recoveredMark('meeting-1')).toEqual({ partial: false });
   });
-  test('частично: подпись «частично»', async () => {
+  test('частично: заголовок «Восстановлена частично»', async () => {
     reply = async () => report({ recovered: [meeting(1, true)] });
     await runCrashRecovery(refetch);
-    expect(toasts[0].data.description).toContain(recoveredLabel({ partial: true }));
+    expect(cards()[0].view.title).toBe(recoveredLabel({ partial: true }));
     expect(recoveredLabel({ partial: true })).not.toBe(recoveredLabel({ partial: false }));
   });
-  test('больше двух встреч: одно сводное уведомление, без «Открыть»', async () => {
+  test('две встречи склеиваются: одна карточка «Восстановлено 2 встречи» с «Показать»', async () => {
+    reply = async () => report({ recovered: [meeting(1), meeting(2, true)] });
+    await runCrashRecovery(refetch);
+    expect(cards()).toHaveLength(1);
+    expect(cards()[0].view.title).toBe('Восстановлено 2\u00A0встречи');
+    expect(cards()[0].view.action?.label).toBe('Показать');
+    expect(cards()[0].payloads).toHaveLength(2);
+    expect(cards()[0].timeout).toBeNull();
+  });
+  test('три встречи: та же одна карточка', async () => {
     reply = async () => report({ recovered: [meeting(1), meeting(2), meeting(3)] });
     await runCrashRecovery(refetch);
-    expect(toasts).toHaveLength(1);
-    expect(toasts[0].data.action).toBeUndefined();
-    expect(toasts[0].data.description).toContain('3');
+    expect(cards()).toHaveLength(1);
+    expect(String(cards()[0].view.title)).toContain('3');
   });
-  test('ничего нового (повторный запуск): без уведомления и без перечитывания списка, пометки остаются', async () => {
+  test('ничего нового (повторный запуск): без карточки и без перечитывания списка, пометки остаются', async () => {
     reply = async () => report({ marked: [{ meeting_id: 'meeting-9', partial: true, recovered_at: 'x' }] });
     await runCrashRecovery(refetch);
-    expect(toasts).toHaveLength(0);
+    expect(cards()).toHaveLength(0);
     expect(refetched).toBe(0);
     expect(recoveredMark('meeting-9')).toEqual({ partial: true });
     expect(recoveredMark('meeting-1')).toBeNull();
@@ -88,18 +99,18 @@ describe('отказ ядра', () => {
       throw new Error('нет команды');
     };
     await runCrashRecovery(refetch);
-    expect(toasts).toHaveLength(0);
+    expect(cards()).toHaveLength(0);
     expect(refetched).toBe(0);
   });
   test('старое ядро или заглушка отвечает пустотой', async () => {
     reply = async () => undefined;
     await runCrashRecovery(refetch);
-    expect(toasts).toHaveLength(0);
+    expect(cards()).toHaveLength(0);
   });
   test('часть папок не вышла: встречи показаны, остальное в журнал', async () => {
     reply = async () => report({ recovered: [meeting(1)], failed: ['/x: база: диск полон'] });
     await runCrashRecovery(refetch);
-    expect(toasts).toHaveLength(1);
+    expect(cards()).toHaveLength(1);
   });
 });
 
