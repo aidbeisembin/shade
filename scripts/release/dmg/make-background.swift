@@ -13,7 +13,6 @@ let out = "\(root)/scripts/release/dmg/background.png"
 let bg = NSColor(srgbRed: 0.957, green: 0.957, blue: 0.949, alpha: 1)   // #F4F4F2
 let ink = NSColor(srgbRed: 0.067, green: 0.067, blue: 0.067, alpha: 1)  // #111
 let muted = NSColor(srgbRed: 0.33, green: 0.33, blue: 0.33, alpha: 1)   // #545454, 7.4:1 на фоне
-let olive = NSColor(srgbRed: 0.341, green: 0.431, blue: 0, alpha: 1)    // --primary-ink светлой темы, #576E00
 let lime = NSColor(srgbRed: 0.875, green: 0.98, blue: 0.443, alpha: 1)  // --primary, лайм Shade
 let card = NSColor.white
 let line = NSColor(srgbRed: 0.88, green: 0.88, blue: 0.87, alpha: 1)
@@ -35,11 +34,25 @@ NSRect(x: 0, y: 0, width: W, height: H).fill()
 func font(_ size: CGFloat, _ weight: NSFont.Weight) -> NSFont { .systemFont(ofSize: size, weight: weight) }
 func mono(_ size: CGFloat) -> NSFont { .monospacedSystemFont(ofSize: size, weight: .medium) }
 
-// Текст по центру x (или от левого края, если left задан), y: верх строки
+// Строка с шагами пути: вместо стрелок шевроны «›», жирные и серые, как в приложении
+func path(_ s: String, _ f: NSFont, _ c: NSColor) -> NSAttributedString {
+    let out = NSMutableAttributedString()
+    let chevron: [NSAttributedString.Key: Any] = [.font: font(f.pointSize, .bold), .foregroundColor: muted]
+    for (i, part) in s.components(separatedBy: " › ").enumerated() {
+        if i > 0 { out.append(NSAttributedString(string: "  ›  ", attributes: chevron)) }
+        out.append(NSAttributedString(string: part, attributes: [.font: f, .foregroundColor: c]))
+    }
+    return out
+}
+
+// Текст по центру x (или от левого края, если center: false), y: верх строки
 @discardableResult
 func text(_ s: String, _ f: NSFont, _ c: NSColor, x: CGFloat, y: CGFloat, center: Bool = true) -> CGFloat {
-    let attrs: [NSAttributedString.Key: Any] = [.font: f, .foregroundColor: c]
-    let str = NSAttributedString(string: s, attributes: attrs)
+    draw(NSAttributedString(string: s, attributes: [.font: f, .foregroundColor: c]), x: x, y: y, center: center)
+}
+
+@discardableResult
+func draw(_ str: NSAttributedString, x: CGFloat, y: CGFloat, center: Bool = true) -> CGFloat {
     let size = str.size()
     NSGraphicsContext.saveGraphicsState()
     // NSString рисует в неперевёрнутой системе: переворачиваем обратно вокруг строки
@@ -65,7 +78,7 @@ a.line(to: NSPoint(x: 410, y: arrowY))
 a.move(to: NSPoint(x: 392, y: arrowY - 16))
 a.line(to: NSPoint(x: 412, y: arrowY))
 a.line(to: NSPoint(x: 392, y: arrowY + 16))
-olive.setStroke()
+ink.setStroke()
 a.stroke()
 text("Перетащите", font(17, .bold), ink, x: 340, y: 76)
 text("в Программы", font(17, .bold), ink, x: 340, y: 96)
@@ -89,9 +102,9 @@ NSBezierPath(roundedRect: pill, xRadius: 12, yRadius: 12).fill()
 text(pillText, pillFont, ink, x: pill.midX, y: pill.minY + 4)
 
 let left = cardRect.minX + 20
-text("Системные настройки → Конфиденциальность", font(17, .semibold), ink, x: left, y: cardRect.minY + 52, center: false)
-text("и безопасность → «Всё равно открыть»", font(17, .semibold), ink, x: left, y: cardRect.minY + 74, center: false)
-text("System Settings → Privacy & Security → Open Anyway", font(13, .medium), muted, x: left, y: cardRect.minY + 100, center: false)
+draw(path("Системные настройки › Конфиденциальность", font(17, .semibold), ink), x: left, y: cardRect.minY + 52, center: false)
+draw(path("и безопасность › «Всё равно открыть»", font(17, .semibold), ink), x: left, y: cardRect.minY + 74, center: false)
+draw(path("System Settings › Privacy & Security › Open Anyway", font(13, .medium), muted), x: left, y: cardRect.minY + 100, center: false)
 
 // 3. Запасной путь мелко: кнопки нет
 let y3 = cardRect.maxY + 14
