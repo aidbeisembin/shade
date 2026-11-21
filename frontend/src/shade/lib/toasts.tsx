@@ -37,7 +37,7 @@ const REDUNDANT_ACTIONS = new Set(['View Meeting']);
 // залитый нарисован квадратом), ожидание тем же Spinner. Сам знак без подложки,
 // круг даёт Notice.
 const ICON: Record<Kind, React.ReactNode> = {
-  success: <CheckFat />,
+  success: <CheckFat weight="fill" />,
   info: <Bell weight="fill" />,
   message: <Bell weight="fill" />,
   warning: <Warning weight="fill" />,

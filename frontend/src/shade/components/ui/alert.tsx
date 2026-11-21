@@ -1,10 +1,11 @@
-// shadcn/ui Alert.
+// shadcn/ui Alert. Знак слева в круге 44 px на подложке тона крестика (как у уведомлений, ui/notice.tsx),
+// иконка 20 px; рядом через 12 px заголовок и текст. Раньше знак был голым и висел абсолютно (2026-11-21).
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/shade/lib/utils';
 
 const alertVariants = cva(
-  'relative w-full rounded-nested p-4 text-sm [&>svg+div]:translate-y-[-2px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:size-5 [&>svg~*]:pl-8',
+  'relative flex w-full items-start gap-3 rounded-nested p-4 text-sm [&>svg]:box-content [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:rounded-full [&>svg]:bg-[hsl(var(--foreground)/var(--glass-btn))] [&>svg]:p-3 [&>svg+div]:min-w-0 [&>svg+div]:flex-1 [&>svg+div]:pt-0.5',
   {
     variants: {
       variant: {
@@ -32,5 +33,8 @@ const AlertDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttrib
   <div ref={ref} className={cn('text-sm leading-relaxed text-muted-foreground [&_p]:leading-relaxed', className)} {...props} />
 ));
 AlertDescription.displayName = 'AlertDescription';
+
+/** Вторичная кнопка на панели: bg-muted (variant outline) равен подложке панели и пропадает, поэтому тон крестика. */
+export const ALERT_SECONDARY = 'bg-[hsl(var(--foreground)/var(--glass-btn))] hover:bg-[hsl(var(--foreground)/var(--glass-btn-hover))]';
 
 export { Alert, AlertTitle, AlertDescription };

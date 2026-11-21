@@ -80,7 +80,7 @@ function ErrorAlert({ title, error, onRetry }: { title: string; error: FriendlyE
   useLang();
   return (
     // В колонке плиток ошибка тоже плитка
-    <Alert variant="destructive" className="rounded-tile bg-card p-5 [&>svg]:left-5 [&>svg]:top-5">
+    <Alert variant="destructive" className="rounded-tile bg-card p-5">
       <Warning />
       <div>
         <AlertTitle>{title}</AlertTitle>
