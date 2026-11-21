@@ -224,6 +224,17 @@ export function isMicRefusal(error: unknown): boolean {
 }
 
 /**
+ * «Только звук компьютера» в карточке микрофона (docs/ui/notifications.md, «Док»). Только когда
+ * микрофона нет совсем: тогда ядро пропускает проверку микрофона и пишет звук компьютера.
+ * Микрофон есть, а доступа нет: ядро не стартует (verify_microphone_access), кнопку не даём.
+ * Звук компьютера недоступен (systemAudio: false): тоже не даём; не проверяли (undefined): даём,
+ * отказ macOS тогда придёт ошибкой старта.
+ */
+export function offersSystemOnly(blocker: { kind: string; systemAudio?: boolean }): boolean {
+  return blocker.kind === 'no-microphone' && blocker.systemAudio !== false;
+}
+
+/**
  * Проблема с микрофоном, известная без вопроса macOS и без открытия микрофона: входов в списке
  * ядра нет или отказ уже известен (первый запуск, прошлая запись, проверка). Статус разрешения
  * macOS сам по себе без вопроса не узнать (команды ядра нет), поэтому «не знаю» - не проблема.

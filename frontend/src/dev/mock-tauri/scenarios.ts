@@ -255,7 +255,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     micPermission: false, systemAudioPermission: true, micLive: 'silent', macMic: 'denied', micKnown: 'denied',
   },
   'mic-missing': {
-    id: 'mic-missing', label: 'mic-missing', description: 'Микрофона нет в списке устройств: в доке сразу «Микрофон не найден» и «Открыть настройки», пока не подключат',
+    id: 'mic-missing', label: 'mic-missing', description: 'Микрофона нет в списке устройств: в доке сразу «Нет микрофона» и «Только звук компьютера» (запись без микрофона), пока не подключат',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: false, failing: false,
     micDeviceMissing: true, systemAudioPermission: true,
   },

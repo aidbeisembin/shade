@@ -1,9 +1,11 @@
 // Карточки про микрофон в доке записи (docs/ui/notifications.md, «Док»), одним устройством
 // сообщения (ui/notice.tsx):
 // - MicAccessCard: на месте кнопки записи, пока проблема есть: «Нет доступа к микрофону»
-//   (Системные настройки, при возврате в окно доступ перепроверяется сам) и «Микрофон не
-//   найден» (настройки Shade, вкладка «Запись»). Видна сразу, как только проблема известна,
-//   без нажатия «Записать» (recording.ts, passiveMicProblem). Фокус не забирает.
+//   (Системные настройки, при возврате в окно доступ перепроверяется сам) и «Нет
+//   микрофона» с «Только звук компьютера»: без микрофона ядро пишет звук компьютера, для Mac без
+//   микрофона это единственный способ записать (offersSystemOnly); звук компьютера недоступен -
+//   «Открыть настройки» (настройки Shade, вкладка «Запись»). Видна сразу, как только проблема известна, без нажатия «Записать»
+//   (recording.ts, passiveMicProblem). Фокус не забирает.
 // - MicHint: над капсулой во время записи «Не слышу микрофон», «Микрофон отключился» и
 //   напоминание «Пишу только звук компьютера». Запись не обрывается.
 'use client';
@@ -13,6 +15,7 @@ import { Notice, NoticeButton } from '@/shade/components/ui/notice';
 import { DOCK_CARD } from '@/shade/components/FinishCard';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { openPrivacySettings } from '@/shade/lib/onboarding';
+import { offersSystemOnly } from '@/shade/lib/mic-access';
 import type { StartBlocker } from '@/shade/lib/recording';
 import type { MicWatchState } from '@/shade/lib/mic-watch';
 import { t } from '@/shade/strings';
@@ -69,10 +72,13 @@ export type MicResolved = 'granted' | 'unknown';
 export function MicAccessCard({
   blocker,
   onRecheck,
+  onSystemOnly,
   onClose,
   onResolved,
 }: {
   blocker: MicBlocker;
+  /** «Только звук компьютера»: запись без микрофона (только при «Нет микрофона»). */
+  onSystemOnly?: () => void;
   /** Перепроверить доступ: есть, нет или проверить не удалось. */
   onRecheck: () => Promise<'granted' | 'denied' | 'unknown'>;
   onClose: () => void;
@@ -122,7 +128,15 @@ export function MicAccessCard({
       icon="problem"
       title={denied ? t('micDeniedTitle') : t('micMissingTitle')}
       hint={hint}
-      actions={<NoticeButton action={{ label: t('micOpenSettings'), onClick: open }} disabled={checking} busy={checking} />}
+      actions={
+        // Одно действие, как у всех карточек: без микрофона настройки ничего не дадут (выбирать
+        // нечего, подключённый микрофон карточка заметит сама), а звук компьютера записать можно
+        onSystemOnly && offersSystemOnly(blocker) ? (
+          <NoticeButton action={{ label: t('systemOnlyShort'), onClick: onSystemOnly }} />
+        ) : (
+          <NoticeButton action={{ label: t('micOpenSettings'), onClick: open }} disabled={checking} busy={checking} />
+        )
+      }
       onClose={onClose}
       closeLabel={t('close')}
     />
