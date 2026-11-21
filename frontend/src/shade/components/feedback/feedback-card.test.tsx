@@ -128,6 +128,53 @@ test('5 звёзд: оценка уходит сразу, карточка сж�
   }
 });
 
+test('«Спасибо» со ссылкой на чат беты: держится, пока указатель на карточке; в «не получилось» ссылки нет', async () => {
+  g.requestAnimationFrame = (cb: (t: number) => void) => setTimeout(() => cb(performance.now()), 8) as unknown as number;
+  (g.document as Record<string, unknown>).addEventListener = () => undefined;
+  setTimeScale(20);
+  let r!: TestRenderer.ReactTestRenderer;
+  try {
+    let done = 0;
+    await act(async () => {
+      r = TestRenderer.create(<FeedbackCard onDone={() => done++} />);
+    });
+    const card = () => r.root.find((n) => n.type === 'section');
+    // Как в браузере: указатель на карточке, щелчок даёт звезде фокус, звезда исчезает (focusout в никуда)
+    await act(async () => card().props.onPointerEnter());
+    await act(async () => card().props.onFocus());
+    await act(async () => radios(r.root)[4].props.onClick());
+    expect(await waitFor(() => card().props['data-plaque'] === 'sent')).toBe(true);
+    await act(async () => card().props.onBlur({ currentTarget: { contains: () => false }, relatedTarget: null }));
+    // Ссылка под «Отзыв отправлен», но не внутри объявления итога
+    expect(byText(r.root, 'Обсудить в чате беты')).toBeTruthy();
+    expect(textOf(r.root.find((n) => n.props.role === 'status'))).toBe('СпасибоОтзыв отправлен');
+    // CHAT_HOLD_MS на ×20 это 300 мс: указатель на карточке, она не уходит и за 600 мс
+    await act(async () => void (await new Promise((res) => setTimeout(res, 600))));
+    expect(done).toBe(0);
+    // Указатель ушёл: отсчёт заново, карточка уходит сама
+    await act(async () => card().props.onPointerLeave());
+    expect(await waitFor(() => done === 1)).toBe(true);
+    expect(readPrompt().dismissals).toBe(0);
+    await act(async () => r.unmount());
+
+    // Нет сети: «Не получилось отправить», ссылки на чат нет
+    globalThis.fetch = (async () => {
+      throw new TypeError('offline');
+    }) as unknown as typeof fetch;
+    await act(async () => {
+      r = TestRenderer.create(<FeedbackCard onDone={() => undefined} />);
+    });
+    await act(async () => radios(r.root)[4].props.onClick());
+    expect(await waitFor(() => !!card().props['data-plaque'] && card().props['data-plaque'] !== 'sent')).toBe(true);
+    expect(r.root.findAll((n) => n.type === 'button' && textOf(n).includes('чате беты'))).toHaveLength(0);
+  } finally {
+    await act(async () => r?.unmount());
+    await new Promise((res) => setTimeout(res, 50));
+    setTimeScale(1);
+    delete g.requestAnimationFrame;
+  }
+});
+
 test('3 звезды тоже уходят сразу; 2 звезды открывают форму и без «Отправить» ничего не шлют', async () => {
   let r!: TestRenderer.ReactTestRenderer;
   await act(async () => {

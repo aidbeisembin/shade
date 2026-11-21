@@ -114,15 +114,18 @@ fi
 printf 'abc  Shade_aarch64.dmg\n' > "$WORK/SHA256SUMS.txt"
 fake_root
 run env SHADE_ROOT="$WORK/root" bash "$HERE/release-notes.sh" 0.5.0-beta.1 "$WORK/SHA256SUMS.txt"
+check "описание: чат беты из константы репозитория" has "Обсудить в чате беты в Telegram: https://t.me/shadebeta"
+sed -i.bak "s|^export const BETA_CHAT_URL = '.*';|export const BETA_CHAT_URL = '';|" "$WORK/root/frontend/src/shade/lib/beta-chat.ts"
+run env SHADE_ROOT="$WORK/root" bash "$HERE/release-notes.sh" 0.5.0-beta.1 "$WORK/SHA256SUMS.txt"
 check "описание: код 0" test "$CODE" = 0
 check "описание: сначала .dmg, потом Терминал" bash -c "a=\$(grep -n '### 1. Скачать .dmg' <<<'$OUT' | cut -d: -f1); b=\$(grep -n '### 2. Быстрый способ через Терминал' <<<'$OUT' | cut -d: -f1); [ -n \"\$a\" ] && [ -n \"\$b\" ] && [ \"\$a\" -lt \"\$b\" ]"
 check "описание: «Всё равно открыть» и про час" has "видна около часа"
 check "описание: команда установки" has "curl -fsSL https://aidbeisembin.com/shade/install.sh | bash"
 check "описание: суммы" has "abc  Shade_aarch64.dmg"
-check "описание: без чата, пока константа пустая" bash -c "! grep -q 'Чат беты' <<<'$OUT'"
-sed -i.bak "s|^export const BETA_CHAT_URL = '';|export const BETA_CHAT_URL = 'https://t.me/shade_beta_test';|" "$WORK/root/frontend/src/shade/lib/beta-chat.ts"
+check "описание: без чата, когда константа пустая" bash -c "! grep -q 'чате беты' <<<'$OUT'"
+sed -i.bak "s|^export const BETA_CHAT_URL = '.*';|export const BETA_CHAT_URL = 'https://t.me/shade_beta_test';|" "$WORK/root/frontend/src/shade/lib/beta-chat.ts"
 run env SHADE_ROOT="$WORK/root" bash "$HERE/release-notes.sh" 0.5.0-beta.1 "$WORK/SHA256SUMS.txt"
-check "описание: чат появляется, когда задан" has "Чат беты в Telegram: https://t.me/shade_beta_test"
+check "описание: чат появляется, когда задан" has "Обсудить в чате беты в Telegram: https://t.me/shade_beta_test"
 
 echo
 echo "release scripts: ok $pass, fail $fail, skip $skip"

@@ -474,7 +474,7 @@ export const ru = {
   feedbackRowHint: 'Оценка и пара слов о Shade. Уходит только по кнопке «Отправить»',
   feedbackAskRow: 'Иногда спрашивать оценку',
   feedbackAskHint: 'После записи от 10 минут, когда вы открыли её итоги: через неделю ещё раз, дальше раз в месяц. Не во время записи',
-  betaChat: 'Чат беты в Telegram',
+  betaChat: 'Обсудить в чате беты',
 
   // Обновления (components/UpdateCard, lib/updates.ts, docs/release.md)
   updateAvailable: 'Доступна версия {version}',
@@ -943,7 +943,7 @@ export const en: Mirror<RuDict> = {
   feedbackRowHint: 'A rating and a few words about Shade. Sent only when you press “Send”',
   feedbackAskRow: 'Sometimes ask for a rating',
   feedbackAskHint: 'After a recording of 10+ minutes, when you open its summary: again a week later, then once a month. Never while recording',
-  betaChat: 'Beta chat on Telegram',
+  betaChat: 'Discuss in the beta chat',
 
   updateAvailable: 'Version {version} is available',
   updateHint: 'Shade will restart, your meetings and settings stay',

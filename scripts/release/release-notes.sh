@@ -42,7 +42,7 @@ Shade проверяет обновления при запуске и раз в
 
 - Оценка и отзыв в самом Shade: карточка «Как вам Shade?» после записи.
 EOF
-if [ -n "$chat" ]; then echo "- Чат беты в Telegram: $chat"; fi
+if [ -n "$chat" ]; then echo "- Обсудить в чате беты в Telegram: $chat"; fi
 cat <<EOF
 - Ошибки и предложения: [Issues](https://github.com/aidbeisembin/shade/issues).
 

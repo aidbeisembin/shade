@@ -80,12 +80,13 @@ FeedbackText.displayName = 'FeedbackText';
 export type Outcome = 'sent' | 'queued' | 'failed';
 
 /** Плашка итога: «Спасибо» с галочкой, или «Не получилось отправить». */
-export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?: boolean }) {
+/** action: строка под текстом (ссылка на чат беты), вне role=status, чтобы не зачитывалась как итог. */
+export function OutcomePlaque({ outcome, compact, action }: { outcome: Outcome; compact?: boolean; action?: React.ReactNode }) {
   useLang();
   const ok = outcome === 'sent';
   const title = ok ? t('feedbackSent') : outcome === 'queued' ? t('feedbackQueued') : t('feedbackFailed');
   return (
-    <div role="status" className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3">
       {/* Отправлено: зелёная галочка на зелёной подложке (--ok), не лаймом: так читается «готово» */}
       <NoticeMark
         tone={ok ? 'success' : 'giants'}
@@ -94,8 +95,11 @@ export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?
         {ok ? <CheckFat /> : <Warning />}
       </NoticeMark>
       <div className="min-w-0">
-        <p className={cn('font-semibold leading-5', compact ? 'truncate text-sm' : 'text-[15px] [text-wrap:balance]')}>{title}</p>
-        {ok && !compact && <p className="mt-1 text-sm leading-5 text-muted-foreground">{t('feedbackSentHint')}</p>}
+        <div role="status">
+          <p className={cn('font-semibold leading-5', compact ? 'truncate text-sm' : 'text-[15px] [text-wrap:balance]')}>{title}</p>
+          {ok && !compact && <p className="mt-1 text-sm leading-5 text-muted-foreground">{t('feedbackSentHint')}</p>}
+        </div>
+        {action}
       </div>
     </div>
   );
