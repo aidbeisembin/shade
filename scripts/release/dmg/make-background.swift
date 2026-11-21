@@ -85,7 +85,7 @@ text("в Программы", font(17, .bold), ink, x: 340, y: 96)
 text("Drag to Applications", font(13, .medium), muted, x: 340, y: 176)
 
 // 2. Первый запуск: плитка с путём в Системных настройках
-let cardRect = NSRect(x: 28, y: 252, width: W - 56, height: 128)
+let cardRect = NSRect(x: 28, y: 236, width: W - 56, height: 128)
 card.setFill()
 NSBezierPath(roundedRect: cardRect, xRadius: 14, yRadius: 14).fill()
 line.setStroke()
@@ -106,16 +106,11 @@ draw(path("Системные настройки › Конфиденциаль�
 draw(path("и безопасность › «Всё равно открыть»", font(17, .semibold), ink), x: left, y: cardRect.minY + 74, center: false)
 draw(path("System Settings › Privacy & Security › Open Anyway", font(13, .medium), muted), x: left, y: cardRect.minY + 100, center: false)
 
-// 3. Запасной путь мелко: кнопки нет
-let y3 = cardRect.maxY + 14
-let lead = "Кнопки нет · No button:  "
-let leadFont = font(11.5, .regular)
-let cmd = "xattr -cr /Applications/Shade.app"
-let cmdFont = mono(11.5)
-let total = width(lead, leadFont) + width(cmd, cmdFont)
-let x3 = (W - total) / 2
-let w1 = text(lead, leadFont, muted, x: x3, y: y3, center: false)
-text(cmd, cmdFont, ink, x: x3 + w1, y: y3, center: false)
+// 3. Запасной путь мелко: что делать, если кнопки нет
+let y3 = cardRect.maxY + 12
+text("Кнопки «Всё равно открыть» нет? Выполните в Терминале:", font(12, .medium), muted, x: W / 2, y: y3)
+text("No “Open Anyway” button? Run in Terminal:", font(11, .regular), muted, x: W / 2, y: y3 + 17)
+text("xattr -cr /Applications/Shade.app", mono(13), ink, x: W / 2, y: y3 + 36)
 
 NSGraphicsContext.restoreGraphicsState()
 guard let png = rep.representation(using: .png, properties: [:]) else { fatalError("PNG не записан") }
