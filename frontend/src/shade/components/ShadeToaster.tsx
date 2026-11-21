@@ -14,6 +14,7 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { getStoredTheme, onThemeChange, type ThemeMode } from '@/shade/lib/theme';
 import { installShadeToasts } from '@/shade/lib/toasts';
 import { STACK_GAP } from '@/shade/lib/notice-stack';
+import { ShadeIcons } from '@/shade/components/ShadeIcons';
 
 /** Сколько тост висит, если вызов не задал своё: 4 с хватает прочесть две строки и нажать
  *  «Вернуть»; под курсором и в свёрнутом окне sonner время не считает. Было 5 с. */
@@ -27,7 +28,7 @@ installShadeToasts();
 // ожидание тем же Spinner; встроенные иконки sonner другого начертания.
 const ICONS = {
   // Без иконок со встроенной подложкой (*Circle, *Square): знак без кружка
-  success: <CheckFat className="size-5" />,
+  success: <CheckFat weight="fill" className="size-5" />,
   info: <Bell weight="fill" className="size-5" />,
   warning: <Warning weight="fill" className="size-5" />,
   error: <Warning weight="fill" className="size-5" />,
@@ -44,7 +45,10 @@ export function ShadeToaster() {
     return onThemeChange(setTheme);
   }, []);
 
+  // Тостер смонтирован в layout.tsx вне ShadeIcons (рядом с LegacyBridge): без своей обёртки
+  // знаки без явного weight рисовались контуром (галочка «Встреча в корзине», 2026-11-21)
   return (
+    <ShadeIcons>
     <Toaster
       theme={theme}
       position="bottom-right"
@@ -58,5 +62,6 @@ export function ShadeToaster() {
       toastOptions={{ closeButtonAriaLabel: t('toasterClose') }}
       containerAriaLabel={t('toasterRegion')}
     />
+    </ShadeIcons>
   );
 }

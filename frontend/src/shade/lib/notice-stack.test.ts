@@ -16,8 +16,14 @@ describe('cornerLayout', () => {
   test('места 390: тост сужается до 390, в углу', () => {
     expect(cornerLayout(R, 1000, [freeFor(390)])).toEqual({ width: 390, lift: false });
   });
-  test('места 340 (окно 960, кнопка записи): тост 340 в углу, рядом с кнопкой', () => {
-    expect(cornerLayout(R, 1000, [freeFor(340)])).toEqual({ width: 340, lift: false });
+  test('места 370: тост 370 в углу, рядом с кнопкой', () => {
+    expect(cornerLayout(R, 1000, [freeFor(370)])).toEqual({ width: 370, lift: false });
+  });
+  test('места 340 (окно 960, кнопка записи): уже минимума, подпись ушла бы в три строки, тост над доком', () => {
+    expect(cornerLayout(R, 1000, [freeFor(340)])).toEqual({ width: TOAST_WIDTH, lift: true });
+  });
+  test('минимум 360: подпись тоста не длиннее двух строк', () => {
+    expect(TOAST_MIN_WIDTH).toBe(360);
   });
   test('ровно минимум: в углу', () => {
     expect(cornerLayout(R, 1000, [freeFor(TOAST_MIN_WIDTH)])).toEqual({ width: TOAST_MIN_WIDTH, lift: false });

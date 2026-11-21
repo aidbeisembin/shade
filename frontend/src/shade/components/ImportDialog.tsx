@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowClockwise, FileAudio, Warning } from '@phosphor-icons/react';
+import { ShadeIcons } from '@/shade/components/ShadeIcons';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { Button } from '@/shade/components/ui/button';
 import { Input } from '@/shade/components/ui/input';
@@ -137,7 +138,10 @@ export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
   const heading = isProcessing ? t('importRunning') : error ? t('importFailed') : t('importAudio');
   const description = isProcessing ? progress?.message || t('importRunningHint') : error ? t('importFailedHint') : t('importHint');
 
+  // Окно смонтировано в layout.tsx вне ShadeIcons (ConditionalImportDialog): своя обёртка, иначе
+  // знаки без явного weight рисуются контуром
   return (
+    <ShadeIcons>
     <Dialog open={open} onOpenChange={(v) => (!v && isProcessing ? undefined : onOpenChange(v))}>
       <DialogContent className="max-w-lg" onEscapeKeyDown={guard} onInteractOutside={guard}>
         <DialogTitle>{heading}</DialogTitle>
@@ -274,5 +278,6 @@ export function ImportDialog({ open, onOpenChange, preselectedFile }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </ShadeIcons>
   );
 }

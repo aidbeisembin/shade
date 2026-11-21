@@ -13,7 +13,7 @@ import { Spinner } from '@/shade/components/ui/spinner';
 import { ImportIcon } from '@/shade/components/ImportIcon';
 import { Button } from '@/shade/components/ui/button';
 import { Skeleton } from '@/shade/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shade/components/ui/alert';
+import { ALERT_SECONDARY, Alert, AlertDescription, AlertTitle } from '@/shade/components/ui/alert';
 import { ErrorDetails } from '@/shade/components/ErrorDetails';
 import { Page } from '@/shade/components/Page';
 import ShadeSettings from '@/shade/pages/Settings';
@@ -153,7 +153,7 @@ function StartBlockerPanel({ blocker, onRetry, onClose }: { blocker: StartBlocke
               </Link>
             </Button>
             {blocker.kind !== 'no-model' && (
-              <Button variant="outline" size="main" onClick={onRetry}>
+              <Button variant="outline" size="main" className={ALERT_SECONDARY} onClick={onRetry}>
                 <ArrowClockwise />
                 {t('checkAgain')}
               </Button>
@@ -645,7 +645,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
             <AlertDescription>
               <p>{state.error.message}</p>
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <Button variant="outline" size="main" onClick={() => void reload()}>
+                <Button variant="outline" size="main" className={ALERT_SECONDARY} onClick={() => void reload()}>
                   <ArrowClockwise />
                   {t('retry')}
                 </Button>
