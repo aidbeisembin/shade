@@ -10,7 +10,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckFat } from '@phosphor-icons/react';
+import { Check } from '@phosphor-icons/react';
 import { Notice, NoticeButton } from '@/shade/components/ui/notice';
 import { resultTimeout } from '@/shade/lib/notice-timing';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
@@ -39,7 +39,7 @@ export function FinishGlyph({ stage }: { stage: FinishCardStage }) {
           <span className="shade-fg-in" />
         </span>
       ))}
-      <CheckFat className="shade-fg-check" />
+      <Check weight="bold" className="shade-fg-check" />
     </span>
   );
 }

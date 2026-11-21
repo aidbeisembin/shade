@@ -1,6 +1,7 @@
 // Страж значков (docs/ui/foundations.md, «Иконки»): только Phosphor, только залитые. bun test src/shade (pnpm test).
 //  1. Чужих наборов значков в слое Shade нет.
-//  2. Начертания regular, light, thin, duotone не используются; bold только у шевронов Caret* и лупы.
+//  2. Начертания regular, light, thin, duotone не используются; bold только у шевронов Caret*, лупы
+//     и галочки Check в круге карточек уведомлений (ui/notice.tsx, FinishCard.tsx; владелец 21.11.2026).
 //  3. Заливку по умолчанию даёт ShadeIcons (IconContext). Компонент Shade, смонтированный в
 //     app/layout.tsx вне <ShadeIcons>, обязан обернуть себя сам, если он сам или то, что он
 //     импортирует, рисует значки Phosphor: иначе знаки без явного weight рисуются контуром
@@ -28,7 +29,7 @@ describe('значки Shade', () => {
     expect(bad.map((f) => relative(SRC, f))).toEqual([]);
   });
 
-  test('начертания: только fill; bold у шевронов Caret* и лупы MagnifyingGlass', () => {
+  test('начертания: только fill; bold у шевронов Caret*, лупы MagnifyingGlass и галочки уведомлений', () => {
     const bad: string[] = [];
     for (const f of files) {
       const lines = read(f).split('\n');
@@ -37,6 +38,8 @@ describe('значки Shade', () => {
           const [, tag, weight] = m;
           if (weight === 'fill') continue;
           if (weight === 'bold' && (/^Caret/.test(tag) || tag === 'MagnifyingGlass')) continue;
+          // Галочка «готово» в круге уведомлений: CheckFat тяжелее часов и стрелки рядом
+          if (weight === 'bold' && tag === 'Check' && /components\/(ui\/notice|FinishCard)\.tsx$/.test(f)) continue;
           bad.push(`${relative(SRC, f)}:${i + 1} <${tag} weight="${weight}">`);
         }
       });

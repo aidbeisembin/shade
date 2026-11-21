@@ -1,8 +1,9 @@
 // Угол (CornerStack) стоит в правом нижнем углу колонки страницы, низ на одной линии с низом
-// дока записи (RecordDock: кнопка записи, капсула, итог, карточки про микрофон). Ширина угла
-// одна, CORNER_WIDTH (по самой длинной строке с кнопкой, ru и en, docs/ui/notifications.md);
-// уже она бывает только в колонке уже CORNER_WIDTH + 2 × 16 px. Если сбоку от содержимого
-// дока ширины нет, стек поднимается над доком на 8 px (--tile-gap), оставаясь справа: друг на
+// дока записи (RecordDock: кнопка записи, капсула, итог, карточки про микрофон). Ширина угла не
+// больше CORNER_WIDTH (по самой длинной строке с кнопкой, ru и en, docs/ui/notifications.md) и не
+// больше места справа от содержимого дока: карточки не упираются в кнопку записи и не оставляют
+// пустоты под собой (решение владельца 21.11.2026). Если сбоку меньше CORNER_MIN, стек
+// поднимается над доком на 8 px (--tile-gap), оставаясь справа, во всю ширину угла: друг на
 // друга док и угол не ложатся ни при какой ширине окна.
 //
 // RecordDock меряет себя и пишет в :root переменные, стиль угла в globals.css (.shade-corner)
@@ -30,6 +31,12 @@ export const CORNER_WIDTH = 500;
 /** Прежнее имя ширины (тесты и стили). */
 export const TOAST_WIDTH = CORNER_WIDTH;
 
+/**
+ * Уже этого сбоку от дока угол не сужается, а поднимается над доком: заголовок самой длинной
+ * карточки («Восстановлена после сбоя», «Доступна версия X») в одну строку, действие под ним.
+ */
+export const CORNER_MIN = 360;
+
 /** Зазор сбоку между содержимым дока и углом (с запасом на ореол кнопки записи). */
 export const SIDE_GAP = 24;
 
@@ -50,14 +57,15 @@ function contentRight(el: HTMLElement, full: number): number {
 
 /**
  * Ширина угла и нужен ли подъём над доком (чистая функция для теста). rights: правые края
- * содержимого строк дока; пустой список, если в доке пусто. Ширина одна: сбоку не помещается
- * целиком - подъём, а не сужение.
+ * содержимого строк дока; пустой список, если в доке пусто. Сбоку от дока угол сужается до
+ * свободного места, но не уже CORNER_MIN; меньше - подъём во всю ширину.
  */
 export function cornerLayout(columnRight: number, columnWidth: number, rights: number[]): { width: number; lift: boolean } {
-  const width = Math.max(0, Math.min(CORNER_WIDTH, columnWidth - 2 * TOAST_EDGE));
-  if (rights.length === 0) return { width, lift: false };
-  const free = columnRight - TOAST_EDGE - (Math.max(...rights) + SIDE_GAP);
-  return { width, lift: free < width };
+  const full = Math.max(0, Math.min(CORNER_WIDTH, columnWidth - 2 * TOAST_EDGE));
+  if (rights.length === 0) return { width: full, lift: false };
+  const free = Math.floor(columnRight - TOAST_EDGE - (Math.max(...rights) + SIDE_GAP));
+  if (free >= Math.min(CORNER_MIN, full)) return { width: Math.min(full, free), lift: false };
+  return { width: full, lift: true };
 }
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;

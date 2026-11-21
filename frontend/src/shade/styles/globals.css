@@ -235,6 +235,8 @@
    (--shade-toast-w, lib/notice-stack.ts); если сбоку от дока не помещается, подъём над доком
    через transform, плавно. Высота не больше окна: раскрытый стек прокручивается. */
 .shade-corner {
+  /* Ширину угла читают карточки: уже 500 px действие уходит под текст (ниже) */
+  container: shade-corner / inline-size;
   right: calc(var(--shade-stack-right, 0px) + 16px);
   bottom: var(--shade-stack-bottom, 28px);
   width: var(--shade-toast-w, min(500px, calc(100vw - 32px)));
@@ -254,6 +256,33 @@
 
 .shade-corner-list::-webkit-scrollbar {
   display: none;
+}
+
+/* Узкий угол (сбоку от кнопки записи меньше 500 px, lib/notice-stack.ts): заголовок и подпись
+   в одну строку на всю ширину, действие второй строкой под текстом, крестик справа сверху.
+   Порог - CORNER_WIDTH: шире все строки с кнопкой помещаются в одну. */
+@container shade-corner (max-width: 499px) {
+  .shade-corner [data-shade-notice]:has(> .shade-notice-actions) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'mark text close'
+      '. actions actions';
+    row-gap: 12px;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-mark {
+    grid-area: mark;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-text {
+    grid-area: text;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-actions {
+    grid-area: actions;
+    justify-self: start;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-close {
+    grid-area: close;
+  }
 }
 
 /* Пока открыт диалог, угол ждёт под его затемнением, а не ложится поверх окна */

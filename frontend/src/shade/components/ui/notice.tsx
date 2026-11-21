@@ -8,10 +8,12 @@
 // длинная ошибка ядра обрезается многоточием, целиком в подсказке. Действие - серая капсула
 // (NOTICE_SECONDARY): лайм только у кнопки записи и «Отправить» в форме отзыва.
 // Ошибки role="alert", остальное role="status"; фокус карточка не забирает.
+// Угол уже CORNER_WIDTH (место справа от кнопки записи): действие переходит под текст второй
+// строкой, крестик справа сверху (@container shade-corner в globals.css).
 'use client';
 
 import * as React from 'react';
-import { ArrowFatUp, CheckFat, ClockCounterClockwise, Warning } from '@phosphor-icons/react';
+import { ArrowFatUp, Check, ClockCounterClockwise, Warning } from '@phosphor-icons/react';
 import { CloseButton } from '@/shade/components/ui/close-button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { Button } from '@/shade/components/ui/button';
@@ -46,11 +48,12 @@ const MARK_TONE: Record<NoticeTone, string> = {
   error: `${MARK_BG} text-destructive-ink`,
 };
 
-/** Значок по смыслу. Все Phosphor в заливке, «i» свой (InfoFatIcon), ожидание - Spinner. */
+/** Значок по смыслу. Phosphor в заливке, галочка bold (по весу с часами и стрелкой), «i» свой (InfoFatIcon), ожидание - Spinner. */
 export function NoticeGlyph({ kind }: { kind: NoticeIconKind }) {
   switch (kind) {
     case 'done':
-      return <CheckFat weight="fill" />;
+      // Обычная галочка bold: CheckFat тяжелее часов и стрелки рядом (решение владельца 21.11.2026)
+      return <Check weight="bold" />;
     case 'info':
       return <InfoFatIcon />;
     case 'problem':
@@ -107,11 +110,11 @@ export const Notice = React.forwardRef<HTMLDivElement, NoticeProps>(
   ({ icon, tone = 'neutral', title, hint, hintTitle, actions, onClose, closeLabel, className, ...props }, ref) => (
     <NoticeSurface ref={ref} className={cn('flex min-w-0 items-center gap-3', className)} data-shade-notice="" {...props}>
       {icon && (
-        <NoticeMark tone={icon === 'problem' && tone === 'neutral' ? 'error' : tone}>
+        <NoticeMark tone={icon === 'problem' && tone === 'neutral' ? 'error' : tone} className="shade-notice-mark">
           <NoticeGlyph kind={icon} />
         </NoticeMark>
       )}
-      <div className={cn('min-w-0 flex-1', !icon && 'pl-1')}>
+      <div className={cn('shade-notice-text min-w-0 flex-1', !icon && 'pl-1')}>
         <p className={NOTICE_TITLE} title={typeof title === 'string' ? title : undefined}>
           {title}
         </p>
@@ -121,8 +124,8 @@ export const Notice = React.forwardRef<HTMLDivElement, NoticeProps>(
           </p>
         )}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-      {onClose && <CloseButton label={closeLabel ?? ''} onClick={onClose} className="static size-10 translate-y-0" />}
+      {actions && <div className="shade-notice-actions flex shrink-0 items-center gap-2">{actions}</div>}
+      {onClose && <CloseButton label={closeLabel ?? ''} onClick={onClose} className="shade-notice-close static size-10 translate-y-0" />}
     </NoticeSurface>
   ),
 );
