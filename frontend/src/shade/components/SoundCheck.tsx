@@ -59,7 +59,8 @@ export function silenceCause(s: SoundState | null): string {
   if (s.mic && !s.inputs.includes(s.mic)) return `${t('silenceCauseMicMissing')} «${s.mic}»`;
   const mic = s.mic ? `${t('microphone')} «${s.mic}»` : t('defaultMicCap');
   const system = s.system ? `${t('systemAudioLower')} «${s.system}»` : t('systemAudioDefaultLower');
-  return `${mic}, ${system}. ${t('silenceCauseCheck')}`;
+  // Только устройства: вместе с «Проверьте…» подпись выходила в три строки, а проверку даёт кнопка рядом
+  return `${mic}, ${system}`;
 }
 
 function Row({ ok, title, value }: { ok: boolean; title: string; value: string }) {

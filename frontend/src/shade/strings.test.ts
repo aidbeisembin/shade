@@ -209,7 +209,7 @@ describe('t, tf, tp на текущем языке', () => {
   test('tDays подставляет срок корзины на текущем языке', () => {
     expect(tDays('deletedHint')).toContain('30 дней');
     setLang('en');
-    expect(tDays('deletedHint')).toBe('You can restore it from the “Trash” filter within 30 days');
+    expect(tDays('deletedHint')).toBe('Restore it from “Trash” within 30 days');
   });
 
   test('tp на текущем языке', () => {
@@ -249,4 +249,35 @@ describe('пропущенный ключ', () => {
       (enD.wordsCount as Record<string, string>).one = saved;
     }
   });
+});
+
+// Подпись в уведомлениях и всплывающих окнах не длиннее двух строк (владелец 2026-11-21).
+// Две строки дают ширина контейнера и длина текста; бюджет в символах с подставленными
+// {days}, {n}, взят с запасом на перенос по словам:
+//  - тост: колонка текста 188 px при тосте 340 px (окно 960 рядом с кнопкой записи), ~26 знаков в строке;
+//  - карточка дока (подсказки про микрофон, обновление): колонка ~290 px рядом с кнопкой действия;
+//  - диалог: max-w-md без полей, 400 px, ~55 знаков в строке.
+describe('подпись уведомлений и окон не длиннее двух строк', () => {
+  const BUDGET = {
+    toast: { max: 40, keys: ['deletedHint', 'lowContentHint', 'recordsDeleteFailed', 'recoveredManyHint', 'recordsCount'] },
+    dock: {
+      max: 70,
+      keys: ['micSilentHint', 'micLostHint', 'systemOnlyHint', 'micBlindHint', 'silenceCauseGeneric', 'silenceCauseNoAccess', 'updateHint', 'updateFailedHint', 'discardedNotSaved'],
+    },
+    dialog: {
+      max: 100,
+      keys: ['deleteHint', 'deleteForeverHint', 'emptyTrashHint', 'emptyCleanupHintOne', 'emptyCleanupHintMany', 'soundCheckHint', 'importHint', 'importRunningHint', 'importFailedHint', 'licensesIntro', 'licensesEmpty'],
+    },
+  } as const;
+  const fill = (s: string, lang: 'ru' | 'en') => s.replace('{days}', lang === 'ru' ? '30 дней' : '30 days').replace('{n}', '12');
+  const forms = (v: unknown): string[] => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v as Record<string, string>) : []);
+  for (const [where, { max, keys: list }] of Object.entries(BUDGET)) {
+    test(`${where}: не длиннее ${max} знаков`, () => {
+      for (const k of list) {
+        expect([k, forms(ruD[k]).length > 0]).toEqual([k, true]);
+        for (const s of forms(ruD[k])) expect([k, 'ru', fill(s, 'ru').length <= max]).toEqual([k, 'ru', true]);
+        for (const s of forms(enD[k])) expect([k, 'en', fill(s, 'en').length <= max]).toEqual([k, 'en', true]);
+      }
+    });
+  }
 });
