@@ -9,7 +9,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, X } from '@phosphor-icons/react';
+import { CheckFat } from '@phosphor-icons/react';
+import { XFatIcon } from '@/shade/components/XFatIcon';
 import { Button } from '@/shade/components/ui/button';
 import { Input } from '@/shade/components/ui/input';
 import { Spinner } from '@/shade/components/ui/spinner';
@@ -96,7 +97,7 @@ export function InlineRename({ initial, onSave, onClose, inputClassName, buttonC
         disabled={saving}
       />
       <Button type="submit" size="icon" className={cn('shrink-0 [&_svg]:size-5', buttonClassName)} aria-label={t('save')} disabled={saving} onMouseDown={keepFocus}>
-        {saving ? <Spinner tone="inherit" /> : <Check weight="bold" />}
+        {saving ? <Spinner tone="inherit" /> : <CheckFat />}
       </Button>
       <Button
         type="button"
@@ -107,7 +108,7 @@ export function InlineRename({ initial, onSave, onClose, inputClassName, buttonC
         onMouseDown={keepFocus}
         onClick={cancel}
       >
-        <X weight="bold" />
+        <XFatIcon />
       </Button>
     </form>
   );

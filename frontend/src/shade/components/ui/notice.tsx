@@ -1,8 +1,8 @@
 // Уведомление Shade одно на всех: итог записи у капсулы (NoticeCard в RecordDock),
 // карточки про микрофон (MicNotices) и тосты (ShadeToaster, lib/toasts.tsx).
 // Плотное стекло, радиус плитки, внутри 20 px. Слева знак в круге 44 px на подложке крестика
-// (иконка 20 px), через 12 px текст; круг по центру блока текста. Подпись не длиннее двух
-// строк. Круглый крестик на одной линии со знаком: у карточки с действием в строке справа по
+// (иконка 20 px), через 12 px текст; круг по центру блока текста. Заголовок 17 px, подпись
+// 14 px; обе переносятся целиком, без многоточия, строка подписи не длиннее 46 символов. Круглый крестик на одной линии со знаком: у карточки с действием в строке справа по
 // центру высоты (ui/close-button.tsx), справа у содержимого запас под него; у тоста с действием
 // под текстом крестик в строке знака и текста, по центру круга знака.
 // Действие либо в строке справа от текста (широкая карточка у капсулы), либо под текстом по
@@ -19,6 +19,15 @@ export const NOTICE_ACTION = 'h-11';
 
 /** Вторичная кнопка уведомления: та же высота и та же подложка, что у круга знака и крестика (--glass-btn), в обеих темах видна на карточке. */
 export const NOTICE_SECONDARY = `${NOTICE_ACTION} bg-[hsl(var(--foreground)/var(--glass-btn))] hover:bg-[hsl(var(--foreground)/var(--glass-btn-hover))]`;
+
+/** Заголовок уведомления: 17 px, переносится, без многоточия. */
+export const NOTICE_TITLE = 'text-[17px] font-semibold leading-6';
+
+/**
+ * Подпись уведомления: 14 px, переносится целиком, без многоточия и обрезки строк.
+ * Длину строки ограничивает ширина в символах (46ch), а не число строк.
+ */
+export const NOTICE_HINT = 'max-w-[46ch] text-sm leading-5 text-muted-foreground [text-wrap:pretty]';
 
 export type NoticeTone = 'neutral' | 'giants' | 'success' | 'error';
 
@@ -62,24 +71,22 @@ export interface NoticeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 
   actions?: React.ReactNode;
   /** inline: в строке перед крестиком; below: под текстом по его левому краю. */
   actionsPlacement?: 'inline' | 'below';
-  /** Подсказка длиннее строки: до двух строк вместо обрезки в одну. */
+  /** Устарело: подпись всегда переносится целиком (NOTICE_HINT). */
   wrapHint?: boolean;
   onClose?: () => void;
   closeLabel?: string;
 }
 
 export const Notice = React.forwardRef<HTMLDivElement, NoticeProps>(
-  ({ icon, tone = 'neutral', title, hint, actions, actionsPlacement = 'inline', wrapHint, onClose, closeLabel, className, ...props }, ref) => {
+  ({ icon, tone = 'neutral', title, hint, actions, actionsPlacement = 'inline', wrapHint: _wrapHint, onClose, closeLabel, className, ...props }, ref) => {
     const below = actions && actionsPlacement === 'below';
     return (
       <NoticeSurface ref={ref} className={cn(onClose && !below && CLOSE_RESERVE, className)} {...props}>
         <div className="flex min-w-0 items-center gap-3">
           {icon && <NoticeMark tone={tone}>{icon}</NoticeMark>}
           <div className={cn('min-w-0 flex-1', !icon && 'pl-1')}>
-            <p className="truncate text-[15px] font-semibold leading-5">{title}</p>
-            {hint && (
-              <p className={cn('mt-1 text-sm leading-5 text-muted-foreground', wrapHint ? 'line-clamp-2 whitespace-normal [text-wrap:balance]' : 'truncate')}>{hint}</p>
-            )}
+            <p className={NOTICE_TITLE}>{title}</p>
+            {hint && <p className={cn('mt-0.5', NOTICE_HINT)}>{hint}</p>}
           </div>
           {actions && !below && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
           {/* Действие под текстом: крестик в строке знака, по центру его круга, а не всей карточки */}

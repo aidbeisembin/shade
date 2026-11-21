@@ -4,7 +4,7 @@
 // фокуса в useAccessChecks.
 'use client';
 
-import { Check, Microphone, SpeakerHigh } from '@phosphor-icons/react';
+import { CheckFat, Microphone, SpeakerHigh } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { cn } from '@/shade/lib/utils';
@@ -106,7 +106,7 @@ function DemoPrompt({ state }: { state: DemoState }) {
         </div>
       </div>
       <span className="shade-ob-prompt-done absolute flex items-center gap-2 text-[17px] font-semibold text-primary-ink">
-        <Check weight="bold" className="size-5" />
+        <CheckFat className="size-5" />
         {t('obGranted')}
       </span>
     </div>
@@ -154,7 +154,7 @@ function AccessCard({
             state === 'granted' ? 'text-primary-ink' : state === 'denied' ? 'text-giants-ink' : 'text-muted-foreground',
           )}
         >
-          {state === 'granted' && <Check weight="bold" className="size-4 shrink-0" aria-hidden />}
+          {state === 'granted' && <CheckFat className="size-4 shrink-0" aria-hidden />}
           {caption}
         </p>
       </div>

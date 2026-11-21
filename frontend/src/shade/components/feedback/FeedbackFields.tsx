@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Check, Warning } from '@phosphor-icons/react';
+import { CheckFat, Warning } from '@phosphor-icons/react';
 import { NoticeMark } from '@/shade/components/ui/notice';
 import { spring } from '@/shade/lib/motion/spring';
 import { MORPH } from '@/shade/lib/motion/shade-springs';
@@ -91,7 +91,7 @@ export function OutcomePlaque({ outcome, compact }: { outcome: Outcome; compact?
         tone={ok ? 'success' : 'giants'}
         className={cn(ok && 'bg-[hsl(var(--ok)/0.14)] text-[hsl(var(--ok))]', compact && 'size-8 [&_svg]:size-4')}
       >
-        {ok ? <Check weight="bold" /> : <Warning />}
+        {ok ? <CheckFat /> : <Warning />}
       </NoticeMark>
       <div className="min-w-0">
         <p className={cn('font-semibold leading-5', compact ? 'truncate text-sm' : 'text-[15px] [text-wrap:balance]')}>{title}</p>

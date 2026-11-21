@@ -89,15 +89,14 @@ describe('оформление английского', () => {
     for (const [k, s] of allEn) expect([k, s.includes('...')]).toEqual([k, false]);
   });
 
-  test('точка в конце абзаца там же, где в русском', () => {
-    const endsDot = (s: string) => s.trimEnd().endsWith('.');
-    // В русском точка в «дн.» это сокращение, а не конец абзаца
+  test('точки в конце строки нет ни на одном языке (решение владельца 2026-11-21)', () => {
+    const endsDot = (s: string) => /[^.]\.$/.test(s.trimEnd());
+    // «дн.» это сокращение, а не конец предложения
     const abbreviation = new Set(['trashDaysLeft']);
+    const forms = (v: unknown): string[] => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v as Record<string, string>) : []);
     for (const k of keys) {
       if (abbreviation.has(k)) continue;
-      const r = ruD[k];
-      const e = enD[k];
-      if (typeof r === 'string' && typeof e === 'string') expect([k, endsDot(e)]).toEqual([k, endsDot(r)]);
+      for (const s of [...forms(ruD[k]), ...forms(enD[k])]) expect([k, endsDot(s)]).toEqual([k, false]);
     }
   });
 
@@ -210,7 +209,7 @@ describe('t, tf, tp на текущем языке', () => {
   test('tDays подставляет срок корзины на текущем языке', () => {
     expect(tDays('deletedHint')).toContain('30 дней');
     setLang('en');
-    expect(tDays('deletedHint')).toBe('You can restore it from the “Trash” filter within 30 days.');
+    expect(tDays('deletedHint')).toBe('You can restore it from the “Trash” filter within 30 days');
   });
 
   test('tp на текущем языке', () => {

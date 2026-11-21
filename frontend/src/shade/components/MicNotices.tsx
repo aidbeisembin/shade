@@ -10,7 +10,7 @@ import { CLOSE_RESERVE, CloseButton as CloseButtonBase } from '@/shade/component
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GearSix, MicrophoneSlash, SpeakerHigh } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
-import { NOTICE_SECONDARY, NoticeMark, NoticeSurface } from '@/shade/components/ui/notice';
+import { NOTICE_HINT, NOTICE_SECONDARY, NOTICE_TITLE, NoticeMark, NoticeSurface } from '@/shade/components/ui/notice';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { openPrivacySettings } from '@/shade/lib/onboarding';
@@ -130,7 +130,7 @@ export function MicAccessCard({
           <MicrophoneSlash />
         </Sign>
         <div className="min-w-0 flex-1 pt-3">
-          <p className="text-[15px] font-semibold leading-5">{denied ? t('micDeniedTitle') : t('micMissingTitle')}</p>
+          <p className={NOTICE_TITLE}>{denied ? t('micDeniedTitle') : t('micMissingTitle')}</p>
           {note && <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{note}</p>}
           {/* Подсказка картинкой: строка «Shade» с включающимся переключателем, как в Системных настройках */}
           {denied && <SettingsHint />}
@@ -237,8 +237,8 @@ export function MicHint({ kind, onClose }: { kind: MicHintKind; onClose: () => v
     // Крестик у подложки дока (у неё relative и p-4): 16 px от края, как её отступ; справа запас 52 px, кнопки и текст не заходят под него
     <div className="flex min-w-0 items-center gap-3 pr-[52px]" role="status" data-shade-mic-hint={kind}>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{t(HINT[kind].title)}</p>
-        <p className="line-clamp-2 text-sm text-muted-foreground">{t(HINT[kind].hint)}</p>
+        <p className={NOTICE_TITLE}>{t(HINT[kind].title)}</p>
+        <p className={cn('mt-0.5', NOTICE_HINT)}>{t(HINT[kind].hint)}</p>
       </div>
       {kind === 'blind' ? (
         <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => void openPrivacySettings('microphone')}>

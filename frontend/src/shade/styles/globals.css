@@ -815,13 +815,6 @@ html body[data-scroll-locked] {
 }
 
 /* Значок крестика (ui/close-button.tsx): bold с чуть более толстым контуром */
-.shade-close-glyph {
-  stroke: currentColor;
-  stroke-width: 10;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
 /* Заставка запуска (LaunchScreen): маскот мягко «дышит», три точки бегут волной,
    уход растворением. Только transform и opacity. */
 /* Заставка: логотип медленно и плавно пульсирует (2,8 с на вдох и выдох) */
@@ -1149,14 +1142,16 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
   }
 }
 
-/* Всплывающее (меню, подсказки, диалоги): стекло плотнее, появляется из размытия */
+/* Всплывающее (меню, подсказки, диалоги): подложка сплошная, в светлой белая, в тёмной
+   как --popover (владелец 2026-11-21: серое стекло читалось грязным), кромка и тень стекла
+   остаются; появляется из размытия */
 .shade-glass-pop {
-  --glass-alpha: 0.72;
+  --glass-alpha: 1;
 }
 
 .dark .shade-glass-pop {
   --glass-tint: 0 0% 13%;
-  --glass-alpha: 0.74;
+  --glass-alpha: 1;
 }
 
 @keyframes shade-blur-in {
