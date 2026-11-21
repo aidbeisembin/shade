@@ -1,10 +1,12 @@
 // Уведомление Shade одно на всех: итог записи у капсулы (NoticeCard в RecordDock),
 // карточки про микрофон (MicNotices) и тосты (ShadeToaster, lib/toasts.tsx).
 // Плотное стекло, радиус плитки, внутри 20 px. Слева знак в круге 44 px на подложке крестика
-// (иконка 20 px), через 12 px текст; круг по центру блока текста. Круглый
-// крестик в правом верхнем углу, 4 px сверху и справа (ui/close-button.tsx), справа у
-// содержимого запас под него. Действие либо в строке справа от текста (широкая карточка
-// у капсулы), либо под текстом по его левому краю (тост).
+// (иконка 20 px), через 12 px текст; круг по центру блока текста. Подпись не длиннее двух
+// строк. Круглый крестик на одной линии со знаком: у карточки с действием в строке справа по
+// центру высоты (ui/close-button.tsx), справа у содержимого запас под него; у тоста с действием
+// под текстом крестик в строке знака и текста, по центру круга знака.
+// Действие либо в строке справа от текста (широкая карточка у капсулы), либо под текстом по
+// его левому краю (тост).
 // Карточки дока внизу по центру (RecordDock), тосты в правом нижнем углу (ShadeToaster), не друг на друге.
 'use client';
 
@@ -60,7 +62,7 @@ export interface NoticeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 
   actions?: React.ReactNode;
   /** inline: в строке перед крестиком; below: под текстом по его левому краю. */
   actionsPlacement?: 'inline' | 'below';
-  /** Подсказка длиннее строки: до трёх строк вместо обрезки. */
+  /** Подсказка длиннее строки: до двух строк вместо обрезки в одну. */
   wrapHint?: boolean;
   onClose?: () => void;
   closeLabel?: string;
@@ -70,19 +72,21 @@ export const Notice = React.forwardRef<HTMLDivElement, NoticeProps>(
   ({ icon, tone = 'neutral', title, hint, actions, actionsPlacement = 'inline', wrapHint, onClose, closeLabel, className, ...props }, ref) => {
     const below = actions && actionsPlacement === 'below';
     return (
-      <NoticeSurface ref={ref} className={cn(onClose && CLOSE_RESERVE, className)} {...props}>
+      <NoticeSurface ref={ref} className={cn(onClose && !below && CLOSE_RESERVE, className)} {...props}>
         <div className="flex min-w-0 items-center gap-3">
           {icon && <NoticeMark tone={tone}>{icon}</NoticeMark>}
           <div className={cn('min-w-0 flex-1', !icon && 'pl-1')}>
             <p className="truncate text-[15px] font-semibold leading-5">{title}</p>
             {hint && (
-              <p className={cn('mt-1 text-sm leading-5 text-muted-foreground', wrapHint ? 'line-clamp-3 whitespace-normal [text-wrap:balance]' : 'truncate')}>{hint}</p>
+              <p className={cn('mt-1 text-sm leading-5 text-muted-foreground', wrapHint ? 'line-clamp-2 whitespace-normal [text-wrap:balance]' : 'truncate')}>{hint}</p>
             )}
           </div>
           {actions && !below && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
+          {/* Действие под текстом: крестик в строке знака, по центру его круга, а не всей карточки */}
+          {onClose && below && <CloseButton label={closeLabel ?? ''} onClick={onClose} className="static translate-y-0" />}
         </div>
         {below && <div className={cn('mt-3 flex flex-wrap items-center gap-2', icon && 'pl-14')}>{actions}</div>}
-        {onClose && <CloseButton label={closeLabel ?? ''} onClick={onClose} />}
+        {onClose && !below && <CloseButton label={closeLabel ?? ''} onClick={onClose} />}
       </NoticeSurface>
     );
   },
