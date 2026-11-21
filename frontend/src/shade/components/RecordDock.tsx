@@ -10,8 +10,8 @@
 //   и крестиком; запись отбракована: та же карточка «Пустая запись - не сохранена».
 // Смена состояния появляется из размытия (.shade-dock-in), уходит плавно с размытием
 // (.shade-dock-out, уходящая копия), только transform, opacity и filter; prefers-reduced-motion
-// оставляет одну прозрачность. Док и тосты одна стопка (lib/notice-stack.ts): док внизу,
-// тосты над ним, друг на друга не ложатся.
+// оставляет одну прозрачность. Док внизу по центру, тосты в правом нижнем углу
+// (lib/notice-stack.ts); если док заходит под угол, тосты встают над ним, друг на друга не ложатся.
 // Обновление: карточка «Доступна версия X» в той же стопке, только в покое (lib/updates.ts).
 // Страницы оставляют снизу запас --dock-space, капсула не закрывает последние строки.
 //
@@ -355,7 +355,7 @@ export function RecordDock() {
   const updateShown = updatePreview ?? (update.visible ? update.phase : null);
   const showUpdate = state === 'idle' && micBlocker === null && !showFeedback && updateShown !== null && isShownUpdate(updateShown);
 
-  // Тосты встают над тем, что сейчас в доке (lib/notice-stack.ts)
+  // Тосты в углу, над доком, если он заходит под угол (lib/notice-stack.ts)
   const sectionRef = useRef<HTMLElement>(null);
   useNoticeStackAnchor(sectionRef);
 
