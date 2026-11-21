@@ -145,7 +145,7 @@ jobs:
           # одноразовый (сборка не публикуется).
           # Окно .dmg: фон с шагами установки (scripts/release/dmg/make-background.swift, 680x480 pt);
           # места значков совпадают с картинкой. tauri.conf.json не трогаем: всё через --config
-          dmg=$(jq -nc --arg bg "$GITHUB_WORKSPACE/scripts/release/dmg/background.png" '{background: $bg, windowSize: {width: 680, height: 480}, appPosition: {x: 170, y: 150}, applicationFolderPosition: {x: 510, y: 150}}')
+          dmg=$(jq -nc --arg bg "$GITHUB_WORKSPACE/scripts/release/dmg/background.png" '{background: $bg, windowSize: {width: 680, height: 480}, appPosition: {x: 170, y: 120}, applicationFolderPosition: {x: 510, y: 120}}')
           config=$(jq -nc --arg k "${DRY_UPDATER_PUBKEY:-}" --argjson dmg "$dmg" '{build: {beforeBuildCommand: null}, bundle: {createUpdaterArtifacts: true, macOS: {dmg: $dmg}}} + (if $k == "" then {} else {plugins: {updater: {pubkey: $k}}} end)')
           echo "$config" | jq .
           pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg --config "$config" --features coreml
