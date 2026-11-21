@@ -139,9 +139,12 @@ test('«Спасибо» со ссылкой на чат беты: держит�
       r = TestRenderer.create(<FeedbackCard onDone={() => done++} />);
     });
     const card = () => r.root.find((n) => n.type === 'section');
+    // Как в браузере: указатель на карточке, щелчок даёт звезде фокус, звезда исчезает (focusout в никуда)
     await act(async () => card().props.onPointerEnter());
+    await act(async () => card().props.onFocus());
     await act(async () => radios(r.root)[4].props.onClick());
     expect(await waitFor(() => card().props['data-plaque'] === 'sent')).toBe(true);
+    await act(async () => card().props.onBlur({ currentTarget: { contains: () => false }, relatedTarget: null }));
     // Ссылка под «Отзыв отправлен», но не внутри объявления итога
     expect(byText(r.root, 'Обсудить в чате беты')).toBeTruthy();
     expect(textOf(r.root.find((n) => n.props.role === 'status'))).toBe('СпасибоОтзыв отправлен');

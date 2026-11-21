@@ -90,8 +90,11 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
   // Со ссылкой на чат: дольше, и пока указатель или фокус на карточке, не уходит (отсчёт заново после)
   const chat = betaChatUrl();
   const chatInPlaque = plaque === 'sent' && chat !== null;
-  const [held, setHeld] = React.useState(false);
-  const paused = chatInPlaque && held;
+  // Указатель и фокус отдельно: звезда в фокусе исчезает при сворачивании в плашку (focusout),
+  // а указатель при этом остаётся на карточке
+  const [hovered, setHovered] = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
+  const paused = chatInPlaque && (hovered || focused);
   React.useEffect(() => {
     if (!plaque || paused) return;
     const hold = plaque !== 'sent' ? FAILED_HOLD_MS : chatInPlaque ? CHAT_HOLD_MS : THANKS_HOLD_MS;
@@ -120,11 +123,11 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
       // одном элементе перестаёт размывать, и строки под карточкой просвечивают
       // Ширину ведёт useSpringWidth: до CARD_MAX со звёздами и формой, по содержимому в плашке
       className="shade-glass shade-glass-dense relative max-w-full rounded-tile"
-      onPointerEnter={() => setHeld(true)}
-      onPointerLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
       }}
       onKeyDown={(e) => {
         // Esc вне поля: закрыть (в поле Esc обрабатывает само поле)
