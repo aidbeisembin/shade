@@ -5,7 +5,7 @@
 import * as React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { CheckFat, Warning } from '@phosphor-icons/react';
-import { NoticeMark } from '@/shade/components/ui/notice';
+import { NOTICE_HINT, NOTICE_TITLE, NoticeMark } from '@/shade/components/ui/notice';
 import { spring } from '@/shade/lib/motion/spring';
 import { MORPH } from '@/shade/lib/motion/shade-springs';
 import { MAX_TEXT, textLength } from '@/shade/lib/feedback/contract';
@@ -80,7 +80,10 @@ FeedbackText.displayName = 'FeedbackText';
 export type Outcome = 'sent' | 'queued' | 'failed';
 
 /** Плашка итога: «Спасибо» с галочкой, или «Не получилось отправить». */
-/** action: строка под текстом (ссылка на чат беты), вне role=status, чтобы не зачитывалась как итог. */
+/**
+ * action: кнопка справа от текста (чат беты), вне role=status, чтобы не зачитывалась как итог.
+ * Знак по центру блока «заголовок + подпись», а не всей плашки: действие стоит в той же строке.
+ */
 export function OutcomePlaque({ outcome, compact, action }: { outcome: Outcome; compact?: boolean; action?: React.ReactNode }) {
   useLang();
   const ok = outcome === 'sent';
@@ -94,13 +97,11 @@ export function OutcomePlaque({ outcome, compact, action }: { outcome: Outcome; 
       >
         {ok ? <CheckFat /> : <Warning />}
       </NoticeMark>
-      <div className="min-w-0">
-        <div role="status">
-          <p className={cn('font-semibold leading-5', compact ? 'truncate text-sm' : 'text-[15px] [text-wrap:balance]')}>{title}</p>
-          {ok && !compact && <p className="mt-1 text-sm leading-5 text-muted-foreground">{t('feedbackSentHint')}</p>}
-        </div>
-        {action}
+      <div role="status" className="min-w-0 flex-1">
+        <p className={cn(compact ? 'truncate text-sm font-semibold leading-5' : NOTICE_TITLE)}>{title}</p>
+        {ok && !compact && <p className={cn('mt-0.5', NOTICE_HINT)}>{t('feedbackSentHint')}</p>}
       </div>
+      {action && <div className="ml-3 shrink-0">{action}</div>}
     </div>
   );
 }

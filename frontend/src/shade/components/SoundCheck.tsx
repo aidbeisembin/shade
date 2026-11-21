@@ -66,8 +66,8 @@ export function silenceCause(s: SoundState | null): string {
 function Row({ ok, title, value }: { ok: boolean; title: string; value: string }) {
   const Icon = ok ? CheckFat : Warning;
   return (
-    <li className="flex items-start gap-3 py-3">
-      <Icon className={cn('mt-0.5 size-5 shrink-0', ok ? 'text-primary-ink' : 'text-destructive-ink')} aria-hidden />
+    <li className="flex items-center gap-3 py-3">
+      <Icon className={cn('size-5 shrink-0', ok ? 'text-primary-ink' : 'text-destructive-ink')} aria-hidden />
       <div className="min-w-0">
         <p className="text-sm font-medium">{title}</p>
         <p className="mt-0.5 break-words text-sm text-muted-foreground">{value}</p>

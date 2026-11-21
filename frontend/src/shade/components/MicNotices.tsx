@@ -124,14 +124,21 @@ export function MicAccessCard({
   const note = denied ? (blocker.zeros ? t('micNotSaved') : blocker.stillDenied ? t('micRestartNote') : null) : null;
 
   return (
-    <CardShell>
-      <div role="alert" data-shade-mic={blocker.kind} className="flex w-full min-w-0 items-start gap-4">
-        <Sign>
-          <MicrophoneSlash />
-        </Sign>
-        <div className="min-w-0 flex-1 pt-3">
-          <p className={NOTICE_TITLE}>{denied ? t('micDeniedTitle') : t('micMissingTitle')}</p>
-          {note && <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{note}</p>}
+    // Крестик в строке знака, не по центру карточки: справа запаса под него не нужно
+    <CardShell className="pr-5">
+      <div role="alert" data-shade-mic={blocker.kind} className="w-full min-w-0">
+        {/* Знак и крестик по центру блока «заголовок + подпись»; картинка и кнопки ниже, по левому краю текста */}
+        <div className="flex min-w-0 items-center gap-4">
+          <Sign>
+            <MicrophoneSlash />
+          </Sign>
+          <div className="min-w-0 flex-1">
+            <p className={NOTICE_TITLE}>{denied ? t('micDeniedTitle') : t('micMissingTitle')}</p>
+            {note && <p className={cn('mt-0.5', NOTICE_HINT)}>{note}</p>}
+          </div>
+          <CloseButton onClick={onClose} className="static translate-y-0" />
+        </div>
+        <div className="pl-[60px]">
           {/* Подсказка картинкой: строка «Shade» с включающимся переключателем, как в Системных настройках */}
           {denied && <SettingsHint />}
           <div className="mt-3 flex flex-wrap items-center gap-1">
@@ -161,7 +168,6 @@ export function MicAccessCard({
           </div>
         </div>
       </div>
-      <CloseButton onClick={onClose} />
     </CardShell>
   );
 }

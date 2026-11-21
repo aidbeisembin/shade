@@ -152,7 +152,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
                   chat && (
                     <Button
                       variant="secondary"
-                      className={cn(NOTICE_SECONDARY, 'mt-3 px-4 text-sm font-medium')}
+                      className={cn(NOTICE_SECONDARY, 'px-4 text-sm font-medium')}
                       onClick={() => {
                         openBetaChat(chat);
                         dispatch({ type: 'close' });
