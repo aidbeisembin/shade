@@ -16,6 +16,8 @@
                 "title": "Shade",
                 "width": 1100,
                 "height": 700,
+                "minWidth": 640,
+                "minHeight": 520,
                 "resizable": true,
                 "fullscreen": false,
                 "backgroundColor": "#F7F7F8",
