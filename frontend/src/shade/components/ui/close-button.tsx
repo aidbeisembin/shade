@@ -1,8 +1,7 @@
-// Крестик «Закрыть» один на весь Shade: круглая кнопка 44 px на лёгкой подложке, значок X
+// Крестик «Закрыть» один на весь Shade: круглая кнопка 44 px на лёгкой подложке, значок
 // 14 px светло-серым (цвет подписи на 70 %). При наведении меняется только подложка, на тон
-// ближе к тексту (.shade-icon-btn-glass, globals.css), значок прежний;
-// bold с чуть более толстым контуром, .shade-close-glyph в globals.css;
-// залитый X в Phosphor нарисован квадратом, docs/ui/foundations.md).
+// ближе к тексту (.shade-icon-btn-glass, globals.css), значок прежний.
+// Значок залитый, свой (XFatIcon): залитый X в Phosphor нарисован квадратом, docs/ui/foundations.md.
 // Правило места: у карточек (уведомления, итог записи, карточки про микрофон) крестик справа
 // по центру высоты, 20 px от правого края, как отступ карточки (CLOSE_CENTER), на одной линии с кнопкой действия:
 // у карточки в одну строку зазор справа и сверху с снизу равны;
@@ -11,12 +10,12 @@
 'use client';
 
 import * as React from 'react';
-import { X } from '@phosphor-icons/react';
+import { XFatIcon } from '@/shade/components/XFatIcon';
 import { cn } from '@/shade/lib/utils';
 
-/** Значок крестика: 14 px, bold с утолщённым контуром. */
+/** Значок крестика: 14 px, залитый (XFatIcon). */
 export function CloseGlyph({ className }: { className?: string }) {
-  return <X weight="bold" aria-hidden className={cn('shade-close-glyph size-3.5', className)} />;
+  return <XFatIcon className={cn('size-3.5', className)} />;
 }
 
 /** Классы круглой кнопки: для своих кнопок и для Radix Close. */

@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Check, GearSix, Warning } from '@phosphor-icons/react';
+import { CheckFat, GearSix, Warning } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { cn } from '@/shade/lib/utils';
@@ -56,17 +56,18 @@ export function useSoundState(enabled: boolean): SoundState | null {
 export function silenceCause(s: SoundState | null): string {
   if (!s) return t('silenceCauseGeneric');
   if (s.inputs.length === 0) return t('silenceCauseNoAccess');
-  if (s.mic && !s.inputs.includes(s.mic)) return `${t('silenceCauseMicMissing')} «${s.mic}».`;
+  if (s.mic && !s.inputs.includes(s.mic)) return `${t('silenceCauseMicMissing')} «${s.mic}»`;
   const mic = s.mic ? `${t('microphone')} «${s.mic}»` : t('defaultMicCap');
   const system = s.system ? `${t('systemAudioLower')} «${s.system}»` : t('systemAudioDefaultLower');
-  return `${mic}, ${system}. ${t('silenceCauseCheck')}`;
+  // Только устройства: вместе с «Проверьте…» подпись выходила в три строки, а проверку даёт кнопка рядом
+  return `${mic}, ${system}`;
 }
 
 function Row({ ok, title, value }: { ok: boolean; title: string; value: string }) {
-  const Icon = ok ? Check : Warning;
+  const Icon = ok ? CheckFat : Warning;
   return (
-    <li className="flex items-start gap-3 py-3">
-      <Icon className={cn('mt-0.5 size-5 shrink-0', ok ? 'text-primary-ink' : 'text-destructive-ink')} aria-hidden />
+    <li className="flex items-center gap-3 py-3">
+      <Icon className={cn('size-5 shrink-0', ok ? 'text-primary-ink' : 'text-destructive-ink')} aria-hidden />
       <div className="min-w-0">
         <p className="text-sm font-medium">{title}</p>
         <p className="mt-0.5 break-words text-sm text-muted-foreground">{value}</p>

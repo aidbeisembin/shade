@@ -1,4 +1,6 @@
 // shadcn/ui Dialog на Radix: модальное окно с радиусом 24 px, крестик справа.
+// При открытии фокус на самом окне, а не на первой кнопке: иначе у неё кольцо фокуса, и
+// кнопки футера выглядят разной высоты. С клавиатуры Tab ведёт к первой кнопке.
 'use client';
 
 import * as React from 'react';
@@ -15,13 +17,25 @@ const DialogClose = DialogPrimitive.Close;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+>(({ className, children, onOpenAutoFocus, ...props }, ref) => {
   useLang();
+  const local = React.useRef<HTMLDivElement | null>(null);
+  const setRef = (node: HTMLDivElement | null) => {
+    local.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  };
   return (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="shade-dialog-overlay fixed inset-0 z-50" />
     <DialogPrimitive.Content
-      ref={ref}
+      ref={setRef}
+      onOpenAutoFocus={(event) => {
+        onOpenAutoFocus?.(event);
+        if (event.defaultPrevented) return;
+        event.preventDefault();
+        local.current?.focus({ preventScroll: true });
+      }}
       // data-shade: окно Shade, мост для оригинальных компонентов его не трогает
       data-shade=""
       className={cn(

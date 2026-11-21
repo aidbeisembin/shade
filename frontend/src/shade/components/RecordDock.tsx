@@ -35,7 +35,7 @@ import { isMicBlocker } from '@/shade/lib/recording';
 import { MicAccessCard, MicHint, micHintKind, type MicHintKind } from '@/shade/components/MicNotices';
 import { useRecordingOutcome } from '@/shade/lib/recording-outcome';
 import { useNoticeStackAnchor } from '@/shade/lib/notice-stack';
-import { NOTICE_SECONDARY } from '@/shade/components/ui/notice';
+import { NOTICE_HINT, NOTICE_SECONDARY, NOTICE_TITLE } from '@/shade/components/ui/notice';
 import { formatTimer } from '@/shade/lib/format';
 import { onRecordingLevel, voiceAmount } from '@/shade/lib/recording-level';
 import { cn } from '@/shade/lib/utils';
@@ -130,8 +130,8 @@ function SpeechHint({ heard }: { heard: boolean }) {
     return (
       <div className="flex min-w-0 items-center gap-3" role="status">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{t('heardNoTextTitle')}</p>
-          <p className="truncate text-xs text-muted-foreground" title={`${t('recognitionModel')}: ${model}. ${t('recognitionLanguage')}: ${language}.`}>
+          <p className={NOTICE_TITLE}>{t('heardNoTextTitle')}</p>
+          <p className={cn('mt-0.5 break-words', NOTICE_HINT)}>
             {t('recognitionModel')}: {model} · {t('recognitionLanguage')}: {language}
           </p>
         </div>
@@ -147,9 +147,9 @@ function SpeechHint({ heard }: { heard: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-3" role="status">
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{t('noSpeechTitle')}</p>
-        {/* 14 px, не больше двух строк; полный текст в подсказке */}
-        <p className="line-clamp-2 text-sm text-muted-foreground" title={silenceCause(sound)}>
+        <p className={NOTICE_TITLE}>{t('noSpeechTitle')}</p>
+        {/* 14 px, целиком, строка не длиннее 46 символов (NOTICE_HINT) */}
+        <p className={cn('mt-0.5', NOTICE_HINT)}>
           {silenceCause(sound)}
         </p>
       </div>

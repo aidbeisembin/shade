@@ -7,7 +7,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowClockwise, ArrowCounterClockwise, Chats, MagnifyingGlass, Sparkle, Trash, Warning, X } from '@phosphor-icons/react';
+import { ArrowClockwise, ArrowCounterClockwise, Chats, MagnifyingGlass, Sparkle, Trash, Warning } from '@phosphor-icons/react';
+import { XFatIcon } from '@/shade/components/XFatIcon';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { ImportIcon } from '@/shade/components/ImportIcon';
 import { Button } from '@/shade/components/ui/button';
@@ -589,7 +590,7 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
                 >
                   {/* Лупа контуром (bold): залитая рисуется сплошным диском; X bold: залитый нарисован квадратом */}
                   <MagnifyingGlass weight="bold" className="shade-search-icon-find absolute" />
-                  <X weight="bold" className="shade-search-icon-close absolute" />
+                  <XFatIcon className="shade-search-icon-close absolute" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">{searchOpen ? t('closeSearch') : t('searchMeetings')}</TooltipContent>

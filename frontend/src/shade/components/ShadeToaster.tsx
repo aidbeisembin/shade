@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
-import { Bell, Check, Warning } from '@phosphor-icons/react';
+import { Bell, CheckFat, Warning } from '@phosphor-icons/react';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { getStoredTheme, onThemeChange, type ThemeMode } from '@/shade/lib/theme';
 import { installShadeToasts } from '@/shade/lib/toasts';
@@ -27,7 +27,7 @@ installShadeToasts();
 // ожидание тем же Spinner; встроенные иконки sonner другого начертания.
 const ICONS = {
   // Без иконок со встроенной подложкой (*Circle, *Square): знак без кружка
-  success: <Check weight="bold" className="size-5" />,
+  success: <CheckFat className="size-5" />,
   info: <Bell weight="fill" className="size-5" />,
   warning: <Warning weight="fill" className="size-5" />,
   error: <Warning weight="fill" className="size-5" />,

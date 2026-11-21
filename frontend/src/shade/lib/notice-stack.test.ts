@@ -13,8 +13,11 @@ describe('cornerLayout', () => {
   test('места справа больше 400: полная ширина, без подъёма', () => {
     expect(cornerLayout(R, 1000, [550])).toEqual({ width: TOAST_WIDTH, lift: false });
   });
-  test('места 356 (окно 960, кнопка записи): тост 356, в углу', () => {
-    expect(cornerLayout(R, 1000, [freeFor(356)])).toEqual({ width: 356, lift: false });
+  test('места 390: тост сужается до 390, в углу', () => {
+    expect(cornerLayout(R, 1000, [freeFor(390)])).toEqual({ width: 390, lift: false });
+  });
+  test('места 340 (окно 960, кнопка записи): тост 340 в углу, рядом с кнопкой', () => {
+    expect(cornerLayout(R, 1000, [freeFor(340)])).toEqual({ width: 340, lift: false });
   });
   test('ровно минимум: в углу', () => {
     expect(cornerLayout(R, 1000, [freeFor(TOAST_MIN_WIDTH)])).toEqual({ width: TOAST_MIN_WIDTH, lift: false });

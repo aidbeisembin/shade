@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 import { toast, type ExternalToast } from 'sonner';
-import { Bell, Check, Warning } from '@phosphor-icons/react';
+import { Bell, CheckFat, Warning } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Notice, NOTICE_ACTION, type NoticeTone } from '@/shade/components/ui/notice';
 import { Spinner } from '@/shade/components/ui/spinner';
@@ -37,7 +37,7 @@ const REDUNDANT_ACTIONS = new Set(['View Meeting']);
 // залитый нарисован квадратом), ожидание тем же Spinner. Сам знак без подложки,
 // круг даёт Notice.
 const ICON: Record<Kind, React.ReactNode> = {
-  success: <Check weight="bold" />,
+  success: <CheckFat />,
   info: <Bell weight="fill" />,
   message: <Bell weight="fill" />,
   warning: <Warning weight="fill" />,

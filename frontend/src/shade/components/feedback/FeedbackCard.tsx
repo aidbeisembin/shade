@@ -11,7 +11,7 @@
 //  - Не ушло (нет сети, функция не настроена): «Не получилось отправить, попробуем позже», отзыв в
 //    очереди. Звезды на GitHub в карточке нет (будет отдельной иконкой).
 //  - Уходит из дока с тем видом, что был виден последним: шаг «закрыто» звёзды не возвращает.
-//  - Рядом с «Отправить» ссылка «Обсудить в чате беты», если адрес задан (lib/beta-chat.ts). В плашках
+//  - Рядом с «Отправить» кнопка «Обсудить в чате беты» со знаком Telegram, если адрес задан (lib/beta-chat.ts). В плашках
 //    «не получилось» ссылки нет: сети нет, чат тоже не откроется.
 'use client';
 
@@ -31,6 +31,8 @@ import { useLang } from '@/shade/lib/lang';
 import { t } from '@/shade/strings';
 import { invoke } from '@tauri-apps/api/core';
 import { betaChatUrl } from '@/shade/lib/beta-chat';
+import { TelegramLogo } from '@phosphor-icons/react';
+import { NOTICE_SECONDARY } from '@/shade/components/ui/notice';
 import { shadeToast } from '@/shade/lib/toasts';
 
 function openBetaChat(url: string) {
@@ -149,13 +151,14 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
                   chatInPlaque &&
                   chat && (
                     <Button
-                      variant="link"
-                      className="mt-1 h-auto p-0 text-sm"
+                      variant="secondary"
+                      className={cn(NOTICE_SECONDARY, 'px-4 text-sm font-medium')}
                       onClick={() => {
                         openBetaChat(chat);
                         dispatch({ type: 'close' });
                       }}
                     >
+                      <TelegramLogo weight="fill" />
                       {t('betaChat')}
                     </Button>
                   )
@@ -194,7 +197,8 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
                       {sending ? t('feedbackSending') : t('feedbackSend')}
                     </Button>
                     {chat && (
-                      <Button variant="link" className="px-2 text-sm" onClick={() => openBetaChat(chat)}>
+                      <Button variant="secondary" className={cn(NOTICE_SECONDARY, 'h-12 px-4 text-sm font-medium')} onClick={() => openBetaChat(chat)}>
+                        <TelegramLogo weight="fill" />
                         {t('betaChat')}
                       </Button>
                     )}

@@ -5,7 +5,7 @@
 //  - failed: «Не получилось обновить», текущая версия на месте, крестик.
 'use client';
 
-import { ArrowCircleUp, WarningCircle } from '@phosphor-icons/react';
+import { ArrowFatUp, Warning } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Notice, NOTICE_SECONDARY } from '@/shade/components/ui/notice';
 import { Spinner } from '@/shade/components/ui/spinner';
@@ -30,7 +30,7 @@ export function UpdateCard({ phase, onUpdate, onClose }: { phase: Shown; onUpdat
       aria-live="polite"
       data-shade-update={phase.kind}
       className="w-[min(560px,calc(100vw-8rem))]"
-      icon={failed ? <WarningCircle weight="bold" /> : <ArrowCircleUp weight="bold" />}
+      icon={failed ? <Warning /> : <ArrowFatUp />}
       tone={failed ? 'error' : 'neutral'}
       title={failed ? t('updateFailed') : tf('updateAvailable', { version: phase.version })}
       hint={failed ? t('updateFailedHint') : t('updateHint')}

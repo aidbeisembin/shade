@@ -14,7 +14,7 @@ import remarkGfm from 'remark-gfm';
 import {
   ArrowCounterClockwise,
   ArrowClockwise,
-  Check,
+  CheckFat,
   CaretDown,
   FolderOpen,
   MicrophoneSlash,
@@ -366,7 +366,7 @@ function CopyButton({ disabled, getText }: { disabled: boolean; getText: () => P
       aria-label={disabled ? `${t('copy')}: ${t('nothingToCopy')}` : undefined}
       className="min-w-[180px]"
     >
-      {state === 'busy' ? <Spinner tone="inherit" /> : state === 'done' ? <Check weight="bold" /> : <CopyIcon />}
+      {state === 'busy' ? <Spinner tone="inherit" /> : state === 'done' ? <CheckFat /> : <CopyIcon />}
       <span aria-live="polite">{state === 'done' ? t('copiedShort') : t('copy')}</span>
     </Button>
   );
