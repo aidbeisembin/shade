@@ -78,7 +78,8 @@ jobs:
     name: core (macOS, ffmpeg, Parakeet)
     # Ядро собирается на macOS: build.rs скачивает закреплённый ffmpeg, сверяет SHA-256 архива
     # и бинарника и запускает ffmpeg -version; затем тесты загрузки модели Parakeet (источник,
-    # суммы, повреждённый файл, недоступный источник, уже скачанная модель). Репозиторий
+    # суммы, повреждённый файл, недоступный источник, уже скачанная модель) и нарезки живой
+    # записи на куски (VAD). Репозиторий
     # публичный, раннер macOS бесплатный. Решение: docs/case/decisions.md, 2026-11-17.
     runs-on: macos-15
     timeout-minutes: 60
@@ -102,6 +103,14 @@ jobs:
         env:
           CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
         run: cargo test -p shade --lib parakeet_engine
+
+      # Нарезка живой записи на куски (VAD): речь с паузами как раньше, речь без пауз не длиннее
+      # жёсткого порога, тишина и шум без кусков, последний кусок при остановке, таймкоды.
+      # Silero идёт через тот же onnxruntime, что Parakeet. Таблица случаев: docs/isolation.md, раздел 12.
+      - name: Live speech pieces (cargo test -p shade --lib -- audio::vad audio::pipeline::tests)
+        env:
+          CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: 'TRUE'
+        run: cargo test -p shade --lib -- audio::vad audio::pipeline::tests
 
       - name: Pinned ffmpeg is the one in the build
         working-directory: frontend/src-tauri

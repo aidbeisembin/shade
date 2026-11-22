@@ -8,6 +8,120 @@ use std::time::Duration;
 /// sample count and timestamp inside this module is expressed in it.
 const VAD_SAMPLE_RATE: u32 = 16000;
 
+/// Silence kept after the last speech frame of a segment (Silero `post_speech_pad`).
+const POST_SPEECH_PAD_MS: usize = 400;
+
+/// Live path only (`with_live_limits`, pipeline.rs). A speech piece is normally closed by a
+/// pause of `VAD_REDEMPTION_TIME_MS`; someone talking without such a pause kept one piece
+/// open for tens of seconds (owner's log: 10 % of pieces over 14 s, longest 131 s) and the
+/// live transcript stayed empty all that time. From this length on, the piece is closed at a
+/// quiet moment between words.
+pub const LIVE_SOFT_MAX_PIECE_MS: usize = 6_000;
+/// Live path only: the piece is closed by this length in any case, at the quietest moment
+/// after `LIVE_SOFT_MAX_PIECE_MS` (or exactly here if none is quiet). 10 s was tried first:
+/// text came at ~10.4 s, past the ~8 s goal, and quality was no better (PR, table).
+pub const LIVE_HARD_MAX_PIECE_MS: usize = 8_000;
+/// At the hard limit the quietest moment after the soft limit is used only if it is quieter
+/// than this share of the mean (or Silero hears no speech in it); otherwise there is no
+/// quiet moment and the cut falls on the hard limit.
+const LIVE_QUIET_RATIO: f32 = 0.6;
+/// After a forced cut the rest of the utterance is sent when the pause finally comes. If it
+/// holds less speech than this, it is only the tail silence and the post-speech pad, and is
+/// dropped instead of being sent to the model (Whisper invents text on silence).
+const LIVE_MIN_TAIL_SPEECH_MS: usize = 90;
+
+/// Limits on live pieces of continuous speech. `DEFAULT` is what the app uses; the other
+/// values exist for tests and the measurement in `vad_bench.rs`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LiveLimits {
+    pub soft_ms: usize,
+    pub hard_ms: usize,
+    /// After `soft_ms`, cut at once in a micro-pause: a run of frames where Silero hears no
+    /// speech, at least `min_gap_ms` long (shorter than the pause that ends a piece). Without
+    /// one, the piece waits for `hard_ms` and is cut at the quietest moment in between.
+    /// A dip in loudness alone is not enough for an early cut: the closure before «п», «т»,
+    /// «к» inside a word is as quiet for 50-90 ms (measured, see PR).
+    pub cut_at_first_gap: bool,
+    pub min_gap_ms: usize,
+}
+
+impl LiveLimits {
+    pub const DEFAULT: LiveLimits = LiveLimits {
+        soft_ms: LIVE_SOFT_MAX_PIECE_MS,
+        hard_ms: LIVE_HARD_MAX_PIECE_MS,
+        cut_at_first_gap: true,
+        min_gap_ms: 150,
+    };
+}
+
+/// Loudness of one 30 ms VAD frame of the current piece.
+#[derive(Debug, Clone, Copy)]
+struct FrameLevel {
+    start_ms: usize,
+    rms: f32,
+    /// Silero's probability for this frame was below the negative threshold
+    silent: bool,
+}
+
+impl FrameLevel {
+    /// The cut goes through the middle of the frame
+    fn mid_ms(&self) -> usize {
+        self.start_ms + 15
+    }
+}
+
+/// Where to close the open piece, given the loudness of its frames so far (the last one is
+/// the frame just heard), or None to keep it open. After `soft_ms` the first micro-pause of
+/// `min_gap_ms` closes it in its middle (with `cut_at_first_gap`); at `hard_ms` the quietest
+/// moment after `soft_ms` (loudness averaged over 90 ms) is used, or, if none is quiet, the
+/// hard limit itself.
+fn choose_cut(frames: &VecDeque<FrameLevel>, piece_start_ms: usize, limits: LiveLimits) -> Option<usize> {
+    let frame = *frames.back()?;
+    let frame_end_ms = frame.start_ms + 30;
+    let piece_ms = frame_end_ms.saturating_sub(piece_start_ms);
+    if piece_ms < limits.soft_ms {
+        return None;
+    }
+    let mean = frames.iter().map(|f| f.rms).sum::<f32>() / frames.len() as f32;
+    let soft_from_ms = piece_start_ms + limits.soft_ms;
+    if limits.cut_at_first_gap {
+        let quiet_run = frames
+            .iter()
+            .rev()
+            .take_while(|f| f.silent)
+            .count();
+        if quiet_run > 0 && quiet_run * 30 >= limits.min_gap_ms {
+            let run_start_ms = frames[frames.len() - quiet_run].start_ms;
+            let cut_ms = (run_start_ms + frame_end_ms) / 2;
+            if cut_ms >= soft_from_ms {
+                return Some(cut_ms);
+            }
+        }
+    }
+    if piece_ms < limits.hard_ms {
+        return None;
+    }
+    // Loudness around each frame (it and its neighbours): a short closure inside a word is
+    // less quiet than a real gap between words
+    let smoothed = |i: usize| {
+        let from = i.saturating_sub(1);
+        let to = (i + 1).min(frames.len() - 1);
+        frames.range(from..=to).map(|f| f.rms).sum::<f32>() / (to - from + 1) as f32
+    };
+    let quietest = (0..frames.len())
+        .filter(|&i| frames[i].mid_ms() >= soft_from_ms)
+        .map(|i| (frames[i], smoothed(i)))
+        .min_by(|(a, sa), (b, sb)| {
+            (!a.silent, *sa)
+                .partial_cmp(&(!b.silent, *sb))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+    match quietest {
+        Some((f, level)) if f.silent || level < LIVE_QUIET_RATIO * mean => Some(f.mid_ms()),
+        _ => Some(frame_end_ms),
+    }
+}
+
 /// Represents a complete speech segment detected by VAD
 #[derive(Debug, Clone)]
 pub struct SpeechSegment {
@@ -30,6 +144,15 @@ pub struct ContinuousVadProcessor {
     speech_start_sample: usize,
     // State tracking for smart logging
     last_logged_state: bool,
+    // Live limits on continuous speech (None on the batch paths). The utterance stays in
+    // Silero's buffer from its start; a forced cut only moves `piece_start_ms` forward, and
+    // pieces are sliced out of that buffer, so they follow each other without gaps.
+    live_limits: Option<LiveLimits>,
+    piece_start_ms: usize,
+    cut_in_utterance: bool,
+    piece_frames: VecDeque<FrameLevel>,
+    // The zero-padded last frame of `flush()` is not real audio: no cut may land in it
+    flushing: bool,
 }
 
 impl ContinuousVadProcessor {
@@ -49,11 +172,11 @@ impl ContinuousVadProcessor {
         // Use the caller's redemption time without additional capping. The batch
         // paths (`import.rs`, `retranscription.rs`) pass 2000ms to bridge natural
         // pauses; the live path (`pipeline.rs`) passes 500ms to reduce pause-induced
-        // latency. A qualifying silence is still required; bounded uninterrupted-
-        // speech delivery is tracked in #756.
+        // latency. Uninterrupted speech on the live path is bounded separately by
+        // `with_live_limits` (soft and hard piece length).
         config.redemption_time = Duration::from_millis(redemption_time_ms as u64);
         config.pre_speech_pad = Duration::from_millis(300);   // Pre-speech padding for context
-        config.post_speech_pad = Duration::from_millis(400);  // Increased: more context at end
+        config.post_speech_pad = Duration::from_millis(POST_SPEECH_PAD_MS as u64);  // Increased: more context at end
 
         // CRITICAL FIX: Increased min_speech_time to prevent tiny 40ms fragments
         // Previous: 100ms allowed too-short segments that Whisper rejects
@@ -84,7 +207,79 @@ impl ContinuousVadProcessor {
             speech_start_sample: 0,
             // Initialize state tracking
             last_logged_state: false,
+            live_limits: None,
+            piece_start_ms: 0,
+            cut_in_utterance: false,
+            piece_frames: VecDeque::new(),
+            flushing: false,
         })
+    }
+
+    /// Live path (pipeline.rs): pieces of continuous speech are closed at a quiet moment
+    /// after `limits.soft_ms`, and by `limits.hard_ms` in any case. The batch paths
+    /// (import.rs, retranscription.rs) do not call this: they want long pieces.
+    pub fn with_live_limits(mut self, limits: LiveLimits) -> Self {
+        assert!(limits.soft_ms <= limits.hard_ms, "soft limit must not exceed hard limit");
+        self.live_limits = Some(limits);
+        self
+    }
+
+    /// Called for every frame while in speech: records its loudness and closes the open
+    /// piece if `choose_cut` says so.
+    fn consider_live_cut(&mut self, frame: FrameLevel) {
+        let Some(limits) = self.live_limits else { return };
+        if !self.in_speech || self.flushing {
+            return;
+        }
+        self.piece_frames.push_back(frame);
+        if let Some(cut_ms) = choose_cut(&self.piece_frames, self.piece_start_ms, limits) {
+            self.emit_forced_piece(cut_ms);
+        }
+    }
+
+    /// Sends the open piece up to `cut_ms` and starts the next one there.
+    fn emit_forced_piece(&mut self, cut_ms: usize) {
+        // Silero keeps the utterance from its start until the pause; never ask for audio it
+        // does not hold (that would panic inside silero)
+        // (silero reports the range as f64 seconds: round, `as_millis` would floor 1 ms off)
+        let (buffer_from, buffer_to) = self.session.current_buffer_range();
+        let to_ms = |d: Duration| (d.as_secs_f64() * 1000.0).round() as usize;
+        let (buffer_from_ms, buffer_to_ms) = (to_ms(buffer_from), to_ms(buffer_to));
+        if self.piece_start_ms < buffer_from_ms
+            || cut_ms > buffer_to_ms
+            || cut_ms <= self.piece_start_ms
+        {
+            warn!(
+                "VAD: forced cut skipped, [{}, {}) ms is outside Silero's buffer [{}, {}) ms",
+                self.piece_start_ms, cut_ms, buffer_from_ms, buffer_to_ms
+            );
+            return;
+        }
+        let samples = self.session.get_speech(self.piece_start_ms, Some(cut_ms)).to_vec();
+        info!(
+            "VAD: forced cut of continuous speech: {} ms piece ({} samples)",
+            cut_ms - self.piece_start_ms,
+            samples.len()
+        );
+        self.speech_segments.push_back(SpeechSegment {
+            samples,
+            start_timestamp_ms: self.piece_start_ms as f64,
+            end_timestamp_ms: cut_ms as f64,
+            confidence: 0.85,
+        });
+        self.piece_start_ms = cut_ms;
+        self.cut_in_utterance = true;
+        // Frames after the cut belong to the next piece
+        while self.piece_frames.front().is_some_and(|f| f.start_ms < cut_ms) {
+            self.piece_frames.pop_front();
+        }
+        self.current_speech.clear();
+    }
+
+    fn reset_piece(&mut self, start_ms: usize) {
+        self.piece_start_ms = start_ms;
+        self.cut_in_utterance = false;
+        self.piece_frames.clear();
     }
 
     /// Process incoming audio samples and return any complete speech segments
@@ -184,34 +379,52 @@ impl ContinuousVadProcessor {
                 padded_chunk.resize(self.chunk_size, 0.0);
             }
 
-            self.process_chunk(&padded_chunk)?;
+            self.flushing = true;
+            let result = self.process_chunk(&padded_chunk);
+            self.flushing = false;
+            result?;
         }
 
+        // Live path: a forced cut may have already sent the start of this utterance; only
+        // the rest, from the last cut, is left
+        let piece_start_sample = if self.cut_in_utterance {
+            self.piece_start_ms * VAD_SAMPLE_RATE as usize / 1000
+        } else {
+            self.speech_start_sample
+        };
+        // A cut exactly at the end of the audio leaves nothing to send
+        let nothing_after_cut = self.cut_in_utterance && real_end_sample <= piece_start_sample;
+
         // Force end any ongoing speech
-        if self.in_speech && !self.current_speech.is_empty() {
+        if self.in_speech && nothing_after_cut {
+            self.current_speech.clear();
+            self.in_speech = false;
+            self.reset_piece(0);
+        } else if self.in_speech && (self.cut_in_utterance || !self.current_speech.is_empty()) {
             let real_sample_count = real_end_sample
-                .checked_sub(self.speech_start_sample)
+                .checked_sub(piece_start_sample)
                 .filter(|count| *count > 0)
                 .ok_or_else(|| {
                     anyhow!(
                         "VAD flush invariant violated: active speech interval [{}, {}) is empty or reversed",
-                        self.speech_start_sample,
+                        piece_start_sample,
                         real_end_sample
                     )
                 })?;
+            // Silero's buffer holds the utterance from its start, before any forced cut
+            let offset = piece_start_sample - self.speech_start_sample;
             let active_speech = self.session.get_current_speech();
-            if active_speech.len() < real_sample_count {
+            if active_speech.len() < offset + real_sample_count {
                 return Err(anyhow!(
                     "VAD flush invariant violated: Silero active speech buffer has {} samples, but [{}, {}) requires {}",
                     active_speech.len(),
-                    self.speech_start_sample,
+                    piece_start_sample,
                     real_end_sample,
-                    real_sample_count
+                    offset + real_sample_count
                 ));
             }
-            let samples = active_speech[..real_sample_count].to_vec();
-            let start_ms =
-                (self.speech_start_sample as f64 / VAD_SAMPLE_RATE as f64) * 1000.0;
+            let samples = active_speech[offset..offset + real_sample_count].to_vec();
+            let start_ms = (piece_start_sample as f64 / VAD_SAMPLE_RATE as f64) * 1000.0;
             let end_ms = (real_end_sample as f64 / VAD_SAMPLE_RATE as f64) * 1000.0;
 
             debug!("VAD flush: Force-ending speech - start={}ms, end={}ms, duration={}ms, samples={}",
@@ -227,6 +440,7 @@ impl ContinuousVadProcessor {
             self.speech_segments.push_back(segment);
             self.current_speech.clear();
             self.in_speech = false;
+            self.reset_piece(0);
         }
 
         // Extract all remaining segments
@@ -275,6 +489,7 @@ impl ContinuousVadProcessor {
                     // ~2x the file duration and sorted to the end of the transcript.
                     self.speech_start_sample = timestamp_ms * VAD_SAMPLE_RATE as usize / 1000;
                     self.current_speech.clear();
+                    self.reset_piece(timestamp_ms);
                 }
                 VadTransition::SpeechEnd { start_timestamp_ms, end_timestamp_ms, samples } => {
                     // Only log if we were previously in speech state
@@ -283,6 +498,35 @@ impl ContinuousVadProcessor {
                         self.last_logged_state = false;
                     }
                     self.in_speech = false;
+
+                    // Live path after a forced cut: Silero's samples cover the whole
+                    // utterance, its start is already sent; only the rest from the last cut
+                    if self.cut_in_utterance {
+                        let piece_start_ms = self.piece_start_ms;
+                        self.reset_piece(0);
+                        self.current_speech.clear();
+                        let offset = piece_start_ms.saturating_sub(start_timestamp_ms)
+                            * VAD_SAMPLE_RATE as usize
+                            / 1000;
+                        let speech_end_ms = end_timestamp_ms.saturating_sub(POST_SPEECH_PAD_MS);
+                        if offset < samples.len()
+                            && speech_end_ms >= piece_start_ms + LIVE_MIN_TAIL_SPEECH_MS
+                        {
+                            info!(
+                                "VAD: rest of a cut utterance: {} ms",
+                                end_timestamp_ms - piece_start_ms
+                            );
+                            self.speech_segments.push_back(SpeechSegment {
+                                samples: samples[offset..].to_vec(),
+                                start_timestamp_ms: piece_start_ms as f64,
+                                end_timestamp_ms: end_timestamp_ms as f64,
+                                confidence: 0.9,
+                            });
+                        } else {
+                            debug!("VAD: rest of a cut utterance is silence only, not sent");
+                        }
+                        continue;
+                    }
 
                     // Use samples from VAD transition if available, otherwise use accumulated samples
                     let speech_samples = if !samples.is_empty() {
@@ -313,6 +557,14 @@ impl ContinuousVadProcessor {
         // Accumulate speech if we're currently in a speech state
         if self.in_speech {
             self.current_speech.extend_from_slice(chunk);
+            if self.live_limits.is_some() {
+                let rms = (chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len().max(1) as f32).sqrt();
+                self.consider_live_cut(FrameLevel {
+                    start_ms: self.processed_samples * 1000 / VAD_SAMPLE_RATE as usize,
+                    rms,
+                    silent: self.session.current_silence_samples() > 0,
+                });
+            }
         }
 
         self.processed_samples += chunk.len();
@@ -775,5 +1027,320 @@ mod tests {
             processor.flush().expect("second flush failed").is_empty(),
             "flush() must not emit the same forced segment twice"
         );
+    }
+
+    // ---- Live limits on continuous speech (Shade, 2026-11-22) ----
+
+    const LIVE_REDEMPTION_MS: u32 = 500;
+
+    /// Speech-like babble without pauses: syllables of a voiced vowel (harmonics shaped by
+    /// two random formants) after a short noise consonant. Silero hears it as one
+    /// continuous utterance (a plain tone is dropped after ~1 s). `gap_ms` of near silence
+    /// after each syllable; `level(t)` scales the loudness at time t (s).
+    fn babble(duration_seconds: f32, gap_ms: f32, level: impl Fn(f32) -> f32) -> Vec<f32> {
+        let total = (duration_seconds * 16000.0) as usize;
+        let mut state: u32 = 7;
+        let mut rnd = move || {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state as f32 / u32::MAX as f32
+        };
+        let mut out: Vec<f32> = Vec::with_capacity(total);
+        while out.len() < total {
+            let f0 = 110.0 + 120.0 * rnd();
+            let f1 = 300.0 + 500.0 * rnd();
+            let f2 = 900.0 + 1400.0 * rnd();
+            let syllable = (180.0 * (0.7 + 0.6 * rnd()) * 16.0) as usize;
+            for k in 0..40 * 16 {
+                out.push((rnd() - 0.5) * 0.15 * (k as f32 / 640.0));
+            }
+            for k in 0..syllable {
+                let t = k as f32 / 16000.0;
+                let envelope = (std::f32::consts::PI * k as f32 / syllable as f32).sin();
+                let voiced: f32 = (1..=12)
+                    .map(|h| {
+                        let f = f0 * h as f32;
+                        let gain = 1.0 / (1.0 + ((f - f1) / 150.0).powi(2))
+                            + 0.6 / (1.0 + ((f - f2) / 200.0).powi(2));
+                        gain * (2.0 * std::f32::consts::PI * f * t).sin()
+                    })
+                    .sum();
+                out.push((0.08 * envelope * voiced).clamp(-0.95, 0.95));
+            }
+            for _ in 0..(gap_ms * 16.0) as usize {
+                out.push((rnd() - 0.5) * 0.002);
+            }
+        }
+        out.truncate(total);
+        for (i, sample) in out.iter_mut().enumerate() {
+            *sample *= level(i as f32 / 16000.0);
+        }
+        out
+    }
+
+    /// Feeds audio the way the live pipeline does (small windows), then stops (flush).
+    fn run_live(audio: &[f32], limits: Option<LiveLimits>) -> Vec<SpeechSegment> {
+        let mut processor = ContinuousVadProcessor::new(16000, LIVE_REDEMPTION_MS)
+            .expect("Failed to create processor");
+        if let Some(limits) = limits {
+            processor = processor.with_live_limits(limits);
+        }
+        let mut segments = Vec::new();
+        for window in audio.chunks(800) {
+            segments.extend(processor.process_audio(window).expect("process_audio failed"));
+        }
+        segments.extend(processor.flush().expect("flush failed"));
+        segments
+    }
+
+    fn duration_ms(segment: &SpeechSegment) -> f64 {
+        segment.end_timestamp_ms - segment.start_timestamp_ms
+    }
+
+    /// Every piece's samples match its timestamps, and pieces of one utterance follow each
+    /// other without gaps or overlaps.
+    fn assert_contiguous(pieces: &[SpeechSegment]) {
+        for piece in pieces {
+            let expected = (duration_ms(piece) * 16.0).round() as usize;
+            assert_eq!(piece.samples.len(), expected, "samples must match timestamps");
+        }
+        for pair in pieces.windows(2) {
+            assert_eq!(
+                pair[0].end_timestamp_ms, pair[1].start_timestamp_ms,
+                "pieces must follow each other without gaps or overlaps"
+            );
+        }
+    }
+
+    /// Case: speech with pauses. Pieces shorter than the soft limit are not touched.
+    #[test]
+    fn live_limits_keep_paused_speech_unchanged() {
+        // 4 s of babble, 1.5 s pause, repeated: every piece is closed by its pause
+        let mut audio = Vec::new();
+        for _ in 0..8 {
+            audio.extend(babble(4.0, 20.0, |_| 1.0));
+            audio.extend(vec![0.0; 24_000]);
+        }
+        let before = run_live(&audio, None);
+        let after = run_live(&audio, Some(LiveLimits::DEFAULT));
+        assert_eq!(before.len(), 8, "the fixture must give one piece per phrase");
+        assert_eq!(before.len(), after.len(), "pauses must still close pieces as before");
+        for (b, a) in before.iter().zip(&after) {
+            assert_eq!(b.start_timestamp_ms, a.start_timestamp_ms);
+            assert_eq!(b.end_timestamp_ms, a.end_timestamp_ms);
+            assert_eq!(b.samples, a.samples);
+        }
+        // The old synthetic fixture (5 s bursts) is unchanged too
+        let audio = generate_test_audio_with_speech(60.0, 16000);
+        let before = run_live(&audio, None);
+        let after = run_live(&audio, Some(LiveLimits::DEFAULT));
+        assert_eq!(
+            before.iter().map(|s| (s.start_timestamp_ms, s.end_timestamp_ms)).collect::<Vec<_>>(),
+            after.iter().map(|s| (s.start_timestamp_ms, s.end_timestamp_ms)).collect::<Vec<_>>()
+        );
+    }
+
+    /// Case: 30 s of speech without pauses. No piece is longer than the hard limit, and
+    /// the pieces put together are the audio the old single piece held (only the silence
+    /// after the last word may be left out).
+    #[test]
+    fn continuous_speech_is_cut_within_hard_limit() {
+        let mut audio = babble(30.0, 20.0, |_| 1.0);
+        audio.extend(vec![0.0; 2 * 16000]); // the pause that finally closes it
+        let before = run_live(&audio, None);
+        assert_eq!(before.len(), 1, "without limits 30 s of speech is one piece");
+        let pieces = run_live(&audio, Some(LiveLimits::DEFAULT));
+        assert!(pieces.len() >= 3, "expected the 30 s to be cut, got {} pieces", pieces.len());
+        for piece in &pieces {
+            assert!(
+                duration_ms(piece) <= (LIVE_HARD_MAX_PIECE_MS + POST_SPEECH_PAD_MS) as f64,
+                "piece of {:.0} ms is over the hard limit",
+                duration_ms(piece)
+            );
+        }
+        assert_contiguous(&pieces);
+        assert_eq!(pieces[0].start_timestamp_ms, before[0].start_timestamp_ms);
+        let joined: Vec<f32> = pieces.iter().flat_map(|p| p.samples.iter().copied()).collect();
+        assert_eq!(
+            joined.as_slice(),
+            &before[0].samples[..joined.len()],
+            "no audio lost or repeated at the cuts"
+        );
+        let left_out_ms = (before[0].samples.len() - joined.len()) as f64 / 16.0;
+        assert!(
+            left_out_ms <= (POST_SPEECH_PAD_MS + LIVE_REDEMPTION_MS as usize) as f64,
+            "{left_out_ms:.0} ms left out at the end, more than the trailing silence"
+        );
+    }
+
+    /// Case: silence. No pieces at all.
+    #[test]
+    fn live_limits_silence_gives_no_pieces() {
+        let audio = vec![0.0f32; 30 * 16000];
+        assert!(run_live(&audio, Some(LiveLimits::DEFAULT)).is_empty());
+    }
+
+    /// Case: noise without speech. No pieces at all.
+    #[test]
+    fn live_limits_noise_gives_no_pieces() {
+        // Deterministic white noise (xorshift), no voice in it
+        let mut state: u32 = 0x9E37_79B9;
+        let audio: Vec<f32> = (0..30 * 16000)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                (state as f32 / u32::MAX as f32 - 0.5) * 0.1
+            })
+            .collect();
+        let pieces = run_live(&audio, Some(LiveLimits::DEFAULT));
+        assert!(pieces.is_empty(), "noise produced {} pieces", pieces.len());
+    }
+
+    /// Case: speech is still going when recording stops. The last piece is not lost, ends
+    /// at the real end of the audio, and joins the previous one without a gap.
+    #[test]
+    fn stop_during_continuous_speech_keeps_last_piece() {
+        let audio = babble(23.0, 20.0, |_| 1.0);
+        assert_eq!(audio.len() % 480, 320, "fixture must end inside a VAD frame");
+        let audio_end_ms = audio.len() as f64 / 16.0;
+        let pieces = run_live(&audio, Some(LiveLimits::DEFAULT));
+        assert!(pieces.len() >= 3, "expected forced cuts before the stop");
+        assert_contiguous(&pieces);
+        assert_eq!(pieces.last().unwrap().end_timestamp_ms, audio_end_ms);
+        let start = (pieces[0].start_timestamp_ms * 16.0) as usize;
+        let joined: Vec<f32> = pieces.iter().flat_map(|p| p.samples.iter().copied()).collect();
+        assert_eq!(joined.as_slice(), &audio[start..], "every sample after the start is sent once");
+    }
+
+    /// Case: timestamps. Over speech with and without pauses, piece starts only grow, no
+    /// piece ends after the next one starts, and nothing ends past the audio.
+    #[test]
+    fn live_piece_timestamps_are_monotonic() {
+        let mut audio = babble(25.0, 20.0, |_| 1.0);
+        audio.extend(vec![0.0; 16000]);
+        for _ in 0..3 {
+            audio.extend(babble(3.0, 20.0, |_| 1.0));
+            audio.extend(vec![0.0; 16000]);
+        }
+        audio.extend(babble(14.0, 20.0, |_| 1.0));
+        let pieces = run_live(&audio, Some(LiveLimits::DEFAULT));
+        assert!(pieces.len() >= 8, "got {} pieces", pieces.len());
+        for pair in pieces.windows(2) {
+            assert!(pair[0].start_timestamp_ms < pair[1].start_timestamp_ms);
+            assert!(pair[0].end_timestamp_ms <= pair[1].start_timestamp_ms);
+        }
+        assert!(pieces.last().unwrap().end_timestamp_ms <= audio.len() as f64 / 16.0);
+    }
+
+    /// With micro-pauses in speech the first cut comes soon after the soft limit, not at
+    /// the hard one.
+    #[test]
+    fn first_cut_comes_soon_after_soft_limit() {
+        // 250 ms between syllables: a micro-pause, shorter than the 500 ms that ends a piece
+        let pieces = run_live(&babble(20.0, 250.0, |_| 1.0), Some(LiveLimits::DEFAULT));
+        assert!(pieces.len() >= 2, "the babble must stay one utterance and be cut");
+        let first = duration_ms(&pieces[0]);
+        assert!(
+            (LIVE_SOFT_MAX_PIECE_MS as f64..LIVE_SOFT_MAX_PIECE_MS as f64 + 1_000.0).contains(&first),
+            "first piece {first:.0} ms"
+        );
+    }
+
+    fn frames(piece_start_ms: usize, levels: &[(f32, bool)]) -> VecDeque<FrameLevel> {
+        levels
+            .iter()
+            .enumerate()
+            .map(|(i, &(rms, silent))| FrameLevel { start_ms: piece_start_ms + i * 30, rms, silent })
+            .collect()
+    }
+
+    /// The cut goes into a micro-pause: the first run of `min_gap_ms` where Silero hears no
+    /// speech after the soft limit, through its middle.
+    #[test]
+    fn choose_cut_takes_first_gap_after_soft_limit() {
+        let limits = LiveLimits::DEFAULT;
+        let gap_frames = limits.min_gap_ms / 30;
+        let soft_frames = limits.soft_ms / 30;
+        let mut levels = vec![(0.3, false); soft_frames + 20];
+        for i in 40..40 + gap_frames {
+            levels[i] = (0.01, true); // a micro-pause before the soft limit does not count
+        }
+        let gap = soft_frames + 5;
+        for i in gap..gap + gap_frames {
+            levels[i] = (0.02, true);
+        }
+        let expected = (gap * 30 + (gap + gap_frames) * 30) / 2;
+        for n in 1..=levels.len() {
+            let cut = choose_cut(&frames(0, &levels[..n]), 0, limits);
+            if n < gap + gap_frames {
+                assert_eq!(cut, None, "no cut before the gap after the soft limit (frame {})", n - 1);
+            } else {
+                assert_eq!(cut, Some(expected));
+                break;
+            }
+        }
+    }
+
+    /// A dip in loudness alone (a closure before «п», «т», «к» inside a word) never cuts
+    /// early; a micro-pause cuts once it is `min_gap_ms` long.
+    #[test]
+    fn choose_cut_skips_short_dips_inside_words() {
+        let limits = LiveLimits::DEFAULT;
+        let soft_frames = limits.soft_ms / 30;
+        let mut levels = vec![(0.3, false); soft_frames + 12];
+        for i in soft_frames + 2..soft_frames + 8 {
+            levels[i] = (0.01, false); // quiet, but Silero still hears speech: not a gap
+        }
+        assert_eq!(choose_cut(&frames(0, &levels), 0, limits), None);
+        let gap_frames = limits.min_gap_ms / 30;
+        for i in 0..gap_frames {
+            levels.push((0.3, true));
+            let cut = choose_cut(&frames(0, &levels), 0, limits);
+            assert_eq!(cut.is_some(), i + 1 == gap_frames, "Silero silence counts once it is long enough");
+        }
+    }
+
+    /// With no quiet moment at all the piece is cut exactly at the hard limit.
+    #[test]
+    fn choose_cut_falls_on_hard_limit_without_quiet_moment() {
+        let limits = LiveLimits::DEFAULT;
+        let hard_frames = limits.hard_ms / 30 + 1;
+        let levels: Vec<(f32, bool)> =
+            (0..hard_frames).map(|i| (0.3 + 0.05 * (i % 3) as f32, false)).collect();
+        for n in 1..hard_frames {
+            assert_eq!(choose_cut(&frames(0, &levels[..n]), 0, limits), None);
+        }
+        assert_eq!(choose_cut(&frames(0, &levels), 0, limits), Some(hard_frames * 30));
+    }
+
+    /// Waiting for the hard limit, the quietest frame after the soft limit wins.
+    #[test]
+    fn choose_cut_takes_quietest_moment_at_hard_limit() {
+        let limits = LiveLimits { cut_at_first_gap: false, ..LiveLimits::DEFAULT };
+        let hard_frames = limits.hard_ms / 30 + 1;
+        let mut levels = vec![(0.3, false); hard_frames];
+        levels[100] = (0.01, false); // before the soft limit: ignored
+        // A one-frame dip (closure inside a word) loses to a wider, slightly shallower one
+        levels[soft_index(limits) + 20] = (0.05, false);
+        for i in soft_index(limits) + 59..=soft_index(limits) + 61 {
+            levels[i] = (0.08, false);
+        }
+        assert_eq!(
+            choose_cut(&frames(0, &levels), 0, limits),
+            Some((soft_index(limits) + 60) * 30 + 15)
+        );
+    }
+
+    fn soft_index(limits: LiveLimits) -> usize {
+        limits.soft_ms / 30 + 1
+    }
+
+    /// The batch paths (import, re-recognition) never get limits: same long pieces as before.
+    #[test]
+    fn batch_path_has_no_live_limits() {
+        let processor = ContinuousVadProcessor::new(16000, 2000).expect("processor");
+        assert!(processor.live_limits.is_none());
     }
 }

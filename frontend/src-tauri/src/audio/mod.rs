@@ -51,6 +51,10 @@ pub mod transcript_quality;
 #[cfg(test)]
 mod quality_bench;
 
+// Замер нарезки живой записи на куски (Shade, вручную)
+#[cfg(test)]
+mod vad_bench;
+
 // Retranscription module (re-process stored audio with different settings)
 pub mod retranscription;
 

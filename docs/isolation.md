@@ -180,3 +180,20 @@ Parakeet скачивается с Hugging Face (`istupakov/parakeet-tdt-0.6b-v*
 Вместе с `identifier` переезжают папки `~/Library/Application Support/<identifier>`, `Caches/<identifier>`, `WebKit/<identifier>` (localStorage окна), а также, если есть, `Logs`, `HTTPStorages`, `Saved Application State`, `Preferences/<identifier>.plist`. Перенос: `scripts/migrate-identifier.sh` (`docs/FORK.md`, раздел 2). Совместимости со старым `identifier` в коде нет. Разрешения macOS (микрофон, звук системы) привязаны к bundle id: их нужно дать заново.
 
 Проверка CI: в задании `migrate-from-aid` добавлен шаг `bash scripts/test-migrate-identifier.sh` (`.github/workflows/shade-check.yml`).
+
+## 12. Правки ядра: потолок длины живого куска речи
+
+Разрешение владельца 2026-11-22: только нарезка речи на куски для распознавания (модуль VAD и его параметры). Команды и события Tauri, форматы данных, миграции, ключи хранилищ, запись звука в файл не менялись. Коммит `fix(core): потолок длины живого куска речи`.
+
+Причина: живая запись режется на куски по паузе от 500 мс, текст куска приходит только после паузы. По логу владельца из 2 230 кусков каждый десятый длиннее 14 с, самый длинный 131 с; всё это время лента пустая (разбор в PR #68).
+
+| Файл | Что | Зачем |
+|---|---|---|
+| `src-tauri/src/audio/vad.rs` | Константы `LIVE_SOFT_MAX_PIECE_MS` = 6 000, `LIVE_HARD_MAX_PIECE_MS` = 8 000, `LIVE_QUIET_RATIO`, `LIVE_MIN_TAIL_SPEECH_MS` в начале файла; `LiveLimits` (`DEFAULT`: досрочно по микропаузе от 150 мс); `choose_cut` (где резать); `with_live_limits`, `consider_live_cut`, `emit_forced_piece` в `ContinuousVadProcessor`; хвост разрезанной фразы в `SpeechEnd` и в `flush()` | Речь без паузы закрывается в куски: после 6 с сразу в микропаузе (Silero не слышит речи 150 мс и дольше, но меньше паузы 500 мс, которая и так закрывает кусок), иначе на 8 с в самом тихом месте между 6 и 8 с (громкость сглажена по 90 мс), а если тихого места нет, ровно на 8 с. Досрочно по одному провалу громкости не режется: смычка перед «п», «т», «к» внутри слова так же тиха (замер в PR). Куски вырезаются из буфера Silero подряд, без нахлёста и без дыр: таймкоды монотонны, звук не повторяется. Хвост после последнего разреза, где одна тишина, не отправляется |
+| `src-tauri/src/audio/pipeline.rs` | `.with_live_limits(LiveLimits::DEFAULT)` у живого VAD; комментарии; тест `test_live_pieces_are_bounded` | Потолок только у живой записи. Импорт и «Распознать заново» (`import.rs`, `retranscription.rs`) режут по-старому, по паузе 2 с |
+| `src-tauri/src/audio/vad_bench.rs` (новый, только тесты, `#[ignore]`), `src-tauri/src/audio/mod.rs` | Ручной замер вариантов нарезки на Parakeet и замер часа записи | Цифры до и после в PR; запуск описан в начале файла |
+| `.github/workflows/shade-check.yml` | Шаг `cargo test -p shade --lib -- audio::vad audio::pipeline::tests` в задаче `core` | Таблица случаев проверяется в CI |
+
+Тесты (`cargo test -p shade --lib -- audio::vad audio::pipeline::tests`): речь с паузами как раньше (`live_limits_keep_paused_speech_unchanged`), 30 с без пауз не длиннее жёсткого порога и без потерь звука (`continuous_speech_is_cut_within_hard_limit`), тишина и шум без кусков (`live_limits_silence_gives_no_pieces`, `live_limits_noise_gives_no_pieces`), остановка посреди речи (`stop_during_continuous_speech_keeps_last_piece`), таймкоды (`live_piece_timestamps_are_monotonic`), выбор места разреза (`choose_cut_*`), первый разрез в микропаузе вскоре после 6 с (`first_cut_comes_soon_after_soft_limit`). Для речи без пауз тесты берут синтетический «лепет» из слогов: простой тон Silero перестаёт считать речью через ~1 с.
+
+Память: Silero держит фразу в своём буфере до паузы, как и раньше; разрез его не очищает (`take_until` в silero-rs ломает конец фразы). Час речи совсем без пауз держит в буфере до ~230 МБ, так было и до правки.
