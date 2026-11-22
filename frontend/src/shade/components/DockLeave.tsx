@@ -1,16 +1,16 @@
-// Уход карточки над капсулой записи (RecordDock): держит последний вид и уводит его с размытием.
+// Уход карточки над капсулой записи (RecordDock): держит последний вид и уводит его без размытия (160 мс).
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/shade/lib/utils';
 
-/** Сколько длится уход (.shade-dock-out в globals.css). */
-export const LEAVE_MS = 280;
+/** Сколько длится уход (.shade-dock-out в globals.css: 160 мс) с запасом на последний кадр. */
+export const LEAVE_MS = 180;
 
 /**
  * Карточка над капсулой (подсказки про микрофон и речь, доступ к микрофону): появляется из
- * размытия, а когда show сменилось на false, ещё LEAVE_MS держит последний вид и уходит
- * с размытием (.shade-dock-out). Обёртка одна и та же, содержимое не пересоздаётся.
+ * размытия, а когда show сменилось на false, ещё LEAVE_MS держит последний вид и гаснет
+ * (.shade-dock-out). Обёртка одна и та же, содержимое не пересоздаётся.
  */
 export function DockLeave({ show, children }: { show: boolean; children: ReactNode }) {
   const last = useRef<ReactNode>(null);

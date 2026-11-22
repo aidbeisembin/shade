@@ -241,7 +241,7 @@
   bottom: var(--shade-stack-bottom, 28px);
   width: var(--shade-toast-w, min(500px, calc(100vw - 32px)));
   transform: translateY(calc(-1 * var(--shade-stack-lift, 0px)));
-  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--notice-move) var(--ease-standard);
 }
 
 /* Прокрутка обрезала бы тени карточек: у списка поле 24 px под тень, внешним полем назад */
@@ -290,9 +290,23 @@ body:has(.shade-dialog-overlay) .shade-corner {
   z-index: 40;
 }
 
+/* Движение уведомлений (docs/ui/notifications.md, «Движение»; Material 3 и Apple HIG):
+   появление 240 мс с замедлением в конце, уход короче, 160 мс с ускорением, соседи съезжают
+   240 мс по стандартной кривой. Уход без размытия: filter на обёртке стекла с первого кадра
+   сбрасывает размытие фона у .shade-glass (подложка «мигает»); появление начинается невидимым,
+   там размытие не заметно. */
+:root {
+  --notice-in: 240ms;
+  --notice-out: 160ms;
+  --notice-move: 240ms;
+  --ease-in-notice: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-notice: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
 /* Карточка угла: высота через строки сетки, чтобы соседи съезжали плавно, когда карточка
    приходит, уходит или сворачивается в стопку «+N». Появление из размытия со сдвигом снизу
-   (как .shade-dock-in), уход на месте: гаснет, размывается и чуть уменьшается. */
+   (как .shade-dock-in), уход на месте: гаснет и чуть уменьшается, место закрывается после. */
 .shade-corner-item {
   display: grid;
   grid-template-rows: 1fr;
@@ -300,12 +314,11 @@ body:has(.shade-dialog-overlay) .shade-corner {
   grid-template-columns: minmax(0, 1fr);
   opacity: 1;
   transition:
-    grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    grid-template-rows var(--notice-move) var(--ease-standard),
+    opacity var(--notice-in) var(--ease-in-notice),
+    transform var(--notice-in) var(--ease-in-notice);
   transform-origin: 100% 100%;
-  animation: shade-corner-in 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: shade-corner-in var(--notice-in) var(--ease-in-notice);
 }
 
 .shade-corner-item > * {
@@ -319,16 +332,20 @@ body:has(.shade-dialog-overlay) .shade-corner {
   opacity: 0;
 }
 
-.shade-corner-item[data-folded] > *,
-.shade-corner-item[data-leaving] > * {
+/* Свёрнутые в «+N» обрезаются по своей строке. Уходящая не обрезается: она уже гаснет, а
+   срез по сжимающейся строке был виден как рывок; нижняя соседка наезжает на неё сверху. */
+.shade-corner-item[data-folded] > * {
   overflow: hidden;
 }
 
 .shade-corner-item[data-leaving] {
-  filter: blur(8px);
-  transform: scale(0.96);
-  transition-duration: 0.28s;
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  transform: scale(0.97);
+  /* Появление не должно перебить уход, даже если карточку закрыли во время появления */
+  animation: none;
+  transition:
+    opacity var(--notice-out) var(--ease-out-notice),
+    transform var(--notice-out) var(--ease-out-notice),
+    grid-template-rows var(--notice-move) var(--ease-standard) 60ms;
 }
 
 @keyframes shade-corner-in {
@@ -349,11 +366,12 @@ body:has(.shade-dialog-overlay) .shade-corner {
 /* Меньше движения: только прозрачность, без сдвигов, масштаба, размытия и смены высоты */
 @media (prefers-reduced-motion: reduce) {
   .shade-corner,
-  .shade-corner-item {
-    transition: opacity 0.2s ease-out;
+  .shade-corner-item,
+  .shade-corner-item[data-leaving] {
+    transition: opacity 0.15s ease-out;
   }
   .shade-corner-item {
-    animation: shade-fade-in 0.2s ease-out;
+    animation: shade-fade-in 0.15s ease-out;
   }
   .shade-corner-item[data-leaving] {
     filter: none;
@@ -553,7 +571,7 @@ html body[data-scroll-locked] {
 
 .shade-dock-in {
   /* ease-out-quint: плавная остановка без перелёта */
-  animation: shade-dock-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: shade-dock-in var(--notice-in) var(--ease-in-notice);
   transform-origin: center;
 }
 
@@ -567,7 +585,7 @@ html body[data-scroll-locked] {
   }
   /* Меньше движения: появление одной прозрачностью, без сдвига, масштаба и размытия */
   .shade-dock-in {
-    animation: shade-fade-in 0.2s ease-out;
+    animation: shade-fade-in 0.15s ease-out;
   }
 }
 
@@ -1435,17 +1453,17 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
   background: hsl(var(--popover) / 0.97);
 }
 
-/* Уход карточек дока (RecordDock: итог записи, подсказки и карточки про микрофон): плавно
-   гаснет, чуть опускается, уменьшается и размывается. Тосты уходят так же (.shade-toaster). */
+/* Уход карточек дока (RecordDock: итог записи, подсказки и карточки про микрофон): гаснет,
+   чуть опускается и уменьшается, 160 мс с ускорением (LEAVE_MS). Без размытия: оно с первого
+   кадра сбрасывает размытие фона у стекла карточки (подложка «мигала»). */
 .shade-dock-out {
-  animation: shade-dock-out 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: shade-dock-out var(--notice-out) var(--ease-out-notice) forwards;
 }
 
 @keyframes shade-dock-out {
   to {
-    transform: translateY(10px) scale(0.96);
+    transform: translateY(6px) scale(0.97);
     opacity: 0;
-    filter: blur(8px);
   }
 }
 
@@ -1457,7 +1475,7 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
 
 @media (prefers-reduced-motion: reduce) {
   .shade-dock-out {
-    animation: shade-fade-out 0.2s ease-out forwards;
+    animation: shade-fade-out 0.15s ease-out forwards;
   }
 }
 

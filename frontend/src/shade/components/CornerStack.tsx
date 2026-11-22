@@ -6,7 +6,8 @@
 //  - Пока указатель или фокус на стеке и пока окно свёрнуто, время у всех карточек стоит.
 //  - Ширина общая (--shade-toast-w, до 500 px и не больше места справа от кнопки записи), место
 //    и подъём над доком считает lib/notice-stack.ts; уже 500 px действие под текстом (globals.css).
-//  - Появление из размытия со сдвигом снизу, уход на месте с размытием, соседи съезжают плавно
+//  - Появление из размытия со сдвигом снизу (240 мс), уход на месте без размытия (160 мс), уходящая
+//    стоит на своём месте (usePresence, lib/corner-presence.ts), соседи съезжают плавно
 //    (высота через grid-template-rows); prefers-reduced-motion: только прозрачность (globals.css).
 //  - Фокус не перехватывается: карточка появляется, но фокус остаётся, где был.
 'use client';
@@ -18,11 +19,15 @@ import { previewCorner } from '@/shade/lib/corner-preview';
 import { Notice, NoticeButton } from '@/shade/components/ui/notice';
 import { STACK_GAP } from '@/shade/lib/notice-stack';
 import { cn } from '@/shade/lib/utils';
+import { placeLeaving, type Presence } from '@/shade/lib/corner-presence';
 import { useLang } from '@/shade/lib/lang';
 import { t, tp } from '@/shade/strings';
 
-/** Сколько длится уход карточки (.shade-corner-item[data-leaving] в globals.css). */
-export const CORNER_LEAVE_MS = 280;
+/**
+ * Сколько держится уходящая карточка (.shade-corner-item[data-leaving] в globals.css): гаснет
+ * 160 мс, место закрывается с 60 мс за 240 мс.
+ */
+export const CORNER_LEAVE_MS = 300;
 
 const EMPTY: CornerEntry[] = [];
 
@@ -61,23 +66,48 @@ export function CornerCard({ entry, onDismiss }: { entry: CornerEntry; onDismiss
   );
 }
 
-/** Уходящие карточки держатся ещё CORNER_LEAVE_MS с последним видом. */
-function usePresence(entries: CornerEntry[]): Array<{ entry: CornerEntry; leaving: boolean }> {
-  const [gone, setGone] = React.useState<CornerEntry[]>([]);
-  const prev = React.useRef<CornerEntry[]>(entries);
+/**
+ * Уходящие карточки держатся ещё CORNER_LEAVE_MS с последним видом и на своём месте
+ * (placeLeaving). Уходящие считаются прямо в рендере по прошлой отрисовке: если узнавать их
+ * в эффекте, на один рендер карточка пропадает, React собирает узел заново и анимация
+ * появления запускается снова (закрытая карточка «мигала», до 22.11.2026).
+ */
+function usePresence(entries: CornerEntry[]): Array<Presence<CornerEntry>> {
+  const last = React.useRef<Array<Presence<CornerEntry>>>(entries.map((entry) => ({ entry, leaving: false })));
+  // Ушли до конца (свой объект записи: тот же id может прийти снова новой карточкой)
+  const expired = React.useRef(new Set<CornerEntry>());
+  const timers = React.useRef(new Map<CornerEntry, number>());
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+
+  const liveIds = new Set(entries.map((e) => e.id));
+  const gone = last.current.filter((p) => !liveIds.has(p.entry.id) && !expired.current.has(p.entry)).map((p) => p.entry);
+  const items = placeLeaving(
+    last.current.map((p) => p.entry.id),
+    entries,
+    gone,
+  );
+
   React.useLayoutEffect(() => {
-    const ids = new Set(entries.map((e) => e.id));
-    const left = prev.current.filter((e) => !ids.has(e.id));
-    prev.current = entries;
-    if (left.length === 0) return;
-    setGone((g) => [...g.filter((e) => !ids.has(e.id)), ...left]);
-    const timer = window.setTimeout(() => setGone((g) => g.filter((e) => !left.includes(e))), CORNER_LEAVE_MS);
-    return () => window.clearTimeout(timer);
-  }, [entries]);
-  // Уходящая остаётся на своём месте среди живых (по порядку прежнего снимка)
-  const live = entries.map((entry) => ({ entry, leaving: false }));
-  const leaving = gone.filter((g) => !entries.some((e) => e.id === g.id)).map((entry) => ({ entry, leaving: true }));
-  return [...leaving, ...live];
+    last.current = items;
+    expired.current.clear();
+    const leaving = new Set(items.filter((p) => p.leaving).map((p) => p.entry));
+    for (const entry of leaving) {
+      if (timers.current.has(entry)) continue;
+      const id = window.setTimeout(() => {
+        timers.current.delete(entry);
+        expired.current.add(entry);
+        bump();
+      }, CORNER_LEAVE_MS);
+      timers.current.set(entry, id);
+    }
+  });
+
+  React.useEffect(() => {
+    const all = timers.current;
+    return () => all.forEach((id) => window.clearTimeout(id));
+  }, []);
+
+  return items;
 }
 
 export function CornerStack() {
