@@ -111,10 +111,11 @@ draw(path("Системные настройки › Конфиденциаль�
 draw(path("и безопасность › «Всё равно открыть»", font(17, .semibold), ink), x: left, y: cardRect.minY + 68, center: false)
 draw(path("System Settings › Privacy & Security › Open Anyway", font(13, .medium), muted), x: left, y: cardRect.minY + 90, center: false)
 
-// 3. Запасной путь мелко: что делать, если кнопки нет
+// 3. Запасной путь мелко: что делать, если кнопки нет. Текст картинки не копируется,
+// поэтому отсылка к странице загрузки: там команда текстом (release-notes.sh)
 let y3 = cardRect.maxY + 10
-text("Кнопки «Всё равно открыть» нет? Выполните в Терминале:", font(12, .medium), muted, x: W / 2, y: y3)
-text("No “Open Anyway” button? Run in Terminal:", font(11, .regular), muted, x: W / 2, y: y3 + 17)
+text("Кнопки «Всё равно открыть» нет? Наберите в Терминале или скопируйте со страницы загрузки:", font(12, .medium), muted, x: W / 2, y: y3)
+text("No “Open Anyway” button? Type it in Terminal or copy it from the download page:", font(11, .regular), muted, x: W / 2, y: y3 + 17)
 text("xattr -cr /Applications/Shade.app", mono(13), ink, x: W / 2, y: y3 + 36)
 
 NSGraphicsContext.restoreGraphicsState()
