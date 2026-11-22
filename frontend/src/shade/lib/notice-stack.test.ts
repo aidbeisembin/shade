@@ -1,40 +1,51 @@
-// Ширина тостов в углу и когда они поднимаются над доком записи: bun test src/shade (pnpm test).
+// Ширина угла и когда он поднимается над доком записи: bun test src/shade (pnpm test).
 import { describe, expect, test } from 'bun:test';
-import { cornerLayout, SIDE_GAP, TOAST_EDGE, TOAST_MIN_WIDTH, TOAST_WIDTH } from './notice-stack';
+import { CORNER_MIN, CORNER_WIDTH, cornerLayout, SIDE_GAP, TOAST_EDGE } from './notice-stack';
 
-// Колонка 0..1000, свободное место справа от содержимого: 1000 - 16 - (right + 16)
-const R = 1000;
-const freeFor = (width: number) => R - TOAST_EDGE - SIDE_GAP - width;
+// Колонка 0..R, свободное место справа от содержимого дока: R - 16 - (right + 24)
+const R = 1200;
+const rightFor = (free: number) => R - TOAST_EDGE - SIDE_GAP - free;
 
-describe('cornerLayout', () => {
-  test('пустой док: полная ширина, без подъёма', () => {
-    expect(cornerLayout(R, 1000, [])).toEqual({ width: TOAST_WIDTH, lift: false });
+describe('cornerLayout: в углу, до места сбоку от дока; меньше CORNER_MIN - подъём', () => {
+  test('ширина угла до 500 px (самая длинная строка с кнопкой), не уже 360 px сбоку', () => {
+    expect(CORNER_WIDTH).toBe(500);
+    expect(CORNER_MIN).toBe(360);
   });
-  test('места справа больше 400: полная ширина, без подъёма', () => {
-    expect(cornerLayout(R, 1000, [550])).toEqual({ width: TOAST_WIDTH, lift: false });
+  test('пустой док: полная ширина, низ на линии дока', () => {
+    expect(cornerLayout(R, R, [])).toEqual({ width: CORNER_WIDTH, lift: false });
   });
-  test('места 390: тост сужается до 390, в углу', () => {
-    expect(cornerLayout(R, 1000, [freeFor(390)])).toEqual({ width: 390, lift: false });
+  test('сбоку больше 500: 500, рядом с доком', () => {
+    expect(cornerLayout(R, R, [rightFor(CORNER_WIDTH + 200)])).toEqual({ width: CORNER_WIDTH, lift: false });
   });
-  test('места 370: тост 370 в углу, рядом с кнопкой', () => {
-    expect(cornerLayout(R, 1000, [freeFor(370)])).toEqual({ width: 370, lift: false });
+  test('сбоку 420: сужается до 420 и стоит рядом, в кнопку не упирается', () => {
+    const r = cornerLayout(R, R, [rightFor(420)]);
+    expect(r).toEqual({ width: 420, lift: false });
+    // левый край угла правее содержимого дока с зазором
+    expect(R - TOAST_EDGE - r.width).toBeGreaterThanOrEqual(rightFor(420) + SIDE_GAP);
   });
-  test('места 340 (окно 960, кнопка записи): уже минимума, подпись ушла бы в три строки, тост над доком', () => {
-    expect(cornerLayout(R, 1000, [freeFor(340)])).toEqual({ width: TOAST_WIDTH, lift: true });
+  test('сбоку ровно CORNER_MIN: ещё рядом; на 1 px меньше - над доком во всю ширину', () => {
+    expect(cornerLayout(R, R, [rightFor(CORNER_MIN)])).toEqual({ width: CORNER_MIN, lift: false });
+    expect(cornerLayout(R, R, [rightFor(CORNER_MIN - 1)])).toEqual({ width: CORNER_WIDTH, lift: true });
   });
-  test('минимум 360: подпись тоста не длиннее двух строк', () => {
-    expect(TOAST_MIN_WIDTH).toBe(360);
+  test('окно 1100 (колонка 1004) и кнопка записи 104 px: рядом с кнопкой, 410 px', () => {
+    const col = 1004;
+    expect(cornerLayout(col, col, [col / 2 + 52])).toEqual({ width: 410, lift: false });
   });
-  test('ровно минимум: в углу', () => {
-    expect(cornerLayout(R, 1000, [freeFor(TOAST_MIN_WIDTH)])).toEqual({ width: TOAST_MIN_WIDTH, lift: false });
+  test('широкое окно (колонка 1400) и кнопка записи: рядом, 500 px', () => {
+    const col = 1400;
+    expect(cornerLayout(col, col, [col / 2 + 52])).toEqual({ width: CORNER_WIDTH, lift: false });
   });
-  test('меньше минимума: полная ширина и подъём над доком', () => {
-    expect(cornerLayout(R, 1000, [freeFor(TOAST_MIN_WIDTH - 1)])).toEqual({ width: TOAST_WIDTH, lift: true });
+  test('капсула записи или итог в доке (широкая строка): над доком', () => {
+    const col = 1004;
+    expect(cornerLayout(col, col, [col / 2 + 52, col / 2 + 260])).toEqual({ width: CORNER_WIDTH, lift: true });
   });
-  test('считается по самой широкой строке дока', () => {
-    expect(cornerLayout(R, 1000, [500, 900])).toEqual({ width: TOAST_WIDTH, lift: true });
+  test('окно 640 (колонка 544) и кнопка записи: над доком, ширина колонки без полей', () => {
+    expect(cornerLayout(544, 544, [272 + 52])).toEqual({ width: 500, lift: true });
   });
-  test('узкая колонка 300: тост во всю колонку без полей, над доком', () => {
-    expect(cornerLayout(300, 300, [190])).toEqual({ width: 268, lift: true });
+  test('узкая колонка 420: угол во всю колонку без полей; сбоку места нет - над доком', () => {
+    expect(cornerLayout(420, 420, [300])).toEqual({ width: 388, lift: true });
+  });
+  test('свободное место дробное: ширина целая, вниз', () => {
+    expect(cornerLayout(R, R, [rightFor(420.6)]).width).toBe(420);
   });
 });

@@ -1,18 +1,18 @@
-// Запись: плавает внизу по центру поверх контента на всех страницах.
-// Состояния:
-// - покой: круглая кнопка Mikado 104 px, на 28 px от низа со знаком из полос звука, от неё расходятся две мягкие
-//   волны; сочетание клавиш в подсказке;
-// - запись: стеклянная капсула (.shade-glass): красная точка с кольцом на речь,
-//   таймер, полосы уровня звука, «Пауза» и красная «Остановить»; «Не слышу речи»
-//   стеклянной карточкой над капсулой;
-// - после «Остановить»: на месте кнопки записи одна карточка (FinishCard), которая меняет
-//   состояние на месте: «Дописываю реплики» → «Сохраняю» → «Встреча сохранена» с «Открыть»
-//   и крестиком; запись отбракована: та же карточка «Пустая запись - не сохранена».
-// Смена состояния появляется из размытия (.shade-dock-in), уходит плавно с размытием
-// (.shade-dock-out, уходящая копия), только transform, opacity и filter; prefers-reduced-motion
-// оставляет одну прозрачность. Док внизу по центру, тосты в правом нижнем углу
-// (lib/notice-stack.ts); если док заходит под угол, тосты встают над ним, друг на друга не ложатся.
-// Обновление: карточка «Доступна версия X» в той же стопке, только в покое (lib/updates.ts).
+// Док записи: место кнопки записи внизу по центру, только текущая запись (docs/ui/notifications.md, «Док»).
+// В доке одно место, и оно по очереди:
+// - покой: круглая кнопка лайм 104 px, на 28 px от низа, со знаком из полос звука и двумя мягкими
+//   волнами; сочетание клавиш в подсказке;
+// - запись: стеклянная капсула (.shade-glass): красная точка с кольцом на речь, таймер, полосы
+//   уровня звука, «Пауза» и красная «Остановить»; над капсулой подсказки про микрофон и «Не слышу речи»;
+// - после «Остановить»: кнопка превращается в карточку (FinishCard), та меняет состояние на месте:
+//   «Дописываю реплики» → «Сохраняю» → итог («Встреча сохранена» и «Открыть», пустая запись, «Речи
+//   не было» и «Проверить звук», «Речь не распознана», «Мало содержания» и «Вернуть») → снова кнопка;
+// - проблема, мешающая записи («Нет доступа к микрофону», «Нет микрофона»): карточка на месте
+//   кнопки сразу, как только проблема известна, и держится, пока она есть (MicNotices.tsx).
+// Всё, что не про текущую запись («Доступна версия», «Как вам Shade?», корзина, восстановление),
+// живёт в правом нижнем углу (CornerStack, lib/corner.ts): док ставит туда отзыв и обновление.
+// Смена состояния появляется из размытия (.shade-dock-in, 240 мс), уходит без размытия (.shade-dock-out, 160 мс),
+// только transform, opacity и filter; prefers-reduced-motion оставляет одну прозрачность.
 // Страницы оставляют снизу запас --dock-space, капсула не закрывает последние строки.
 //
 // Полосы показывают уровень звука из ядра (событие recording-level, lib/recording-level.ts):
@@ -20,11 +20,10 @@
 // точки вспыхивает на каждый сигнал детектора речи и каждую реплику.
 'use client';
 
-import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { MicrophoneSlash, Pause, Play, SpeakerHigh, Stop, Waveform } from '@phosphor-icons/react';
-import { FinishCard, type FinishCardStage, type DiscardReason } from '@/shade/components/FinishCard';
+import { MicrophoneSlash, Pause, Play, Stop } from '@phosphor-icons/react';
+import { DOCK_CARD, FinishCard, type FinishCardStage, type DiscardReason } from '@/shade/components/FinishCard';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shade/components/ui/tooltip';
@@ -32,10 +31,10 @@ import { SoundCheckDialog, silenceCause, useSoundState } from '@/shade/component
 import { useRecordingControls, type FinishState } from '@/shade/lib/recording-controls';
 import { previewFinish } from '@/shade/lib/finish-preview';
 import { isMicBlocker } from '@/shade/lib/recording';
-import { MicAccessCard, MicHint, micHintKind, type MicHintKind } from '@/shade/components/MicNotices';
+import { MicAccessCard, MicHint, micHintKind, type MicHintKind, type MicResolved } from '@/shade/components/MicNotices';
 import { useRecordingOutcome } from '@/shade/lib/recording-outcome';
 import { useNoticeStackAnchor } from '@/shade/lib/notice-stack';
-import { NOTICE_HINT, NOTICE_SECONDARY, NOTICE_TITLE } from '@/shade/components/ui/notice';
+import { Notice, NoticeButton } from '@/shade/components/ui/notice';
 import { formatTimer } from '@/shade/lib/format';
 import { onRecordingLevel, voiceAmount } from '@/shade/lib/recording-level';
 import { cn } from '@/shade/lib/utils';
@@ -45,6 +44,8 @@ import { LANGUAGES } from '@/constants/languages';
 import { useLang } from '@/shade/lib/lang';
 import { FeedbackCard } from '@/shade/components/feedback/FeedbackCard';
 import { DockLeave, LEAVE_MS } from '@/shade/components/DockLeave';
+import { corner } from '@/shade/lib/corner';
+import { RESULT_MS } from '@/shade/lib/notice-timing';
 import { clearOffer, flushFeedbackOnLaunch, useOfferedMeeting } from '@/shade/lib/feedback/store';
 import { previewFeedback, previewMotion } from '@/shade/lib/feedback/preview';
 import type { Flow } from '@/shade/lib/feedback/flow';
@@ -116,7 +117,13 @@ function LevelBars({ paused }: { paused: boolean }) {
   );
 }
 
-/** «Не слышу речи» внутри плитки записи: детектор речь слышит или речь не доходит. */
+/** Настройки Shade на месте (in-place-router.tsx). */
+function openSettingsTab(tab: string) {
+  window.history.pushState(null, '', `/?view=settings&tab=${tab}`);
+  window.scrollTo({ top: 0 });
+}
+
+/** «Не слышу речи» над капсулой: детектор речь слышит или речь не доходит. */
 function SpeechHint({ heard }: { heard: boolean }) {
   useLang();
   const [open, setOpen] = useState(false);
@@ -128,37 +135,28 @@ function SpeechHint({ heard }: { heard: boolean }) {
     const language =
       code === 'auto' ? t('languageAuto') : code === 'auto-translate' ? t('languageAutoTranslate') : (LANGUAGES.find((l) => l.code === code)?.name ?? code);
     return (
-      <div className="flex min-w-0 items-center gap-3" role="status">
-        <div className="min-w-0">
-          <p className={NOTICE_TITLE}>{t('heardNoTextTitle')}</p>
-          <p className={cn('mt-0.5 break-words', NOTICE_HINT)}>
-            {t('recognitionModel')}: {model} · {t('recognitionLanguage')}: {language}
-          </p>
-        </div>
-        <Button asChild size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')}>
-          <Link href="/settings?tab=transcription">
-            <Waveform />
-            {t('openTranscriptionSettings')}
-          </Link>
-        </Button>
-      </div>
+      <Notice
+        role="status"
+        className={DOCK_CARD}
+        icon="info"
+        title={t('heardNoTextTitle')}
+        hint={`${t('recognitionModel')}: ${model} · ${t('recognitionLanguage')}: ${language}`}
+        actions={<NoticeButton action={{ label: t('openTranscriptionSettings'), onClick: () => openSettingsTab('transcription') }} />}
+      />
     );
   }
   return (
-    <div className="flex min-w-0 items-center gap-3" role="status">
-      <div className="min-w-0">
-        <p className={NOTICE_TITLE}>{t('noSpeechTitle')}</p>
-        {/* 14 px, целиком, строка не длиннее 46 символов (NOTICE_HINT) */}
-        <p className={cn('mt-0.5', NOTICE_HINT)}>
-          {silenceCause(sound)}
-        </p>
-      </div>
-      <Button size="sm" variant="secondary" className={cn(NOTICE_SECONDARY, 'shrink-0')} onClick={() => setOpen(true)}>
-        <SpeakerHigh />
-        {t('soundCheck')}
-      </Button>
+    <>
+      <Notice
+        role="status"
+        className={DOCK_CARD}
+        icon="info"
+        title={t('noSpeechTitle')}
+        hint={silenceCause(sound)}
+        actions={<NoticeButton action={{ label: t('soundCheck'), onClick: () => setOpen(true) }} />}
+      />
       <SoundCheckDialog open={open} onOpenChange={setOpen} />
-    </div>
+    </>
   );
 }
 
@@ -236,22 +234,32 @@ function RecordButton() {
   );
 }
 
+/** Открыт список встреч (не встреча и не настройки): только здесь кнопка записи в покое. */
+function isListRoute(pathname: string, params: URLSearchParams | null): boolean {
+  return pathname === '/' && !params?.has('id') && params?.get('view') !== 'settings' && !params?.has('finish');
+}
+
 /**
  * Кнопка записи в покое только на списке встреч. На настройках и на странице встречи её нет:
- * там она закрывала строки внизу. Записать можно
- * со списка и сочетанием клавиш, оно работает везде. Капсула идущей записи и итог после
- * неё показываются на всех экранах: это управление записью, его не прячем. Пока кнопки нет,
- * у прокрутки обычный нижний отступ вместо запаса под капсулу (data-dock-off).
+ * там она закрывала строки внизу. Записать можно со списка и сочетанием клавиш, оно работает
+ * везде. Капсула идущей записи и итог после неё показываются на всех экранах: это управление
+ * записью, его не прячем. Пока кнопки нет, у прокрутки обычный нижний отступ вместо запаса под
+ * капсулу (data-dock-off). Сообщает доку, открыт ли список (onList): найденная без нажатия
+ * проблема с микрофоном встаёт на место кнопки только там.
  */
-function IdleRecordButton() {
+function IdleRecordButton({ onList, showButton }: { onList: (v: boolean) => void; showButton: boolean }) {
   const pathname = usePathname() ?? '/';
   const params = useSearchParams();
-  const hidden = pathname !== '/' || params.has('id') || params.get('view') === 'settings' || params.has('finish');
+  const list = isListRoute(pathname, params);
+  useEffect(() => onList(list), [list, onList]);
+  const hidden = !list || !showButton;
+  // Запас снизу снимается только в покое вне списка: капсула и карточки дока его требуют везде
+  const off = !list && showButton;
   useEffect(() => {
     const root = document.documentElement;
-    root.toggleAttribute('data-dock-off', hidden);
+    root.toggleAttribute('data-dock-off', off);
     return () => root.removeAttribute('data-dock-off');
-  }, [hidden]);
+  }, [off]);
   return hidden ? null : <RecordButton />;
 }
 
@@ -261,6 +269,7 @@ export function RecordDock() {
   const { live, notice } = useRecordingOutcome();
   const router = useRouter();
   const pathname = usePathname() ?? '/';
+  const [onList, setOnList] = useState(true);
 
   // Разработка: карточка на заданном шаге без записи (?finish=…, finish-preview.ts)
   const [preview, setPreview] = useState<FinishState | null>(null);
@@ -275,18 +284,31 @@ export function RecordDock() {
       : notice
         ? { stage: 'discarded', title: notice.title ?? null, meetingId: notice.meetingId ?? null, reason: notice.verdict }
         : null;
-  const state = c.isRecording ? 'recording' : card ? 'finishing' : 'idle';
+  // Проблема с микрофоном на месте кнопки: найденная при нажатии «Записать» - везде, найденная
+  // без нажатия (passive) - только там, где кнопка записи (список встреч)
+  const micBlocker = !c.isRecording && !card && isMicBlocker(c.blocker) && (!c.blocker.passive || onList) ? c.blocker : null;
+  // Доступ появился (или проверить не удалось): итог 4 с, под указателем ждёт, потом кнопка
+  const [micBack, setMicBack] = useState<MicResolved | null>(null);
+  const [micBackHeld, setMicBackHeld] = useState(false);
+  useEffect(() => {
+    if (!micBack || micBackHeld) return;
+    const id = window.setTimeout(() => setMicBack(null), RESULT_MS);
+    return () => window.clearTimeout(id);
+  }, [micBack, micBackHeld]);
+  useEffect(() => {
+    if (c.isRecording) setMicBack(null);
+  }, [c.isRecording]);
+  const state = c.isRecording ? 'recording' : card ? 'finishing' : micBlocker ? 'mic' : micBack ? 'mic-back' : 'idle';
   const openSaved = (id: string) => {
     c.dismissFinish();
     router.push(`/meeting-details?id=${encodeURIComponent(id)}`);
   };
   const closeCard = card?.stage === 'discarded' ? notice?.dismiss : c.dismissFinish;
-  // Микрофон: карточка, если запись не началась из-за него, и подсказки во время записи (MicNotices)
+  // Подсказки о микрофоне во время записи (MicNotices)
   const [micHintClosed, setMicHintClosed] = useState<MicHintKind | null>(null);
   useEffect(() => setMicHintClosed(null), [c.isRecording]);
   const micHint = state === 'recording' ? micHintKind(c.micState, c.micMode === 'system-only', c.micBlind, c.duration) : null;
   const showMicHint = micHint !== null && micHint !== micHintClosed;
-  const micBlocker = state === 'idle' && isMicBlocker(c.blocker) ? c.blocker : null;
   const openRecording = () => {
     c.setView('recording');
     if (pathname !== '/') router.push('/');
@@ -296,7 +318,7 @@ export function RecordDock() {
   const showSpeechHint =
     state === 'recording' && !showMicHint && live.tracking && live.textSegments === 0 && !live.recognitionFailed && c.duration >= NO_SPEECH_HINT_SEC;
   // Карточка уходит плавно: последний вид держим ещё LEAVE_MS с анимацией ухода. До отрисовки
-  // (layout effect): иначе на кадр карточки нет, и тосты над доком дёргаются вниз и обратно
+  // (layout effect): иначе на кадр карточки нет, и угол над доком дёргается вниз и обратно
   const [leaving, setLeaving] = useState<CardView | null>(null);
   const lastCard = useRef<CardView | null>(null);
   const cardKey = card ? `${card.stage}:${card.meetingId ?? ''}:${card.reason ?? ''}:${card.title ?? ''}` : '';
@@ -318,9 +340,9 @@ export function RecordDock() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, cardKey]);
 
-  // Обратная связь: «Как вам Shade?», когда страница встречи предложила (lib/feedback/store.ts).
-  // Только в покое: во время записи и пока видна карточка итога её нет. Запись началась: предложение
-  // снимается (это не закрытие человеком, в счёт не идёт). При запуске уходит очередь прошлых отзывов
+  // Обратная связь: «Как вам Shade?» в правом нижнем углу, когда страница встречи предложила
+  // (lib/feedback/store.ts). Во время записи её нет: запись снимает предложение (это не закрытие
+  // человеком, в счёт не идёт). При запуске уходит очередь прошлых отзывов
   const offeredMeeting = useOfferedMeeting();
   const [feedbackPreview, setFeedbackPreview] = useState<Flow | null>(null);
   useEffect(() => {
@@ -332,10 +354,29 @@ export function RecordDock() {
   useEffect(() => {
     if (c.isRecording) clearOffer();
   }, [c.isRecording]);
-  const showFeedback = state === 'idle' && micBlocker === null && (offeredMeeting !== null || feedbackPreview !== null);
+  const showFeedback = !c.isRecording && (offeredMeeting !== null || feedbackPreview !== null);
+  const feedbackKey = offeredMeeting ?? (feedbackPreview ? `preview-${feedbackPreview.step}` : null);
+  useEffect(() => {
+    if (!showFeedback || !feedbackKey) {
+      corner.dismiss('feedback');
+      return;
+    }
+    const initial = feedbackPreview ?? undefined;
+    const done = () => {
+      clearOffer();
+      setFeedbackPreview(null);
+    };
+    corner.show({
+      id: 'feedback',
+      timeout: null,
+      view: { title: t('feedbackAskTitle'), render: () => <FeedbackCard key={feedbackKey} initial={initial} onDone={done} /> },
+    });
+    // feedbackPreview входит в feedbackKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFeedback, feedbackKey]);
 
-  // Обновления: проверка при запуске и раз в сутки; во время записи не проверяем и не ставим.
-  // Карточка только в покое и не вместе с «Как вам Shade?» (та про только что записанную встречу)
+  // Обновления: проверка при запуске и раз в сутки; во время записи не проверяем, не ставим и не
+  // показываем. Карточка в правом нижнем углу, без таймера (UpdateCard)
   const updates = updateController();
   const update = useUpdatePhase(updates);
   const [updatePreview, setUpdatePreview] = useState<UpdatePhase | null>(null);
@@ -353,9 +394,28 @@ export function RecordDock() {
     return () => window.removeEventListener('check-updates-from-tray', onTray);
   }, [updates]);
   const updateShown = updatePreview ?? (update.visible ? update.phase : null);
-  const showUpdate = state === 'idle' && micBlocker === null && !showFeedback && updateShown !== null && isShownUpdate(updateShown);
+  const shownUpdate = updateShown !== null && isShownUpdate(updateShown) && !c.isRecording ? updateShown : null;
+  useEffect(() => {
+    if (!shownUpdate) {
+      corner.dismiss('update');
+      return;
+    }
+    const closePreview = updatePreview !== null;
+    corner.show({
+      id: 'update',
+      timeout: null,
+      view: {
+        title: t('updateAction'),
+        render: () => (
+          <UpdateCard phase={shownUpdate} onUpdate={() => void updates.install()} onClose={() => (closePreview ? setUpdatePreview(null) : updates.dismiss())} />
+        ),
+      },
+    });
+    // вид карточки задают шаг и версия
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownUpdate?.kind, shownUpdate?.version, updates]);
 
-  // Тосты в углу, над доком, если он заходит под угол (lib/notice-stack.ts)
+  // Угол в правом нижнем углу, над доком, если сбоку не помещается (lib/notice-stack.ts)
   const sectionRef = useRef<HTMLElement>(null);
   useNoticeStackAnchor(sectionRef);
 
@@ -367,63 +427,50 @@ export function RecordDock() {
     >
       <DockLeave show={showMicHint && micHint !== null}>
         {micHint && (
-          <div key={`mic-${micHint}`} className="shade-dock-in shade-glass pointer-events-auto relative w-full max-w-[560px] rounded-tile p-4">
+          <div key={`mic-${micHint}`} className="shade-dock-in pointer-events-auto flex max-w-full justify-center">
             <MicHint kind={micHint} onClose={() => setMicHintClosed(micHint)} />
           </div>
         )}
       </DockLeave>
 
-      <DockLeave show={micBlocker !== null}>
-        {micBlocker && (
-          <div key="mic-access" className="shade-dock-in pointer-events-auto">
-            <MicAccessCard
-              blocker={micBlocker}
-              onRecheck={c.recheckMicrophone}
-              onSystemOnly={() => void c.startAnywhere({ systemOnly: true })}
-              onClose={c.dismissBlocker}
-            />
-          </div>
-        )}
-      </DockLeave>
-
-      <DockLeave show={showFeedback}>
-        {showFeedback && (
-          <div key={`feedback-${offeredMeeting ?? 'preview'}`} className="shade-dock-in pointer-events-auto flex w-full justify-center">
-            <FeedbackCard
-              initial={feedbackPreview ?? undefined}
-              onDone={() => {
-                clearOffer();
-                setFeedbackPreview(null);
-              }}
-            />
-          </div>
-        )}
-      </DockLeave>
-
-      <DockLeave show={showUpdate}>
-        {showUpdate && updateShown && isShownUpdate(updateShown) && (
-          <div key={`update-${updateShown.version}`} className="shade-dock-in pointer-events-auto flex w-full justify-center">
-            <UpdateCard
-              phase={updateShown}
-              onUpdate={() => void updates.install()}
-              onClose={() => (updatePreview ? setUpdatePreview(null) : updates.dismiss())}
-            />
-          </div>
-        )}
-      </DockLeave>
-
       <DockLeave show={showSpeechHint}>
-        <div key="hint" className="shade-dock-in shade-glass pointer-events-auto relative w-full max-w-[560px] rounded-tile p-4">
+        <div key="hint" className="shade-dock-in pointer-events-auto flex max-w-full justify-center">
           <SpeechHint heard={live.vadSegments > 0} />
         </div>
       </DockLeave>
 
       <div key={state} className="shade-dock-in pointer-events-auto flex max-w-full justify-center">
-        {state === 'idle' && (
-          // useSearchParams в статической выгрузке требует границу Suspense
-          <Suspense fallback={null}>
-            <IdleRecordButton />
-          </Suspense>
+        {/* useSearchParams в статической выгрузке требует границу Suspense. Наблюдатель списка
+            живёт и тогда, когда кнопку заменила карточка: сообщает, открыт ли список */}
+        <Suspense fallback={null}>
+          <IdleRecordButton onList={setOnList} showButton={state === 'idle'} />
+        </Suspense>
+
+        {state === 'mic' && micBlocker && (
+          <MicAccessCard
+            blocker={micBlocker}
+            onRecheck={c.recheckMicrophone}
+            onSystemOnly={() => void c.startAnywhere({ systemOnly: true })}
+            onClose={c.dismissBlocker}
+            onResolved={(answer) => {
+              c.dismissBlocker();
+              setMicBack(answer);
+            }}
+          />
+        )}
+
+        {state === 'mic-back' && micBack && (
+          <Notice
+            role="status"
+            className={DOCK_CARD}
+            icon={micBack === 'granted' ? 'done' : 'info'}
+            title={micBack === 'granted' ? t('micAccessBack') : t('micAccessUnknownBack')}
+            hint={micBack === 'granted' ? t('micAccessBackHint') : t('micAccessUnknownBackHint')}
+            onPointerMove={() => setMicBackHeld(true)}
+            onPointerLeave={() => setMicBackHeld(false)}
+            onClose={() => setMicBack(null)}
+            closeLabel={t('close')}
+          />
         )}
 
         {state === 'recording' && (
@@ -498,7 +545,7 @@ export function RecordDock() {
       {/* Уходящий итог: тот же вид, плавно гаснет и опускается, пока на его месте проявляется кнопка записи */}
       {leaving && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-4" aria-hidden>
-          <div className="shade-dock-out">
+          <div className="shade-dock-out flex max-w-full justify-center">
             <FinishCard
               stage={leaving.stage}
               title={leaving.title}

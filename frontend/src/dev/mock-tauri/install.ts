@@ -37,6 +37,7 @@ export function installMockTauri() {
   // Язык сценария (demo-en: английский) на время вкладки; у остальных сценариев сбрасывается
   setDemoLang(scenario.lang ?? null);
   const be = new MockBackend(scenario);
+  seedMicKnown(scenario.micKnown ?? null);
 
   const calledCommands = new Set<string>();
   /** Двойные отписки (event#id): в настоящем Tauri каждая роняет unregisterListener. */
@@ -182,4 +183,24 @@ export function installMockTauri() {
   );
 
   mountScenarioPanel(scenario.id);
+}
+
+/**
+ * Запомненный доступ к микрофону по сценарию (micKnown). Значение, которое положила заглушка,
+ * снимается в других сценариях, чтобы mic-denied не тянул отказ в full.
+ */
+function seedMicKnown(value: 'denied' | null) {
+  const KEY = 'shade.micAccess.v1';
+  const MARK = 'shade.mock.micSeeded';
+  try {
+    if (value) {
+      window.localStorage.setItem(KEY, value);
+      window.localStorage.setItem(MARK, '1');
+    } else if (window.localStorage.getItem(MARK)) {
+      window.localStorage.removeItem(KEY);
+      window.localStorage.removeItem(MARK);
+    }
+  } catch {
+    /* без хранилища карточка появится по «Записать» */
+  }
 }

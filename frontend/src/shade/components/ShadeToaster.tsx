@@ -1,67 +1,24 @@
-// Уведомления Shade: sonner в наших токенах и теме. Сами тосты рисует общий компонент Notice
-// (ui/notice.tsx, через installShadeToasts в lib/toasts.tsx), как итог записи у капсулы.
-// Место одно на все уведомления: правый нижний угол колонки страницы, на высоте низа дока
-// записи; если содержимое дока заходит под угол, тосты встают над ним (lib/notice-stack.ts,
-// .shade-toaster в globals.css). Тосты раскрыты списком через 8 px (expand, gap), а не сложены колодой друг
-// под другом: непрозрачно друг на друга не ложатся. Появление и уход размытием там же.
-// ICONS и крестик sonner остаются для toast.promise, если появится.
+// Угол сообщений Shade (CornerStack) на месте прежнего тостера sonner: имя осталось, чтобы
+// app/layout.tsx не менять. Вызовы toast.* оригинала и shadeToast перенаправлены в угол
+// (lib/toasts.tsx, installShadeToasts), sonner ничего не рисует. Правила угла:
+// docs/ui/notifications.md.
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Toaster } from 'sonner';
-import { Bell, CheckFat, Warning } from '@phosphor-icons/react';
-import { Spinner } from '@/shade/components/ui/spinner';
-import { getStoredTheme, onThemeChange, type ThemeMode } from '@/shade/lib/theme';
 import { installShadeToasts } from '@/shade/lib/toasts';
-import { STACK_GAP } from '@/shade/lib/notice-stack';
 import { ShadeIcons } from '@/shade/components/ShadeIcons';
+import { CornerStack } from '@/shade/components/CornerStack';
+import { RESULT_MS } from '@/shade/lib/notice-timing';
 
-/** Сколько тост висит, если вызов не задал своё: 4 с хватает прочесть две строки и нажать
- *  «Вернуть»; под курсором и в свёрнутом окне sonner время не считает. Было 5 с. */
-export const TOAST_DURATION_MS = 4000;
-import { t } from '@/shade/strings';
-import { useLang } from '@/shade/lib/lang';
+/** Срок по умолчанию для итога без действия (прежнее имя, notice-timing.ts). */
+export const TOAST_DURATION_MS = RESULT_MS;
 
 installShadeToasts();
 
-// Иконки уведомлений из того же набора и размера, что во всём Shade (fill, 20 px),
-// ожидание тем же Spinner; встроенные иконки sonner другого начертания.
-const ICONS = {
-  // Без иконок со встроенной подложкой (*Circle, *Square): знак без кружка
-  success: <CheckFat weight="fill" className="size-5" />,
-  info: <Bell weight="fill" className="size-5" />,
-  warning: <Warning weight="fill" className="size-5" />,
-  error: <Warning weight="fill" className="size-5" />,
-  loading: <Spinner />,
-  // Крестик закрытия остаётся тонким из sonner: залитый X в Phosphor нарисован квадратом
-};
-
 export function ShadeToaster() {
-  useLang();
-  const [theme, setTheme] = useState<ThemeMode>('light');
-
-  useEffect(() => {
-    setTheme(getStoredTheme());
-    return onThemeChange(setTheme);
-  }, []);
-
-  // Тостер смонтирован в layout.tsx вне ShadeIcons (рядом с LegacyBridge): без своей обёртки
-  // знаки без явного weight рисовались контуром (галочка «Встреча в корзине», 2026-11-21)
+  // Смонтирован в layout.tsx вне ShadeIcons: значки без явного weight рисовались бы контуром
   return (
     <ShadeIcons>
-    <Toaster
-      theme={theme}
-      position="bottom-right"
-      expand
-      gap={STACK_GAP}
-      closeButton
-      icons={ICONS}
-      duration={TOAST_DURATION_MS}
-      visibleToasts={3}
-      className="shade-toaster"
-      toastOptions={{ closeButtonAriaLabel: t('toasterClose') }}
-      containerAriaLabel={t('toasterRegion')}
-    />
+      <CornerStack />
     </ShadeIcons>
   );
 }

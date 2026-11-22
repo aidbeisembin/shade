@@ -230,212 +230,158 @@
   padding: 0 !important;
 }
 
-/* Уведомления (sonner) в токенах Shade: фон поповера, рамка, радиус плитки,
-   крестик в правом верхнем углу, цвет иконки по смыслу, без «богатых» заливок. */
-/* :root поднимает специфичность над [data-sonner-theme='dark'] из стилей sonner */
-:root [data-sonner-toaster].shade-toaster {
-  --normal-bg: hsl(var(--popover));
-  --normal-border: hsl(var(--border));
-  --normal-text: hsl(var(--popover-foreground));
-  --border-radius: var(--tile-radius);
-  /* sonner ставит --width инлайном (356 px): своё значение через !important. Ширину считает
-     lib/notice-stack.ts (--shade-toast-w: до 400 px, уже, если сбоку от дока места меньше);
-     без дока 400 px, но не шире окна без полей */
-  --width: var(--shade-toast-w, min(400px, calc(100vw - 32px))) !important;
-  font-family: var(--font-ui), system-ui, sans-serif;
-}
-
-/* Тосты в правом нижнем углу колонки страницы (lib/notice-stack.ts), низ на одной линии с
-   низом дока записи, 16 px от правого края колонки (TOAST_EDGE). Если сбоку от дока тост не
-   помещается, подъём на высоту дока через transform, плавно. Правило перебивает и узкую
-   раскладку sonner (до 600 px), где он растягивает тосты на всю ширину окна. */
-:root [data-sonner-toaster].shade-toaster[data-y-position='bottom'][data-x-position='right'] {
-  left: auto;
+/* Угол сообщений (components/CornerStack.tsx, правила docs/ui/notifications.md): правый нижний
+   угол колонки страницы, низ на линии низа дока, 16 px от правого края колонки. Ширина одна
+   (--shade-toast-w, lib/notice-stack.ts); если сбоку от дока не помещается, подъём над доком
+   через transform, плавно. Высота не больше окна: раскрытый стек прокручивается. */
+.shade-corner {
+  /* Ширину угла читают карточки: уже 500 px действие уходит под текст (ниже) */
+  container: shade-corner / inline-size;
   right: calc(var(--shade-stack-right, 0px) + 16px);
   bottom: var(--shade-stack-bottom, 28px);
-  width: var(--width);
+  width: var(--shade-toast-w, min(500px, calc(100vw - 32px)));
   transform: translateY(calc(-1 * var(--shade-stack-lift, 0px)));
-  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--notice-move) var(--ease-standard);
 }
 
-/* Пока открыт диалог, тосты ждут под его затемнением, а не ложатся поверх окна */
-:root body:has(.shade-dialog-overlay) [data-sonner-toaster].shade-toaster {
+/* Прокрутка обрезала бы тени карточек: у списка поле 24 px под тень, внешним полем назад */
+.shade-corner-list {
+  max-height: calc(100vh - var(--shade-stack-bottom, 28px) - var(--shade-stack-lift, 0px) + 32px);
+  margin: -24px;
+  padding: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.shade-corner-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Узкий угол (сбоку от кнопки записи меньше 500 px, lib/notice-stack.ts): заголовок и подпись
+   в одну строку на всю ширину, действие второй строкой под текстом, крестик справа сверху.
+   Порог - CORNER_WIDTH: шире все строки с кнопкой помещаются в одну. */
+@container shade-corner (max-width: 499px) {
+  .shade-corner [data-shade-notice]:has(> .shade-notice-actions) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'mark text close'
+      '. actions actions';
+    row-gap: 12px;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-mark {
+    grid-area: mark;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-text {
+    grid-area: text;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-actions {
+    grid-area: actions;
+    justify-self: start;
+  }
+  .shade-corner [data-shade-notice] > .shade-notice-close {
+    grid-area: close;
+  }
+}
+
+/* Пока открыт диалог, угол ждёт под его затемнением, а не ложится поверх окна */
+body:has(.shade-dialog-overlay) .shade-corner {
   z-index: 40;
 }
 
-/* Тост появляется из размытия: чуть ниже, прозрачный и размытый, как .shade-dock-in у карточек
-   дока (без масштаба: sonner меряет высоту тоста в момент появления, масштаб её занизил бы,
-   и соседи встали бы теснее 8 px). Соседи сдвигаются плавно (transform у sonner).
-   Уходит на месте: гаснет, размывается и чуть уменьшается (как .shade-dock-out), а не
-   уезжает вниз за док. sonner снимает тост через 200 мс, уход укладывается в них. */
-:root .shade-toaster [data-sonner-toast] {
+/* Движение уведомлений (docs/ui/notifications.md, «Движение»; Material 3 и Apple HIG):
+   появление 240 мс с замедлением в конце, уход короче, 160 мс с ускорением, соседи съезжают
+   240 мс по стандартной кривой. Уход без размытия: filter на обёртке стекла с первого кадра
+   сбрасывает размытие фона у .shade-glass (подложка «мигает»); появление начинается невидимым,
+   там размытие не заметно. */
+:root {
+  --notice-in: 240ms;
+  --notice-out: 160ms;
+  --notice-move: 240ms;
+  --ease-in-notice: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-notice: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Карточка угла: высота через строки сетки, чтобы соседи съезжали плавно, когда карточка
+   приходит, уходит или сворачивается в стопку «+N». Появление из размытия со сдвигом снизу
+   (как .shade-dock-in), уход на месте: гаснет и чуть уменьшается, место закрывается после. */
+.shade-corner-item {
+  display: grid;
+  grid-template-rows: 1fr;
+  /* Колонка не шире угла: строка без переноса (заголовок с многоточием) иначе распирает карточку */
+  grid-template-columns: minmax(0, 1fr);
+  opacity: 1;
   transition:
-    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    height 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+    grid-template-rows var(--notice-move) var(--ease-standard),
+    opacity var(--notice-in) var(--ease-in-notice),
+    transform var(--notice-in) var(--ease-in-notice);
   transform-origin: 100% 100%;
+  animation: shade-corner-in var(--notice-in) var(--ease-in-notice);
 }
 
-:root .shade-toaster [data-sonner-toast][data-mounted='false'] {
-  --y: translateY(14px);
-  filter: blur(10px);
-}
-
-:root .shade-toaster [data-sonner-toast][data-removed='true'][data-swipe-out='false'] {
-  --y: translateY(calc(var(--lift) * var(--offset))) scale(0.96);
-  opacity: 0;
-  filter: blur(8px);
-  transition:
-    transform 0.2s cubic-bezier(0.4, 0, 1, 1),
-    opacity 0.2s cubic-bezier(0.4, 0, 1, 1),
-    filter 0.2s cubic-bezier(0.4, 0, 1, 1);
-}
-
-/* Меньше движения: только прозрачность, без сдвигов, масштаба и размытия */
-@media (prefers-reduced-motion: reduce) {
-  :root [data-sonner-toaster].shade-toaster[data-y-position='bottom'][data-x-position='right'] {
-    transition: none;
-  }
-  :root .shade-toaster [data-sonner-toast],
-  :root .shade-toaster [data-sonner-toast][data-removed='true'][data-swipe-out='false'] {
-    transition: opacity 0.2s ease-out !important;
-    filter: none;
-  }
-  :root .shade-toaster [data-sonner-toast][data-mounted='false'] {
-    --y: translateY(0);
-    filter: none;
-  }
-  :root .shade-toaster [data-sonner-toast][data-removed='true'][data-swipe-out='false'] {
-    --y: translateY(calc(var(--lift) * var(--offset)));
-  }
-}
-
-:root .shade-toaster [data-sonner-toast][data-styled='true'] {
-  /* Стекло, как у всплывающего (.shade-glass) */
-  background: hsl(var(--glass-tint) / 0.74);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  backdrop-filter: blur(28px) saturate(180%);
-  border-color: hsl(var(--glass-edge));
-  /* 20 px внутри, как у Notice; справа запас под круглый крестик 44 px в углу (4 + 44 + 8) */
-  padding: 20px 56px 20px 20px;
-  min-height: 68px;
-  align-items: flex-start;
-  /* Кнопка действия переносится под текст: рядом с текстом она сжимала его в узкий столбик */
-  flex-wrap: wrap;
-  column-gap: 12px;
-  row-gap: 12px;
-  font-size: 14px;
-  box-shadow:
-    inset 0 1px 0 0 hsl(0 0% 100% / var(--glass-rim)),
-    0 12px 32px -12px hsl(var(--glass-shadow));
-}
-
-.dark .shade-toaster [data-sonner-toast][data-styled='true'] {
-  background: hsl(0 0% 13% / 0.74);
-}
-
-/* Текст занимает всю строку справа от иконки 20 px (зазор 12 px) */
-.shade-toaster [data-sonner-toast][data-styled='true'] [data-content] {
-  flex: 1 1 calc(100% - 32px);
+.shade-corner-item > * {
+  min-height: 0;
   min-width: 0;
 }
 
-/* Заголовок одной строкой, описание не длиннее трёх строк */
-.shade-toaster [data-sonner-toast] [data-title] {
-  font-weight: 600;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.shade-corner-item[data-folded],
+.shade-corner-item[data-leaving] {
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 
-.shade-toaster [data-sonner-toast] [data-description] {
-  color: hsl(var(--muted-foreground));
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+/* Свёрнутые в «+N» обрезаются по своей строке. Уходящая не обрезается: она уже гаснет, а
+   срез по сжимающейся строке был виден как рывок; нижняя соседка наезжает на неё сверху. */
+.shade-corner-item[data-folded] > * {
   overflow: hidden;
 }
 
-:root .shade-toaster [data-sonner-toast][data-styled='true'] [data-close-button] {
-  /* Тот же круглый крестик, что везде (ui/close-button.tsx): 44 px, справа по центру высоты, 4 px от края */
-  left: auto;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 9999px;
-  background: hsl(var(--foreground) / 0.06);
-  color: hsl(var(--muted-foreground) / var(--close-glyph-alpha));
+.shade-corner-item[data-leaving] {
+  transform: scale(0.97);
+  /* Появление не должно перебить уход, даже если карточку закрыли во время появления */
+  animation: none;
+  transition:
+    opacity var(--notice-out) var(--ease-out-notice),
+    transform var(--notice-out) var(--ease-out-notice),
+    grid-template-rows var(--notice-move) var(--ease-standard) 60ms;
 }
 
-:root .shade-toaster [data-sonner-toast][data-styled='true'] [data-close-button] svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 3;
+@keyframes shade-corner-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(14px);
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
 }
 
-:root .shade-toaster [data-sonner-toast][data-styled='true'] [data-close-button]:hover {
-  /* Как у всех кнопок-иконок (.shade-icon-btn-glass): подложка на тон ближе к тексту, значок прежний */
-  background: hsl(var(--foreground) / var(--glass-btn-hover));
-  border-color: transparent;
-  color: hsl(var(--muted-foreground) / var(--close-glyph-alpha));
-}
-
-.shade-toaster [data-sonner-toast][data-styled='true'] [data-close-button]:focus-visible {
-  box-shadow: 0 0 0 2px hsl(var(--ring));
-}
-
-.shade-toaster [data-sonner-toast] [data-icon] {
-  margin-top: 0;
-  width: 20px;
-  height: 20px;
-  color: hsl(var(--muted-foreground));
-}
-
-.shade-toaster [data-sonner-toast] [data-icon] > svg {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-}
-
-.shade-toaster [data-sonner-toast][data-type='success'] [data-icon] {
-  color: hsl(var(--primary-ink));
-}
-
-.shade-toaster [data-sonner-toast][data-type='error'] [data-icon] {
-  color: hsl(var(--destructive-ink));
-}
-
-.shade-toaster [data-sonner-toast][data-type='warning'] [data-icon] {
-  color: hsl(var(--giants-ink));
-}
-
-/* :root и data-styled: правило sonner для кнопки действия специфичнее нашего */
-:root .shade-toaster [data-sonner-toast][data-styled='true'] [data-button] {
-  /* Под текстом, по его левому краю */
-  margin-left: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  padding: 0 12px;
-  font-weight: 500;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-}
-
-/* Тосты Shade рисует общий Notice (ui/notice.tsx, lib/toasts.tsx): у sonner это toast.custom
-   без своей разметки, ширину задаём сами */
-:root .shade-toaster [data-sonner-toast].shade-notice-toast {
-  width: var(--width);
+/* Меньше движения: только прозрачность, без сдвигов, масштаба, размытия и смены высоты */
+@media (prefers-reduced-motion: reduce) {
+  .shade-corner,
+  .shade-corner-item,
+  .shade-corner-item[data-leaving] {
+    transition: opacity 0.15s ease-out;
+  }
+  .shade-corner-item {
+    animation: shade-fade-in 0.15s ease-out;
+  }
+  .shade-corner-item[data-leaving] {
+    filter: none;
+    transform: none;
+  }
 }
 
 /* Пока открыт первый запуск (components/onboarding), прогресс загрузки моделей виден
-   на самом экране; тосты загрузки (toast.custom оригинала) его дублируют. */
-body:has(.shade-onboarding) .shade-toaster [data-sonner-toast][data-styled='false']:not(.shade-notice-toast) {
+   на самом экране; карточки загрузки (toast.custom оригинала) его дублируют. */
+body:has(.shade-onboarding) .shade-corner-item[data-corner-custom] {
   display: none;
 }
 
@@ -625,7 +571,7 @@ html body[data-scroll-locked] {
 
 .shade-dock-in {
   /* ease-out-quint: плавная остановка без перелёта */
-  animation: shade-dock-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: shade-dock-in var(--notice-in) var(--ease-in-notice);
   transform-origin: center;
 }
 
@@ -639,7 +585,7 @@ html body[data-scroll-locked] {
   }
   /* Меньше движения: появление одной прозрачностью, без сдвига, масштаба и размытия */
   .shade-dock-in {
-    animation: shade-fade-in 0.2s ease-out;
+    animation: shade-fade-in 0.15s ease-out;
   }
 }
 
@@ -1507,17 +1453,17 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
   background: hsl(var(--popover) / 0.97);
 }
 
-/* Уход карточек дока (RecordDock: итог записи, подсказки и карточки про микрофон): плавно
-   гаснет, чуть опускается, уменьшается и размывается. Тосты уходят так же (.shade-toaster). */
+/* Уход карточек дока (RecordDock: итог записи, подсказки и карточки про микрофон): гаснет,
+   чуть опускается и уменьшается, 160 мс с ускорением (LEAVE_MS). Без размытия: оно с первого
+   кадра сбрасывает размытие фона у стекла карточки (подложка «мигала»). */
 .shade-dock-out {
-  animation: shade-dock-out 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: shade-dock-out var(--notice-out) var(--ease-out-notice) forwards;
 }
 
 @keyframes shade-dock-out {
   to {
-    transform: translateY(10px) scale(0.96);
+    transform: translateY(6px) scale(0.97);
     opacity: 0;
-    filter: blur(8px);
   }
 }
 
@@ -1529,7 +1475,7 @@ main:has(.shade-scroll[data-fits]) > .shade-edge-fade-bottom,
 
 @media (prefers-reduced-motion: reduce) {
   .shade-dock-out {
-    animation: shade-fade-out 0.2s ease-out forwards;
+    animation: shade-fade-out 0.15s ease-out forwards;
   }
 }
 

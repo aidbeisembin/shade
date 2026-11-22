@@ -1,12 +1,13 @@
-// Карточка «Как вам Shade?» в стопке уведомлений у дока (RecordDock), тихая, не модальная. Когда её
-// показывать, решает lib/feedback/policy.ts; шаги и переходы в lib/feedback/flow.ts.
+// Карточка «Как вам Shade?» в правом нижнем углу (CornerStack; ставит её RecordDock), тихая, не
+// модальная, без таймера, той же ширины, что весь стек угла. Когда её показывать, решает
+// lib/feedback/policy.ts; шаги и переходы в lib/feedback/flow.ts.
 //  - 3-5 звёзд: оценка уходит сразу. Звезда допрыгивает (FOLD_DELAY_MS), и как только ответ пришёл,
-//    карточка сжимается в плашку «Спасибо / Отзыв отправлен» с зелёной галочкой (высота и ширина на
-//    пружине, отступ со всех сторон 16 px), через THANKS_HOLD_MS уходит. Если адрес чата беты задан,
-//    под «Отзыв отправлен» ссылка «Обсудить в чате беты»: тогда плашка держится CHAT_HOLD_MS и не
-//    уходит, пока на карточке указатель или фокус (иначе ссылку не успеть нажать).
-//  - 1-2 звезды: карточка раскрывается в форму «Что улучшить?» (заголовок перекатывается, высота на
-//    пружине), поле в фокусе, Cmd+Enter отправляет, Esc закрывает. Без «Отправить» ничего не уходит.
+//    карточка сворачивается в плашку «Спасибо / Отзыв отправлен» с зелёной галочкой (высота на
+//    пружине) и «Обсудить в чате беты» справа, если адрес чата задан. Плашка - итог действия:
+//    4 с, с кнопкой чата 6 с (notice-timing.ts), под указателем и в фокусе время стоит.
+//  - 1-2 звезды: карточка растёт вверх в форму «Что улучшить?» на том же месте (низ стека стоит,
+//    высота на пружине), поле в фокусе (единственное место, где сообщение берёт фокус),
+//    Cmd+Enter отправляет, Esc закрывает. Без «Отправить» ничего не уходит.
 //  - Наведение и стрелки ничего не отправляют. Крестик или Esc до выбора: закрыто, ничего не ушло.
 //  - Не ушло (нет сети, функция не настроена): «Не получилось отправить, попробуем позже», отзыв в
 //    очереди. Звезды на GitHub в карточке нет (будет отдельной иконкой).
@@ -25,31 +26,32 @@ import { FeedbackText, OutcomePlaque, useSpringHeight, useSpringWidth } from '@/
 import { START, canSend, flowReducer, type Flow } from '@/shade/lib/feedback/flow';
 import { noteDismissed, submitFeedback } from '@/shade/lib/feedback/store';
 import { after, prefersReducedMotion } from '@/shade/lib/motion/spring';
-import { THANKS_HOLD_MS } from '@/shade/lib/motion/shade-springs';
+import { RESULT_ACTION_MS, RESULT_MS } from '@/shade/lib/notice-timing';
 import { cn } from '@/shade/lib/utils';
 import { useLang } from '@/shade/lib/lang';
 import { t } from '@/shade/strings';
 import { invoke } from '@tauri-apps/api/core';
 import { betaChatUrl } from '@/shade/lib/beta-chat';
 import { TelegramLogo } from '@phosphor-icons/react';
-import { NOTICE_SECONDARY } from '@/shade/components/ui/notice';
+import { NoticeButton } from '@/shade/components/ui/notice';
 import { shadeToast } from '@/shade/lib/toasts';
 
 function openBetaChat(url: string) {
   invoke('open_external_url', { url }).catch((error) => shadeToast.error(t('openLinkFailed'), { description: String(error) }));
 }
 
-/** «Спасибо» со ссылкой на чат беты держится дольше: ссылку надо успеть заметить и нажать. */
-export const CHAT_HOLD_MS = 6000;
+/** «Спасибо» со ссылкой на чат беты: итог с действием, 6 с. */
+export const CHAT_HOLD_MS = RESULT_ACTION_MS;
 
-/** «Не получилось отправить» держится дольше «Спасибо»: его надо успеть прочитать. */
-export const FAILED_HOLD_MS = 4000;
+/** «Спасибо» без ссылки и «Не получилось отправить»: итог без действия, 4 с. */
+export const FAILED_HOLD_MS = RESULT_MS;
+export const THANKS_CARD_MS = RESULT_MS;
 
 /** Звезда допрыгивает («прыжок» 520/13 почти успокоился), потом карточка сжимается в плашку итога. */
 export const FOLD_DELAY_MS = 450;
 
-/** Ширина карточки в шагах со звёздами и формой, px. */
-const CARD_MAX = 520;
+/** Ширину задаёт стек угла (CORNER_WIDTH): карточка во всю его ширину на всех шагах. */
+const CARD_MAX = 10_000;
 
 export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?: Flow }) {
   useLang();
@@ -68,7 +70,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
   const inForm = view.step === 'form' || (sending && view.origin === 'low');
   const titleId = React.useId();
   const { outer, inner } = useSpringHeight<HTMLDivElement, HTMLDivElement>();
-  const frame = useSpringWidth<HTMLElement>(inner, plaque !== null, CARD_MAX);
+  const frame = useSpringWidth<HTMLElement>(inner, false, CARD_MAX);
 
   // Отправка: один запрос на вход в sending (повторное «Отправить» редуктор не пропускает)
   React.useEffect(() => {
@@ -96,10 +98,10 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
   // а указатель при этом остаётся на карточке
   const [hovered, setHovered] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
-  const paused = chatInPlaque && (hovered || focused);
+  const paused = hovered || focused;
   React.useEffect(() => {
     if (!plaque || paused) return;
-    const hold = plaque !== 'sent' ? FAILED_HOLD_MS : chatInPlaque ? CHAT_HOLD_MS : THANKS_HOLD_MS;
+    const hold = plaque !== 'sent' ? FAILED_HOLD_MS : chatInPlaque ? CHAT_HOLD_MS : THANKS_CARD_MS;
     return after(hold, () => dispatch({ type: 'close' }));
   }, [plaque, paused, chatInPlaque]);
 
@@ -123,8 +125,8 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
       data-plaque={plaque ?? undefined}
       // Стекло снаружи, обрезка по высоте внутри: в WebKit backdrop-filter вместе с overflow: hidden на
       // одном элементе перестаёт размывать, и строки под карточкой просвечивают
-      // Ширину ведёт useSpringWidth: до CARD_MAX со звёздами и формой, по содержимому в плашке
-      className="shade-glass shade-glass-dense relative max-w-full rounded-tile"
+      // Ширина стека угла на всех шагах; высоту ведёт useSpringHeight, низ стоит, карточка растёт вверх
+      className="shade-glass shade-glass-dense relative w-full max-w-full rounded-tile"
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -142,26 +144,27 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
       {/* Содержимое по центру: пока рамка догоняет ширину, край обрезает его поровну с двух сторон;
           items-start, чтобы пружина высоты не растягивала его при замере */}
       <div ref={outer} className="flex items-start justify-center overflow-hidden rounded-[inherit]">
-        <div ref={inner} className={cn('shrink-0', plaque ? 'p-4' : cn('p-5', !direct && 'pr-[72px]'))}>
+        <div ref={inner} className={cn('shrink-0 p-4', !plaque && !direct && 'pr-16')}>
           {plaque ? (
             <div className="shade-dock-in">
               <OutcomePlaque
                 outcome={plaque}
                 action={
-                  chatInPlaque &&
-                  chat && (
-                    <Button
-                      variant="secondary"
-                      className={cn(NOTICE_SECONDARY, 'px-4 text-sm font-medium')}
-                      onClick={() => {
-                        openBetaChat(chat);
-                        dispatch({ type: 'close' });
-                      }}
-                    >
-                      <TelegramLogo weight="fill" />
-                      {t('betaChat')}
-                    </Button>
-                  )
+                  <>
+                    {chatInPlaque && chat && (
+                      <NoticeButton
+                        action={{
+                          label: t('betaChat'),
+                          icon: <TelegramLogo weight="fill" />,
+                          onClick: () => {
+                            openBetaChat(chat);
+                            dispatch({ type: 'close' });
+                          },
+                        }}
+                      />
+                    )}
+                    <CloseButton label={t('close')} onClick={() => dispatch({ type: 'close' })} className="static size-10 translate-y-0" />
+                  </>
                 }
               />
             </div>
@@ -196,12 +199,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
                       {sending && <Spinner tone="inherit" />}
                       {sending ? t('feedbackSending') : t('feedbackSend')}
                     </Button>
-                    {chat && (
-                      <Button variant="secondary" className={cn(NOTICE_SECONDARY, 'h-12 px-4 text-sm font-medium')} onClick={() => openBetaChat(chat)}>
-                        <TelegramLogo weight="fill" />
-                        {t('betaChat')}
-                      </Button>
-                    )}
+                    {chat && <NoticeButton action={{ label: t('betaChat'), icon: <TelegramLogo weight="fill" />, onClick: () => openBetaChat(chat) }} />}
                   </div>
                 </div>
               )}
@@ -211,7 +209,7 @@ export function FeedbackCard({ onDone, initial }: { onDone: () => void; initial?
         </div>
       </div>
       {!plaque && !direct && (
-        <CloseButton label={t('close')} onClick={() => dispatch({ type: 'close' })} className={cn(inForm && 'top-5 translate-y-0')} disabled={sending} />
+        <CloseButton label={t('close')} onClick={() => dispatch({ type: 'close' })} className={cn('right-4 size-10', inForm && 'top-4 translate-y-0')} disabled={sending} />
       )}
     </section>
   );
