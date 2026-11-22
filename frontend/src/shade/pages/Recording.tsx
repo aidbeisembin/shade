@@ -162,7 +162,7 @@ export function RecordingView({ isPaused, duration, live, onBack, onStop }: Reco
   // Свечение голоса за капсулой: живое на записи, тонкая линия на паузе, уходит после «Остановить»
   const { busy } = useRecordingControls();
   const glow = busy === 'stop' ? 'off' : isPaused ? 'paused' : 'listen';
-  // Голос есть, а текста по нему ещё нет: ядро присылает текст после паузы (lib/hearing.ts)
+  // Голос есть, а текста по нему ещё нет: кусок речи ещё не закрыт или распознаётся (lib/hearing.ts)
   const hearing = useHearing(glow === 'listen', segments.length);
 
   return (
