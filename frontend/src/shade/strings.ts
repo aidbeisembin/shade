@@ -116,6 +116,8 @@ export const ru = {
   resumeRecording: 'Продолжить',
   liveTranscript: 'Транскрипт в реальном времени',
   waitingSpeech: 'Ждём речь',
+  // Голос слышен, текст придёт после паузы (lib/hearing.ts)
+  hearingSpeech: 'Слышу речь, текст появится после паузы',
   toLatest: 'К новым',
   // После «Остановить»: строка встречи в списке и карточка на месте кнопки записи (RecordDock)
   finishTranscribing: 'Дописываю реплики',
@@ -598,6 +600,7 @@ export const en: Mirror<RuDict> = {
   resumeRecording: 'Resume',
   liveTranscript: 'Live transcript',
   waitingSpeech: 'Listening…',
+  hearingSpeech: 'Hearing speech, text appears after a pause',
   toLatest: 'Jump to latest',
   finishTranscribing: 'Finishing the last lines',
   finishSaving: 'Saving',
