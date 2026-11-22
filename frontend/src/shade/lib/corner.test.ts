@@ -82,17 +82,17 @@ describe('стек', () => {
 });
 
 describe('сроки', () => {
-  test('итог 4 с, с действием 8 с; итог записи в доке по причине', () => {
+  test('итог 4 с, с действием 6 с; итог записи в доке по причине', () => {
     expect(resultTimeout(false)).toBe(RESULT_MS);
     expect(resultTimeout(true)).toBe(RESULT_ACTION_MS);
-    expect([RESULT_MS, RESULT_ACTION_MS]).toEqual([4000, 8000]);
+    expect([RESULT_MS, RESULT_ACTION_MS]).toEqual([4000, 6000]);
     expect(outcomeTimeout('empty')).toBe(4000);
     expect(outcomeTimeout('unrecognized')).toBe(4000);
-    expect(outcomeTimeout('no-speech')).toBe(8000);
-    expect(outcomeTimeout('low-content')).toBe(8000);
+    expect(outcomeTimeout('no-speech')).toBe(6000);
+    expect(outcomeTimeout('low-content')).toBe(6000);
   });
 
-  test('без действия уходит через 4 с, с действием через 8 с', () => {
+  test('без действия уходит через 4 с, с действием через 6 с', () => {
     const { clock, tick } = manualClock();
     const s = new CornerStore(clock);
     s.show(result('без кнопки'));
@@ -166,7 +166,7 @@ describe('склейка однотипных', () => {
     expect(cards[0].view.title).toBe('2 встречи в корзине');
     expect(cards[0].view.hint).toBe('Удалится насовсем через 30 дней');
     expect(cards[0].view.action?.label).toBe('Вернуть');
-    expect(cards[0].timeout).toBe(8000);
+    expect(cards[0].timeout).toBe(6000);
     cards[0].view.action?.onClick();
     await new Promise((r) => setTimeout(r, 0));
     expect(restored).toEqual(['m1', 'm2']);

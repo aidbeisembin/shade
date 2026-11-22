@@ -45,7 +45,7 @@ const TITLE_WAIT_TRIES = (3 * 60 * 60 * 1000) / TITLE_WAIT_MS;
 /**
  * Сколько показывать итог отбракованной записи в доке (notice-timing.ts): без действия
  * («Пустая запись», «Речь не распознана») 4 с, с действием («Речи не было» и «Проверить звук»,
- * «Мало содержания» и «Вернуть») 8 с. Под указателем, в фокусе и с открытой «Проверить звук»
+ * «Мало содержания» и «Вернуть») 6 с. Под указателем, в фокусе и с открытой «Проверить звук»
  * время не идёт, но не дольше NOTICE_MAX_MS, чтобы карточка не зависала.
  */
 export const NOTICE_MS = RESULT_ACTION_MS;
@@ -258,7 +258,7 @@ export function ShadeRecordingProvider({ children }: { children: ReactNode }) {
         setNotice({ verdict, ...extra, hold, dismiss: closeNotice });
         return;
       }
-      // Без действия 4 с, с действием 8 с; под указателем и в фокусе ждёт, не дольше NOTICE_MAX_MS
+      // Без действия 4 с, с действием 6 с; под указателем и в фокусе ждёт, не дольше NOTICE_MAX_MS
       const ms = noticeMs(verdict);
       const max = NOTICE_MAX_MS;
       countdown.current = { remaining: ms, startedAt: null, hardStop: Date.now() + max };

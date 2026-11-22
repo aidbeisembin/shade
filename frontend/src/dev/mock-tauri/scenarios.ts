@@ -133,7 +133,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     live: 'none',
   },
   'silence-15s': {
-    id: 'silence-15s', label: 'silence-15s', description: 'Пустая запись длиннее 10 секунд, VAD молчит: в доке «Речи не было» и «Проверить звук» на 8 с',
+    id: 'silence-15s', label: 'silence-15s', description: 'Пустая запись длиннее 10 секунд, VAD молчит: в доке «Речи не было» и «Проверить звук» на 6 с',
     meetings: () => createFullMeetings().slice(0, 3), onboardingCompleted: true, modelsReady: true, recordingOnLoad: true, failing: false,
     live: 'none', startOffsetSec: 15,
   },

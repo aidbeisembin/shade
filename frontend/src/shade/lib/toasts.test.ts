@@ -19,13 +19,13 @@ describe('toastView', () => {
     const wait = toastView('loading', 'a');
     expect([wait.icon, wait.closable]).toEqual(['progress', false]);
   });
-  test('действие сохраняется и ведёт к сроку 8 с; «View Meeting» повторяет переход и убирается', () => {
+  test('действие сохраняется и ведёт к сроку 6 с; «View Meeting» повторяет переход и убирается', () => {
     let clicked = 0;
     const v = toastView('success', 'a', { action: { label: 'Open', onClick: () => void clicked++ } });
     expect(v.action).toBeDefined();
     v.action?.onClick();
     expect(clicked).toBe(1);
-    expect(resultTimeout(Boolean(v.action))).toBe(8000);
+    expect(resultTimeout(Boolean(v.action))).toBe(6000);
     expect(toastView('success', 'a', { action: { label: 'View Meeting', onClick: () => undefined } }).action).toBeUndefined();
   });
 });
