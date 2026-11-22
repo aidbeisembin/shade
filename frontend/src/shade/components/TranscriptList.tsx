@@ -11,6 +11,8 @@
 // чтобы текст не отставал от разговора. Реплики, которые уже были на экране при
 // открытии, не перепечатываются. prefers-reduced-motion показывает текст сразу.
 // Диктор получает реплику целиком один раз (скрытый текст), а не по буквам.
+// hearingLabel: голос уже слышен, а текста по нему ещё нет (lib/hearing.ts): под последней
+// репликой три точки, чтобы было видно, что запись идёт.
 
 import { memo, useEffect, useRef, useState } from 'react';
 import type { Segment } from '@/shade/lib/meeting';
@@ -66,6 +68,8 @@ interface TranscriptListProps {
    * реплика, с которой список появляется, тоже печаталась.
    */
   settledIds?: ReadonlySet<string>;
+  /** Голос уже слышен, текста по нему ещё нет: под лентой три точки, подпись для диктора (только при live). */
+  hearingLabel?: string;
 }
 
 interface RowProps {
@@ -106,7 +110,7 @@ const Row = memo(function Row({ text, time, timeCh, speaker, newSpeaker, first, 
   );
 });
 
-export const TranscriptList = memo(function TranscriptList({ segments, live = false, onTyped, settledIds }: TranscriptListProps) {
+export const TranscriptList = memo(function TranscriptList({ segments, live = false, onTyped, settledIds, hearingLabel }: TranscriptListProps) {
   // Реплики, которые были при первом показе, не перепечатываются
   const initial = useRef<ReadonlySet<string> | null>(null);
   if (initial.current === null) initial.current = settledIds ?? new Set(segments.map((s) => s.id));
@@ -132,6 +136,19 @@ export const TranscriptList = memo(function TranscriptList({ segments, live = fa
           />
         );
       })}
+      {live && hearingLabel && (
+        <li style={{ gridTemplateColumns: `${timeCh}ch 1fr` }} className="grid items-baseline gap-x-4 pt-2.5" role="status">
+          <span />
+          <p className="leading-7 text-muted-foreground">
+            <span className="shade-hearing-dots" aria-hidden>
+              <span />
+              <span />
+              <span />
+            </span>
+            <span className="sr-only">{hearingLabel}</span>
+          </p>
+        </li>
+      )}
     </ol>
   );
 });

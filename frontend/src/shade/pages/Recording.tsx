@@ -22,6 +22,7 @@ import { Page, TILE } from '@/shade/components/Page';
 import type { LiveSpeech } from '@/shade/lib/recording-outcome';
 import { TranscriptList } from '@/shade/components/TranscriptList';
 import { LivePulse } from '@/shade/components/LivePulse';
+import { useHearing } from '@/shade/lib/use-hearing';
 import { VoiceGlow } from '@/shade/components/VoiceGlow';
 import { useRecordingControls } from '@/shade/lib/recording-controls';
 import { toSegment } from '@/shade/lib/meeting';
@@ -161,6 +162,8 @@ export function RecordingView({ isPaused, duration, live, onBack, onStop }: Reco
   // Свечение голоса за капсулой: живое на записи, тонкая линия на паузе, уходит после «Остановить»
   const { busy } = useRecordingControls();
   const glow = busy === 'stop' ? 'off' : isPaused ? 'paused' : 'listen';
+  // Голос есть, а текста по нему ещё нет: ядро присылает текст после паузы (lib/hearing.ts)
+  const hearing = useHearing(glow === 'listen', segments.length);
 
   return (
     <Page
@@ -209,12 +212,12 @@ export function RecordingView({ isPaused, duration, live, onBack, onStop }: Reco
                 <FinishGlyph stage="transcribing" />
               </span>
             </span>
-            <p className="shade-fg-text text-[15px] font-semibold">{t('waitingSpeech')}</p>
+            <p className="shade-fg-text text-[15px] font-semibold">{t(hearing ? 'hearingSpeech' : 'waitingSpeech')}</p>
           </div>
         ) : (
           <>
             <div ref={listRef} className="max-w-[760px]">
-              <TranscriptList segments={segments} live settledIds={settledIds} />
+              <TranscriptList segments={segments} live settledIds={settledIds} hearingLabel={hearing ? t('hearingSpeech') : undefined} />
             </div>
             {/* Прокрутили вверх: лента стоит, над капсулой записи «К новым». Нулевая высота:
                 появление кнопки не двигает ленту */}

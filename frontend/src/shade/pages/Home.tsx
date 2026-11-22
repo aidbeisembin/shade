@@ -7,8 +7,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowClockwise, ArrowCounterClockwise, Chats, MagnifyingGlass, Sparkle, Trash, Warning } from '@phosphor-icons/react';
-import { XFatIcon } from '@/shade/components/XFatIcon';
+import { ArrowClockwise, ArrowCounterClockwise, Chats, MagnifyingGlass, Sparkle, Trash, Warning, X } from '@phosphor-icons/react';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { ImportIcon } from '@/shade/components/ImportIcon';
 import { Button } from '@/shade/components/ui/button';
@@ -589,9 +588,10 @@ function HomeView({ finish, onStart, blocker, onDismissBlocker, startError }: Ho
                   aria-label={searchOpen ? t('closeSearch') : t('searchMeetings')}
                   aria-expanded={searchOpen}
                 >
-                  {/* Лупа контуром (bold): залитая рисуется сплошным диском; X bold: залитый нарисован квадратом */}
+                  {/* Лупа и крестик bold одной толщины: залитая лупа рисуется сплошным диском,
+                      а XFatIcon заметно толще лупы, в паре они спорят (владелец 22.11.2026) */}
                   <MagnifyingGlass weight="bold" className="shade-search-icon-find absolute" />
-                  <XFatIcon className="shade-search-icon-close absolute" />
+                  <X weight="bold" className="shade-search-icon-close absolute" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">{searchOpen ? t('closeSearch') : t('searchMeetings')}</TooltipContent>
