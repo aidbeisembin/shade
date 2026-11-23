@@ -11,7 +11,7 @@ use rubato::{Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolat
 use super::devices::AudioDevice;
 use super::recording_state::{AudioChunk, AudioError, RecordingState, DeviceType};
 use super::audio_processing::{audio_to_mono, LoudnessNormalizer, NoiseSuppressionProcessor, HighPassFilter};
-use super::vad::{ContinuousVadProcessor};
+use super::vad::{ContinuousVadProcessor, LiveLimits};
 
 /// How long a silence must last before the VAD closes a speech segment, and
 /// therefore how long the audio clips handed to the ASR engine are.
@@ -22,8 +22,8 @@ use super::vad::{ContinuousVadProcessor};
 /// length. The live path cannot: with continuous audio (e.g. a podcast played
 /// as system audio) a 2000ms redemption keeps one VAD segment open
 /// indefinitely, withholds live transcript emission, and overruns the
-/// accumulated-speech-buffer warning threshold. Bounded live segmentation
-/// during continuous speech is tracked separately in #756.
+/// accumulated-speech-buffer warning threshold. Speech without such a pause is
+/// bounded separately: see `LiveLimits` in vad.rs (Shade, 2026-11-22).
 const VAD_REDEMPTION_TIME_MS: u32 = 500;
 
 /// Ring buffer for synchronized audio mixing
@@ -763,13 +763,18 @@ impl AudioPipeline {
         // batch value (2000ms, `import.rs`/`retranscription.rs`) was tried here
         // first, but under continuous system audio it kept a VAD segment open
         // indefinitely and withheld live transcript emission, so live and batch
-        // deliberately diverge. Bounded live segments under continuous speech
-        // are tracked in #756.
-        let vad_processor =
-            ContinuousVadProcessor::new(sample_rate, VAD_REDEMPTION_TIME_MS)?;
+        // deliberately diverge.
+        //
+        // Speech without a 500ms pause (a monologue, a podcast as system audio) is
+        // still closed into pieces: at a micro-pause after 6s, else at the quietest
+        // moment between 6s and 8s (`LiveLimits::DEFAULT`, vad.rs), so live text keeps
+        // coming.
+        let vad_processor = ContinuousVadProcessor::new(sample_rate, VAD_REDEMPTION_TIME_MS)?
+            .with_live_limits(LiveLimits::DEFAULT);
         info!(
-            "VAD-driven pipeline: segments dispatched per speech burst (redemption_time={}ms)",
-            VAD_REDEMPTION_TIME_MS
+            "VAD-driven pipeline: segments dispatched per speech burst (redemption_time={}ms, live limits {:?})",
+            VAD_REDEMPTION_TIME_MS,
+            LiveLimits::DEFAULT
         );
 
         // Initialize professional audio mixing components
@@ -1118,9 +1123,17 @@ mod tests {
 
     #[test]
     fn test_live_vad_redemption_matches_pro_policy() {
-        // Live uses the established 500ms pause policy; it does not bound
-        // uninterrupted speech. Batch import/retranscription use 2000ms.
-        // See #679 and #756.
+        // Live uses the established 500ms pause policy; uninterrupted speech is
+        // bounded by `LiveLimits` (vad.rs). Batch import/retranscription use 2000ms.
+        // See #679.
         assert_eq!(VAD_REDEMPTION_TIME_MS, 500);
+    }
+
+    #[test]
+    fn test_live_pieces_are_bounded() {
+        // Live text must appear within ~8s of speech even without pauses
+        let limits = LiveLimits::DEFAULT;
+        assert!(limits.cut_at_first_gap);
+        assert!(limits.soft_ms <= 6_000 && limits.hard_ms <= 8_000);
     }
 }
