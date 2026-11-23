@@ -486,6 +486,8 @@ export const ru = {
   feedbackRowHint: 'Оценка и пара слов о Shade. Уходит только по кнопке «Отправить»',
   feedbackAskRow: 'Иногда спрашивать оценку',
   feedbackAskHint: 'После записи от 10 минут, когда вы открыли её итоги: через неделю ещё раз, дальше раз в месяц. Не во время записи',
+  statsRow: 'Анонимная статистика',
+  statsHint: 'Только факты: запуск, начало записи, готовые итоги, версия Shade и macOS. Без звука, текста и названий встреч',
   betaChat: 'Обсудить в чате беты',
 
   // Обновления (components/UpdateCard, lib/updates.ts, docs/release.md)
@@ -966,6 +968,8 @@ export const en: Mirror<RuDict> = {
   feedbackRowHint: 'A rating and a few words about Shade. Sent only when you press “Send”',
   feedbackAskRow: 'Sometimes ask for a rating',
   feedbackAskHint: 'After a recording of 10+ minutes, when you open its summary: again a week later, then once a month. Never while recording',
+  statsRow: 'Anonymous statistics',
+  statsHint: 'Only the facts: launch, recording started, summary ready, Shade and macOS version. No audio, text or meeting titles',
   betaChat: 'Discuss in the beta chat',
 
   updateAvailable: 'Version {version} is available',

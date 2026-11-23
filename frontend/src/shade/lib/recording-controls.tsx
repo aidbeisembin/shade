@@ -19,6 +19,7 @@ import { useRecordingOutcome } from './recording-outcome';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 import { noteMeetingCompleted } from '@/shade/lib/feedback/store';
+import { track } from '@/shade/lib/stats';
 
 /**
  * Сочетание работает только в окне Shade: глобальному нужен плагин в ядре
@@ -144,6 +145,8 @@ export function ShadeRecordingControls({ children }: { children: ReactNode }) {
 
   const startedAt = useRef<number | null>(null);
   useEffect(() => {
+    // Запись только что началась (любым путём: кнопка, сочетание клавиш, док): событие статистики
+    if (rec.isRecording && startedAt.current === null) track('app_recording_started');
     startedAt.current = rec.isRecording ? (startedAt.current ?? Date.now()) : null;
   }, [rec.isRecording]);
 

@@ -10,6 +10,7 @@ import { isTrashed } from './meeting-trash';
 import { getLang } from './lang';
 import { createTitler, type SetResult, type TitleDeps } from './title-core';
 import { createPendingStore } from './title-reveal';
+import { track } from './stats';
 
 export type { ModelInfo, SkipReason, TitleLog, TitleMode, TitleOutcome } from './title-core';
 export { createTitler, stillBusy } from './title-core';
@@ -106,6 +107,7 @@ const realDeps: TitleDeps = {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(TITLE_EVENT, { detail: { id, title } }));
   },
   progress: setTitlePending,
+  summaryReady: () => track('app_summary_ready'),
 };
 
 export const titler = createTitler(realDeps);
