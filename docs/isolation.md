@@ -29,7 +29,7 @@
 | **Схемы адресов (deep-link), автозапуск** | Не используются: плагинов `deep-link` и `autostart` нет | `src-tauri/Cargo.toml` (список плагинов) | Если понадобятся, давать свои имена |
 | **Разрешения macOS** (микрофон, запись экрана, системный звук) | TCC хранит разрешения по bundle id и подписи; подпись ad-hoc (`signingIdentity: "-"`) | `src-tauri/Info.plist`, `src-tauri/entitlements.plist`, `tauri.conf.json` | Свой `identifier`. Ad-hoc подпись меняется при каждой сборке, macOS может спрашивать повторно |
 | **Автообновление** | `plugins.updater` в `tauri.conf.json` | `src-tauri/tauri.conf.json` (`plugins.updater`, `bundle.createUpdaterArtifacts`); `src-tauri/src/lib.rs:469`; `src/hooks/useUpdateCheck.ts:20-46` | Адрес и ключ исходного проекта убраны (`endpoints: []`, `pubkey: ""`, `createUpdaterArtifacts: false`) |
-| **Аналитика** | Удалена 17.11.2026 (раздел 10). Старый `analytics.json` (plugin-store) у пользователей остаётся, его никто не читает | Нет | Нечего изолировать |
+| **Аналитика** | Старая удалена 17.11.2026 (раздел 10); с 23.11.2026 анонимная статистика окна через `aidbeisembin.com/shade/e` (`lib/stats.ts`). Старый `analytics.json` (plugin-store) у пользователей остаётся, его никто не читает | Нет | Нечего изолировать |
 
 ## 2. Модели: путь и запасной путь
 

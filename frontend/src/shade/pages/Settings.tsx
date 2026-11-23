@@ -38,6 +38,7 @@ import { SpeechEngineNotice } from '@/shade/components/SpeechEngineNotice';
 import { FeedbackMorph } from '@/shade/components/feedback/FeedbackMorph';
 import { LicensesDialog } from '@/shade/components/LicensesDialog';
 import { setAskEnabled, useAskEnabled } from '@/shade/lib/feedback/store';
+import { setStatsEnabled, useStatsEnabled } from '@/shade/lib/stats';
 
 const TABS = [
   { value: 'general', label: 'settingsGeneral', icon: SlidersHorizontal },
@@ -221,6 +222,7 @@ function GeneralTab() {
 function FeedbackRows() {
   useLang();
   const ask = useAskEnabled();
+  const stats = useStatsEnabled();
   return (
     <>
       <Row title={t('feedbackRowTitle')} hint={t('feedbackRowHint')}>
@@ -228,6 +230,9 @@ function FeedbackRows() {
       </Row>
       <Row title={t('feedbackAskRow')} hint={t('feedbackAskHint')}>
         <Switch checked={ask} onCheckedChange={setAskEnabled} aria-label={t('feedbackAskRow')} />
+      </Row>
+      <Row title={t('statsRow')} hint={t('statsHint')}>
+        <Switch checked={stats} onCheckedChange={setStatsEnabled} aria-label={t('statsRow')} />
       </Row>
     </>
   );

@@ -59,7 +59,7 @@
 
 - Тело `POST` на основной адрес `https://aidbeisembin.com/shade/api/feedback` (портфолио владельца пересылает его на проект Vercel «shade»), при сетевой ошибке или ответе 404 и 405 на запасной `https://meetily-tau.vercel.app/api/feedback` (`FEEDBACK_URLS` в `lib/feedback/send.ts`). Ответ функции на основном (2xx, 4xx, 429, 5xx) окончательный. Тело ровно `{rating, text, appVersion, macos, locale}` (`frontend/api/_contract.ts`, общий с функцией; приложение берёт его через `lib/feedback/contract.ts`). Текст до 2000 знаков (по кодовым точкам, эмодзи не рвутся), поле приложение обрезает само.
 - `macos` всегда `unknown`: WebKit замораживает версию в User-Agent на 10.15.7, а честный путь (плагин os или чтение `SystemVersion.plist`) требует правки ядра. Записи и текст встреч не отправляются никогда.
-- Статистику Shade не собирает: отзыв по кнопке единственное, что приложение отправляет само.
+- Анонимная статистика отдельно от отзыва: три события, переключатель «Анонимная статистика» в том же разделе (`lib/stats.ts`, `PRIVACY_POLICY.md`).
 - Домены в CSP ядра: `connect-src` в `src-tauri/tauri.conf.json`, оба адреса (`docs/isolation.md`, разделы 9 и 10).
 
 ## Отказы (`lib/feedback/send.ts`)

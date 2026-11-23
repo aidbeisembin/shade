@@ -47,6 +47,7 @@ import { DockLeave, LEAVE_MS } from '@/shade/components/DockLeave';
 import { corner } from '@/shade/lib/corner';
 import { RESULT_MS } from '@/shade/lib/notice-timing';
 import { clearOffer, flushFeedbackOnLaunch, useOfferedMeeting } from '@/shade/lib/feedback/store';
+import { trackLaunch } from '@/shade/lib/stats';
 import { previewFeedback, previewMotion } from '@/shade/lib/feedback/preview';
 import type { Flow } from '@/shade/lib/feedback/flow';
 import { UpdateCard, isShownUpdate } from '@/shade/components/UpdateCard';
@@ -350,7 +351,10 @@ export function RecordDock() {
     setFeedbackPreview(previewFeedback(params));
     previewMotion(params);
   }, [pathname]);
-  useEffect(() => flushFeedbackOnLaunch(), []);
+  useEffect(() => {
+    flushFeedbackOnLaunch();
+    trackLaunch();
+  }, []);
   useEffect(() => {
     if (c.isRecording) clearOffer();
   }, [c.isRecording]);

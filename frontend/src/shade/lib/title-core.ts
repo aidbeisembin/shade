@@ -79,6 +79,8 @@ export interface TitleDeps {
    * показывает полосу пикселей вместо названия. Только вокруг запроса к модели, проверки до него не в счёт.
    */
   progress?(id: string, generating: boolean): void;
+  /** Итоги, о которых попросили («Подвести итоги»), готовы: событие статистики (stats.ts). */
+  summaryReady?(id: string): void;
 }
 
 /** Запись журнала: структура, а не текст (текст собирает console в настоящих зависимостях, тесты читают поля). */
@@ -166,6 +168,7 @@ export function createTitler(deps: TitleDeps) {
       for (let waited = 0; waited < WATCH_MAX_MS; waited += WATCH_POLL_MS) {
         const status = (await deps.summaryStatus(id).catch(() => '')).toLowerCase();
         if (status === 'completed') {
+          deps.summaryReady?.(id);
           await titleOne(id, { mode: 'after-summary' });
           return;
         }
