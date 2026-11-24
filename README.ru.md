@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/shade-demo.gif" width="800" alt="Shade записывает встречу: пульс разговора и живая расшифровка">
+  <img src="docs/assets/shade-demo.gif" width="800" alt="Shade записывает встречу: живая расшифровка и пульс разговора, затем название и итог">
 </p>
 
 

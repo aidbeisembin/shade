@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/shade-demo.gif" width="800" alt="Shade recording a meeting: conversation pulse and live transcript">
+  <img src="docs/assets/shade-demo.gif" width="800" alt="Shade records a meeting: live transcript, conversation pulse, then the meeting is named and summarized">
 </p>
 
 ## Why Shade
