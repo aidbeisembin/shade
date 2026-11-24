@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/shade-mark.svg" width="88" height="88" alt="">
+  <img src="docs/assets/shade-icon.png" width="88" height="88" alt="">
 </p>
 
 <h1 align="center">Shade</h1>
