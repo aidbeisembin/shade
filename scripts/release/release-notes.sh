@@ -8,7 +8,7 @@ set -euo pipefail
 
 root="${SHADE_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 version="${1:?версия}" sums="${2:?SHA256SUMS.txt}"
-readme="https://github.com/aidbeisembin/shade#установка"
+readme="https://github.com/aidbeisembin/shade/blob/shade/README.ru.md#установка"
 chat=$(sed -n "s/^export const BETA_CHAT_URL = '\(.*\)';.*/\1/p" "$root/frontend/src/shade/lib/beta-chat.ts")
 
 cat <<EOF
