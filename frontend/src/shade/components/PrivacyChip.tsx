@@ -2,13 +2,14 @@
 // Смысл передают текст и иконка, цвет только поддерживает.
 'use client';
 
-import { Cloud, ShieldCheck, ShieldWarning, Sparkle, Waveform } from '@phosphor-icons/react';
+import { Cloud, ShieldCheck, ShieldWarning, Sparkle } from '@phosphor-icons/react';
 import { Badge } from '@/shade/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shade/components/ui/tooltip';
 import { providerLabel, type PrivacyInfo, type PrivacyLevel, type ProviderPrivacy } from '@/shade/lib/privacy';
 import { t, type StringKey } from '@/shade/strings';
 import { cn } from '@/shade/lib/utils';
 import { useLang } from '@/shade/lib/lang';
+import { Waveform } from '@/shade/components/icons';
 
 const LEVEL = {
   local: { icon: ShieldCheck, label: 'privacyLocal', hint: 'privacyHintLocal', variant: 'accent' as const },

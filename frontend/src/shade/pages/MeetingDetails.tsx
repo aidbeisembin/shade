@@ -12,12 +12,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
-  ArrowCounterClockwise,
-  ArrowClockwise,
-  CheckFat,
   CaretDown,
   FolderOpen,
-  MicrophoneSlash,
   Sparkle,
   Trash,
   Warning,
@@ -62,6 +58,7 @@ import { usePermissionCheck } from '@/hooks/usePermissionCheck';
 import { useLang } from '@/shade/lib/lang';
 import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
 import { useFeedbackOffer } from '@/shade/lib/feedback/store';
+import { ArrowClockwise, ArrowCounterClockwise, CheckIcon, MicrophoneSlash } from '@/shade/components/icons';
 
 // Колонка текста: строки реплик не длиннее 760 px, дальше читать тяжело
 const MEASURE = 'max-w-[760px]';
@@ -366,7 +363,9 @@ function CopyButton({ disabled, getText }: { disabled: boolean; getText: () => P
       aria-label={disabled ? `${t('copy')}: ${t('nothingToCopy')}` : undefined}
       className="min-w-[180px]"
     >
-      {state === 'busy' ? <Spinner tone="inherit" /> : state === 'done' ? <CheckFat /> : <CopyIcon />}
+      {/* Галочка тоньше общей линии (20 вместо ICON_LINE 24): рядом с текстом 15/500 в кнопке 56 px
+          полная толщина читается жирнее букв, 20 по штриху совпадает с ними (владелец 26.11.2026) */}
+      {state === 'busy' ? <Spinner tone="inherit" /> : state === 'done' ? <CheckIcon line={20} /> : <CopyIcon />}
       <span aria-live="polite">{state === 'done' ? t('copiedShort') : t('copy')}</span>
     </Button>
   );

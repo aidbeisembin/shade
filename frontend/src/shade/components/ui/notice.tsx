@@ -13,13 +13,13 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowFatUp, Check, ClockCounterClockwise, Warning } from '@phosphor-icons/react';
+import { ArrowFatUp, Warning } from '@phosphor-icons/react';
 import { CloseButton } from '@/shade/components/ui/close-button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { Button } from '@/shade/components/ui/button';
-import { InfoFatIcon } from '@/shade/components/InfoFatIcon';
 import type { NoticeAction, NoticeIconKind } from '@/shade/lib/corner';
 import { cn } from '@/shade/lib/utils';
+import { CheckIcon, ClockCounterClockwise, InfoIcon } from '@/shade/components/icons';
 
 /** Высота круга, кнопки действия и крестика: одна линия, 40 px. */
 export const NOTICE_ACTION = 'h-10';
@@ -48,20 +48,19 @@ const MARK_TONE: Record<NoticeTone, string> = {
   error: `${MARK_BG} text-destructive-ink`,
 };
 
-/** Значок по смыслу. Phosphor в заливке, галочка bold (по весу с часами и стрелкой), «i» свой (InfoFatIcon), ожидание - Spinner. */
+/** Значок по смыслу. Phosphor в заливке, галочка и «i» линией ICON_LINE (components/icons.tsx), ожидание - Spinner. */
 export function NoticeGlyph({ kind }: { kind: NoticeIconKind }) {
   switch (kind) {
     case 'done':
-      // Обычная галочка bold: CheckFat тяжелее часов и стрелки рядом (решение владельца 21.11.2026)
-      return <Check weight="bold" />;
+      return <CheckIcon />;
     case 'info':
-      return <InfoFatIcon />;
+      return <InfoIcon />;
     case 'problem':
       return <Warning weight="fill" />;
     case 'progress':
       return <Spinner />;
     case 'recovery':
-      return <ClockCounterClockwise weight="fill" />;
+      return <ClockCounterClockwise />;
     case 'update':
       return <ArrowFatUp weight="fill" />;
   }

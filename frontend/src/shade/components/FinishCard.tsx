@@ -10,13 +10,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check } from '@phosphor-icons/react';
 import { Notice, NoticeButton } from '@/shade/components/ui/notice';
 import { resultTimeout } from '@/shade/lib/notice-timing';
 import { SoundCheckDialog } from '@/shade/components/SoundCheck';
 import { displayTitleBrief } from '@/shade/lib/format';
 import { t, type StringKey } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { CheckIcon } from '@/shade/components/icons';
 
 export type FinishCardStage = 'transcribing' | 'saving' | 'saved' | 'discarded';
 /** Почему записи нет в списке (recording-outcome.tsx, DiscardVerdict). */
@@ -39,7 +39,7 @@ export function FinishGlyph({ stage }: { stage: FinishCardStage }) {
           <span className="shade-fg-in" />
         </span>
       ))}
-      <Check weight="bold" className="shade-fg-check" />
+      <CheckIcon className="shade-fg-check" />
     </span>
   );
 }

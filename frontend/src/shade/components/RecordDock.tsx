@@ -22,7 +22,7 @@
 
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { MicrophoneSlash, Pause, Play, Stop } from '@phosphor-icons/react';
+import { Pause, Play, Stop } from '@phosphor-icons/react';
 import { DOCK_CARD, FinishCard, type FinishCardStage, type DiscardReason } from '@/shade/components/FinishCard';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
@@ -53,6 +53,7 @@ import type { Flow } from '@/shade/lib/feedback/flow';
 import { UpdateCard, isShownUpdate } from '@/shade/components/UpdateCard';
 import { previewUpdate, scheduleChecks, updateController, useUpdatePhase, type UpdatePhase } from '@/shade/lib/updates';
 import { shadeToast } from '@/shade/lib/toasts';
+import { MicrophoneSlash } from '@/shade/components/icons';
 
 /** Через сколько секунд без единой осмысленной реплики показать «Не слышу речи». */
 export const NO_SPEECH_HINT_SEC = 20;

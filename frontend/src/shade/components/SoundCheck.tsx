@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { CheckFat, GearSix, Warning } from '@phosphor-icons/react';
+import { GearSix, Warning } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { cn } from '@/shade/lib/utils';
@@ -14,6 +14,7 @@ import { t } from '@/shade/strings';
 import { openPrivacySettings } from '@/shade/lib/onboarding';
 import { useConfig } from '@/contexts/ConfigContext';
 import { useLang } from '@/shade/lib/lang';
+import { CheckIcon } from '@/shade/components/icons';
 
 interface Device {
   name: string;
@@ -64,7 +65,7 @@ export function silenceCause(s: SoundState | null): string {
 }
 
 function Row({ ok, title, value }: { ok: boolean; title: string; value: string }) {
-  const Icon = ok ? CheckFat : Warning;
+  const Icon = ok ? CheckIcon : Warning;
   return (
     <li className="flex items-center gap-3 py-3">
       <Icon className={cn('size-5 shrink-0', ok ? 'text-primary-ink' : 'text-destructive-ink')} aria-hidden />

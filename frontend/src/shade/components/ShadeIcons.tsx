@@ -1,4 +1,4 @@
-// Все иконки Shade залитые: weight="fill" по умолчанию для @phosphor-icons/react.
+// Все иконки Shade залитые: weight="fill" по умолчанию для @phosphor-icons/react; одна толщина линий в components/icons.tsx.
 // regular не используем; размер задаётся классом (16 или 20 px).
 'use client';
 

@@ -3,11 +3,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Moon, Sun } from '@phosphor-icons/react';
+import { Moon } from '@phosphor-icons/react';
 import { getStoredTheme, onThemeChange, setTheme, type ThemeMode } from '@/shade/lib/theme';
 import { cn } from '@/shade/lib/utils';
 import { t, type StringKey } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { Sun } from '@/shade/components/icons';
 
 const OPTIONS: { mode: ThemeMode; icon: typeof Sun; label: StringKey }[] = [
   { mode: 'light', icon: Sun, label: 'themeLight' },

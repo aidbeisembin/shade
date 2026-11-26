@@ -12,7 +12,7 @@
 'use client';
 
 import * as React from 'react';
-import { CheckFat, PencilSimple } from '@phosphor-icons/react';
+import { PencilSimple } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { StarRating } from '@/shade/components/feedback/StarRating';
@@ -25,6 +25,7 @@ import { shadeToast } from '@/shade/lib/toasts';
 import { cn } from '@/shade/lib/utils';
 import { useLang } from '@/shade/lib/lang';
 import { t } from '@/shade/strings';
+import { CheckIcon } from '@/shade/components/icons';
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
@@ -261,7 +262,7 @@ function Morph({ onDone }: { onDone: () => void }) {
               role="status"
               className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-medium opacity-0"
             >
-              <CheckFat className="size-5 text-primary-ink" aria-hidden />
+              <CheckIcon className="size-5 text-primary-ink" aria-hidden />
               {t('feedbackSent')}
             </div>
           )}

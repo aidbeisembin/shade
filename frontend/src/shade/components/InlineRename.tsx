@@ -9,14 +9,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CheckFat } from '@phosphor-icons/react';
-import { XFatIcon } from '@/shade/components/XFatIcon';
 import { Button } from '@/shade/components/ui/button';
 import { Input } from '@/shade/components/ui/input';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { cn } from '@/shade/lib/utils';
 import { t } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { CheckIcon, XIcon } from '@/shade/components/icons';
 
 interface InlineRenameProps {
   /** Полный текст для поля (editableTitle). */
@@ -97,7 +96,7 @@ export function InlineRename({ initial, onSave, onClose, inputClassName, buttonC
         disabled={saving}
       />
       <Button type="submit" size="icon" className={cn('shrink-0 [&_svg]:size-5', buttonClassName)} aria-label={t('save')} disabled={saving} onMouseDown={keepFocus}>
-        {saving ? <Spinner tone="inherit" /> : <CheckFat />}
+        {saving ? <Spinner tone="inherit" /> : <CheckIcon />}
       </Button>
       <Button
         type="button"
@@ -108,7 +107,7 @@ export function InlineRename({ initial, onSave, onClose, inputClassName, buttonC
         onMouseDown={keepFocus}
         onClick={cancel}
       >
-        <XFatIcon />
+        <XIcon />
       </Button>
     </form>
   );

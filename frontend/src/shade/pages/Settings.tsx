@@ -16,7 +16,7 @@ import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
-import { BookOpen, Flask, FolderOpen, Microphone, Scroll, SlidersHorizontal, Sparkle, Trash, Waveform } from '@phosphor-icons/react';
+import { BookOpen, Flask, FolderOpen, Scroll, Sparkle, Trash } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Page } from '@/shade/components/Page';
 import { BackButton } from '@/shade/components/BackButton';
@@ -39,6 +39,7 @@ import { FeedbackMorph } from '@/shade/components/feedback/FeedbackMorph';
 import { LicensesDialog } from '@/shade/components/LicensesDialog';
 import { setAskEnabled, useAskEnabled } from '@/shade/lib/feedback/store';
 import { setStatsEnabled, useStatsEnabled } from '@/shade/lib/stats';
+import { Microphone, SlidersHorizontal, Waveform } from '@/shade/components/icons';
 
 const TABS = [
   { value: 'general', label: 'settingsGeneral', icon: SlidersHorizontal },

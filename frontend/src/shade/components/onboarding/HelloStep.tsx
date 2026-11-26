@@ -8,12 +8,13 @@
 'use client';
 
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Microphone, Sparkle, Stop } from '@phosphor-icons/react';
+import { Sparkle, Stop } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { t, type StringKey } from '@/shade/strings';
 import { TITLE_CLASS, mainButtonClass } from './ui';
 import { useLang } from '@/shade/lib/lang';
+import { Microphone } from '@/shade/components/icons';
 
 const LOGO_SRC = '/brand/shade.svg';
 /** Длина цикла показа, мс; как у анимаций .shade-ob-demo-* в globals.css. */

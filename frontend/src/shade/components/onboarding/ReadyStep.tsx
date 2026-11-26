@@ -3,7 +3,7 @@
 // появится уже в приложении). Ошибка загрузки: понятный текст и «Повторить».
 'use client';
 
-import { Sparkle, UserSound } from '@phosphor-icons/react';
+import { Sparkle } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { cn } from '@/shade/lib/utils';
@@ -11,6 +11,7 @@ import { t } from '@/shade/strings';
 import { formatNumber } from '@/shade/lib/format';
 import { HINT_CLASS, TITLE_CLASS, mainButtonClass } from './ui';
 import { useLang } from '@/shade/lib/lang';
+import { UserSound } from '@/shade/components/icons';
 
 export interface SpeechModelState {
   ready: boolean;
