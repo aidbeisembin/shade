@@ -9,7 +9,6 @@ import {
   CaretRight,
   ChatText,
   FolderOpen,
-  MicrophoneSlash,
   PencilSimple,
   Sparkle,
   Trash,
@@ -28,6 +27,7 @@ import { cn } from '@/shade/lib/utils';
 import { t, tp, type StringKey } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
 import { recoveredLabel, useRecoveredMark } from '@/shade/lib/crash-recovery';
+import { MicrophoneSlash } from '@/shade/components/icons';
 
 export interface MeetingListItem {
   id: string;

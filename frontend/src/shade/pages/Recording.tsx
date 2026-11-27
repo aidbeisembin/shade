@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTauriEvent } from '@/shade/lib/tauri-events';
-import { ArrowDown, Stop, Warning } from '@phosphor-icons/react';
+import { Stop, Warning } from '@phosphor-icons/react';
 import { useFollowTail } from '@/shade/lib/follow-tail';
 import { FinishGlyph } from '@/shade/components/FinishCard';
 import { BackButton } from '@/shade/components/BackButton';
@@ -31,6 +31,7 @@ import { isShownText } from '@/shade/lib/speech';
 import { t } from '@/shade/strings';
 import { useTranscripts } from '@/contexts/TranscriptContext';
 import { useLang } from '@/shade/lib/lang';
+import { ArrowDown } from '@/shade/components/icons';
 
 interface RecordingViewProps {
   isPaused: boolean;

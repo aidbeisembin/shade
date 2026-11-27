@@ -1,8 +1,9 @@
 // Страж значков (docs/ui/foundations.md, «Иконки»): только Phosphor, только залитые. bun test src/shade (pnpm test).
 //  1. Чужих наборов значков в слое Shade нет.
-//  2. Начертания regular, light, thin, duotone не используются; bold только у шевронов Caret*, лупы,
-//     крестика X в кнопке поиска на главной (pages/Home.tsx: той же толщины, что лупа; владелец 22.11.2026)
-//     и галочки Check в круге карточек уведомлений (ui/notice.tsx, FinishCard.tsx; владелец 21.11.2026).
+//  2. Начертания regular, light, thin, duotone не используются; bold только у шевронов Caret* и лупы
+//     (и внутри components/icons.tsx: Waveform bold вместо залитого на плашке).
+//  2а. Одна толщина линий (ICON_LINE, components/icons.tsx; владелец 26.11.2026): галочка, крестик и
+//     залитые знаки с тонкими линиями 16/256 берутся из components/icons.tsx, не из Phosphor напрямую.
 //  3. Заливку по умолчанию даёт ShadeIcons (IconContext). Компонент Shade, смонтированный в
 //     app/layout.tsx вне <ShadeIcons>, обязан обернуть себя сам, если он сам или то, что он
 //     импортирует, рисует значки Phosphor: иначе знаки без явного weight рисуются контуром
@@ -10,6 +11,7 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { LINE_FIXED } from '../components/icons';
 
 const SRC = join(import.meta.dir, '../..');
 const SHADE = join(SRC, 'shade');
@@ -30,22 +32,34 @@ describe('значки Shade', () => {
     expect(bad.map((f) => relative(SRC, f))).toEqual([]);
   });
 
-  test('начертания: только fill; bold у шевронов Caret*, лупы MagnifyingGlass, крестика поиска и галочки уведомлений', () => {
+  test('начертания: только fill; bold у шевронов Caret* и лупы MagnifyingGlass', () => {
     const bad: string[] = [];
     for (const f of files) {
+      if (/components\/icons\.tsx$/.test(f)) continue;
       const lines = read(f).split('\n');
       lines.forEach((line, i) => {
         for (const m of line.matchAll(/<(\w+)[^<>]*\bweight=["'{]+(\w+)/g)) {
           const [, tag, weight] = m;
           if (weight === 'fill') continue;
           if (weight === 'bold' && (/^Caret/.test(tag) || tag === 'MagnifyingGlass')) continue;
-          // Крестик «Закрыть поиск» сменяет лупу в той же кнопке и должен быть той же толщины
-          if (weight === 'bold' && tag === 'X' && /pages\/Home\.tsx$/.test(f)) continue;
-          // Галочка «готово» в круге уведомлений: CheckFat тяжелее часов и стрелки рядом
-          if (weight === 'bold' && tag === 'Check' && /components\/(ui\/notice|FinishCard)\.tsx$/.test(f)) continue;
           bad.push(`${relative(SRC, f)}:${i + 1} <${tag} weight="${weight}">`);
         }
       });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  test('одна толщина линий: галочка, крестик и знаки с тонкими линиями только из components/icons.tsx', () => {
+    const fixed = new Set<string>(LINE_FIXED);
+    const bad: string[] = [];
+    for (const f of files) {
+      if (/components\/icons\.tsx$/.test(f)) continue;
+      for (const m of read(f).matchAll(/import\s*\{([^}]+)\}\s*from\s*'@phosphor-icons\/react'/g)) {
+        for (const part of m[1].split(',')) {
+          const name = part.trim().split(/\s+as\s+/)[0];
+          if (fixed.has(name)) bad.push(`${relative(SRC, f)}: ${name}`);
+        }
+      }
     }
     expect(bad).toEqual([]);
   });

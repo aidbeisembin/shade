@@ -9,7 +9,6 @@
 // Переключение явное, по нажатию; сами выбор моделей не меняем.
 
 import { useEffect, useRef, useState } from 'react';
-import { Waveform } from '@phosphor-icons/react';
 import { Button } from '@/shade/components/ui/button';
 import { Spinner } from '@/shade/components/ui/spinner';
 import { useConfig } from '@/contexts/ConfigContext';
@@ -18,6 +17,7 @@ import { useRecordingControls } from '@/shade/lib/recording-controls';
 import { DEFAULT_SPEECH_MODEL, DEFAULT_SPEECH_PROVIDER, saveDefaultSpeechModel, useDefaultSpeechModel } from '@/shade/lib/speech-model';
 import { shadeToast } from '@/shade/lib/toasts';
 import { t, tf } from '@/shade/strings';
+import { Waveform } from '@/shade/components/icons';
 
 export function SpeechEngineNotice() {
   useLang();

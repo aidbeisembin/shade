@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { CheckFat, Warning } from '@phosphor-icons/react';
+import { Warning } from '@phosphor-icons/react';
 import { NOTICE_HINT, NOTICE_TITLE, NoticeMark } from '@/shade/components/ui/notice';
 import { spring } from '@/shade/lib/motion/spring';
 import { MORPH } from '@/shade/lib/motion/shade-springs';
@@ -14,6 +14,7 @@ import { shadeToast } from '@/shade/lib/toasts';
 import { cn } from '@/shade/lib/utils';
 import { t, tp } from '@/shade/strings';
 import { useLang } from '@/shade/lib/lang';
+import { CheckIcon } from '@/shade/components/icons';
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
@@ -92,7 +93,7 @@ export function OutcomePlaque({ outcome, compact, action }: { outcome: Outcome; 
     <div className="flex min-w-0 items-center gap-3">
       {/* Отправлено: зелёная галочка на зелёной подложке (--ok), не лаймом: так читается «готово» */}
       <NoticeMark tone={ok ? 'ok' : outcome === 'failed' ? 'error' : 'neutral'} className={cn(compact && 'size-8 [&_svg]:size-4')}>
-        {ok ? <CheckFat /> : <Warning />}
+        {ok ? <CheckIcon /> : <Warning />}
       </NoticeMark>
       <div role="status" className="min-w-0 flex-1">
         <p className={cn(compact ? 'truncate text-sm font-semibold leading-5' : NOTICE_TITLE)}>{title}</p>

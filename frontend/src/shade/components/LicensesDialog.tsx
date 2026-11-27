@@ -8,13 +8,13 @@
 
 import { useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ArrowUpRight } from '@phosphor-icons/react';
 import noticesMarkdown from '../../../../THIRD_PARTY_NOTICES.md';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shade/components/ui/dialog';
 import { NOTICE_TEXT, parseNotices, sourceHost } from '@/shade/lib/notices';
 import { useLang } from '@/shade/lib/lang';
 import { shadeToast } from '@/shade/lib/toasts';
 import { t } from '@/shade/strings';
+import { ArrowUpRight } from '@/shade/components/icons';
 
 export function LicensesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   useLang();

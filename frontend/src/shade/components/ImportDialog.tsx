@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowClockwise, FileAudio, Warning } from '@phosphor-icons/react';
+import { FileAudio, Warning } from '@phosphor-icons/react';
 import { ShadeIcons } from '@/shade/components/ShadeIcons';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/shade/components/ui/dialog';
 import { Button } from '@/shade/components/ui/button';
@@ -24,6 +24,7 @@ import { useImportAudio, type ImportResult } from '@/hooks/useImportAudio';
 import { useTranscriptionModels, type ModelOption } from '@/hooks/useTranscriptionModels';
 import { LANGUAGES } from '@/constants/languages';
 import { useLang } from '@/shade/lib/lang';
+import { ArrowClockwise } from '@/shade/components/icons';
 
 const FORMATS = 'MP4, WAV, MP3, FLAC, OGG, MKV, WebM, WMA';
 
