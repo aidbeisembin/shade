@@ -1,63 +1,86 @@
-# Shade
+<p align="center">
+  <img src="docs/assets/shade-icon.png" width="88" height="88" alt="">
+</p>
 
-Приватные заметки встреч для Mac: запись, расшифровка и итоги прямо на компьютере.
+<h1 align="center">Shade</h1>
 
-## Что умеет
+<p align="center">
+  <b>Private AI meeting notes for your Mac.</b><br>
+  Recording, transcription and summaries happen on your computer: no bot in the call, no cloud.
+</p>
 
-- Записывает микрофон и системный звук одновременно: Zoom, Meet, Teams и любые другие созвоны.
-- Расшифровывает речь на устройстве моделями Whisper или Parakeet, ускорение Metal на Apple Silicon.
-- По кнопке подводит итоги встроенной локальной моделью или выбранным вами провайдером.
-- Ищет по тексту встреч, удалённое держит в корзине, импортирует аудиофайлы.
+<p align="center">
+  <a href="https://github.com/aidbeisembin/shade/releases/latest"><img src="https://img.shields.io/github/v/release/aidbeisembin/shade?include_prereleases&label=beta&color=E4FB77&labelColor=111" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple&logoColor=white" alt="macOS, Apple Silicon">
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-111" alt="MIT license"></a>
+</p>
 
-## Приватность
+<p align="center">
+  <a href="https://aidbeisembin.com/shade/en">Website</a> · <a href="#install">Install</a> · <a href="https://t.me/shadebeta">Beta chat</a> · <a href="README.ru.md">Русский</a>
+</p>
 
-Записи, расшифровки и итоги хранятся только на вашем Mac и никуда не отправляются. Наружу что-то уходит, только когда вы сами это выбрали: облачный провайдер итогов или отзыв по кнопке «Отправить». Ещё Shade отправляет анонимную статистику: запуск, начало записи и готовые итоги, без звука, текста и названий встреч; выключается в Настройках. Подробно: [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+<p align="center">
+  <img src="docs/assets/shade-demo.gif" width="800" alt="Shade records a meeting: live transcript, conversation pulse, then the meeting is named and summarized">
+</p>
 
-- Данные приложения: `~/Library/Application Support/com.aidbeisembin.shade/`.
-- Записи: `~/Movies/Shade`, корзина внутри, в папке `Корзина Shade`.
+## Why Shade
 
-## Установка
+- **Nothing joins your call.** Shade records your microphone and the system audio of any app: Zoom, Google Meet, Teams, Slack huddles, a browser tab. Nobody sees a bot.
+- **Your meetings stay on your Mac.** Speech is transcribed on the device; recordings, transcripts and summaries are plain files on your disk.
+- **A summary when you want one.** Key points, decisions and action items from a built-in local model, or from a provider you pick yourself.
+- **Speaks your language.** Russian and English interface; transcription in dozens of languages.
 
-Открытая бета для Mac с Apple Silicon (M1 и новее). Бета подписана своим сертификатом, а не Apple Developer ID, поэтому после установки из .dmg macOS один раз спросит, открывать ли Shade; через Терминал вопроса нет. Подпись постоянная: разрешения на микрофон и системный звук переживают обновления.
+## What it does
 
-### Способ 1. Одна строка в Терминале
+- Records the microphone and system audio at the same time.
+- Transcribes live with Whisper or Parakeet models, Metal-accelerated on Apple Silicon.
+- Shows the conversation as it happens: a live transcript and a pulse of who is talking.
+- Names the meeting after its content and writes a summary on request.
+- Searches across all your meetings, keeps deleted ones in a trash, imports audio files.
+
+## Privacy
+
+Recordings, transcripts and summaries are stored only on your Mac and are never uploaded. Something leaves your computer only when you choose it: a cloud summary provider you set up, or feedback you send. Shade also sends anonymous usage stats: app start, recording start and summary ready, with no audio, text or meeting titles; you can turn this off in Settings. Details: [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+
+- App data: `~/Library/Application Support/com.aidbeisembin.shade/`
+- Recordings: `~/Movies/Shade`, with the trash inside
+
+## Install
+
+Open beta for Macs with Apple Silicon (M1 or newer). The beta is signed with its own certificate rather than an Apple Developer ID, so after installing from the .dmg macOS asks once whether to open Shade; the Terminal install skips that question. The signature is permanent, so microphone and system audio permissions survive updates.
+
+### Option 1. One line in Terminal
 
 ```bash
 curl -fsSL https://aidbeisembin.com/shade/install.sh | bash
 ```
 
-Скрипт скачивает .dmg последнего релиза, сверяет SHA-256 и подпись «Shade Beta Signing», ставит Shade в «Программы» и запускает; встречи и настройки не трогает. Если сумма или подпись не совпали, ничего не ставит. Вопроса «Всё равно открыть» здесь нет. Исходник короткий: [scripts/install.sh](scripts/install.sh).
+The script downloads the latest release, checks its SHA-256 and the «Shade Beta Signing» signature, puts Shade in Applications and opens it. Your meetings and settings are left alone. If the checksum or the signature does not match, it installs nothing. The script is short: [scripts/install.sh](scripts/install.sh).
 
-### Способ 2. Скачать .dmg
+### Option 2. Download the .dmg
 
-<!-- install-steps -->
-1. Скачайте [Shade_aarch64.dmg](https://github.com/aidbeisembin/shade/releases/latest/download/Shade_aarch64.dmg) из [последнего релиза](https://github.com/aidbeisembin/shade/releases/latest), откройте его и перетащите Shade в «Программы».
-2. Откройте Shade из «Программ». macOS скажет, что не может проверить приложение: нажмите «Готово».
-3. Откройте Системные настройки → Конфиденциальность и безопасность. Внизу, у строки про Shade, нажмите «Всё равно открыть» и подтвердите паролем или Touch ID.
-4. В окне «Открыть Shade?» нажмите «Всё равно открыть». Дальше Shade открывается как обычно.
-<!-- /install-steps -->
+1. Download [Shade_aarch64.dmg](https://github.com/aidbeisembin/shade/releases/latest/download/Shade_aarch64.dmg) from the [latest release](https://github.com/aidbeisembin/shade/releases/latest), open it and drag Shade into Applications.
+2. Open Shade from Applications. macOS says it cannot verify the app: click «Done».
+3. Open System Settings → Privacy & Security. At the bottom, next to the line about Shade, click «Open Anyway» and confirm with your password or Touch ID.
+4. In the «Open Shade?» dialog click «Open Anyway». From then on Shade opens normally.
 
-![Системные настройки → Конфиденциальность и безопасность: «Shade» заблокировано, кнопка «Всё равно открыть»](docs/screenshots/shade-open-beta/gatekeeper-open-anyway-macos27.png)
+![System Settings → Privacy & Security: «Shade» was blocked, «Open Anyway» button](docs/screenshots/shade-open-beta/gatekeeper-open-anyway-macos27.png)
 
-Кнопка «Всё равно открыть» видна около часа после первой попытки запуска. Если её нет, снова откройте Shade из «Программ» и вернитесь в настройки. Путь одинаковый на macOS 15, 26 и 27, снимок с macOS 27 на английском. Те же шаги нарисованы в окне .dmg.
+The «Open Anyway» button stays visible for about an hour after the first launch attempt. If it is gone, open Shade from Applications again and go back to Settings. Still no button: run `xattr -cr /Applications/Shade.app` in Terminal (it clears the «downloaded from the internet» flag) and open Shade again.
 
-Кнопки нет и после этого: выполните в Терминале `xattr -cr /Applications/Shade.app` (снимает с Shade отметку «скачано из интернета») и откройте Shade снова.
+### Updates
 
-### Обновления
+Shade checks for updates at launch and once a day, without any data about you in the request. It downloads a new version in the background and verifies its signature, but installs it only when you click «Update», and never during a recording. How a release is made: [docs/release.md](docs/release.md).
 
-Shade проверяет обновления при запуске и раз в сутки, без данных о вас в запросе. Новую версию скачивает в фоне и проверяет подпись, а ставит только по кнопке «Обновить» в карточке «Доступна версия …», и никогда во время записи. Как выпускается релиз: [docs/release.md](docs/release.md).
+## Feedback
 
-## Обратная связь
+- Rate Shade and leave a note right in the app: the «How was Shade?» card after a recording.
+- Talk to other beta testers in Telegram: [t.me/shadebeta](https://t.me/shadebeta).
+- Bugs and ideas: [Issues](https://github.com/aidbeisembin/shade/issues).
 
-- Оценка и отзыв в самом Shade: карточка «Как вам Shade?» после записи.
-<!-- beta-chat -->
-- Обсудить в чате беты в Telegram: [t.me/shadebeta](https://t.me/shadebeta).
-<!-- /beta-chat -->
-- Ошибки и предложения: [Issues](https://github.com/aidbeisembin/shade/issues).
+## Build from source
 
-## Сборка из исходников
-
-Нужны macOS на Apple Silicon, Xcode Command Line Tools, Rust, Node.js 22 и pnpm.
+You need macOS on Apple Silicon, Xcode Command Line Tools, Rust, Node.js 22 and pnpm.
 
 ```bash
 git clone https://github.com/aidbeisembin/shade
@@ -66,6 +89,8 @@ pnpm install --frozen-lockfile
 pnpm tauri:build
 ```
 
-Разработка интерфейса в браузере на заглушках: `pnpm dev`, затем `http://localhost:3118/?mock=full`. Подробно: [docs/dev.md](docs/dev.md), участие: [CONTRIBUTING.md](CONTRIBUTING.md).
+To work on the interface in a browser with mock data: `pnpm dev`, then `http://localhost:3118/?mock=full`. More in [docs/dev.md](docs/dev.md); contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Built on open-source components, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## License
+
+MIT, see [LICENSE.md](LICENSE.md). Built on open-source components, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

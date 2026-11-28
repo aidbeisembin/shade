@@ -137,7 +137,12 @@ run env SHADE_ROOT="$WORK/root" bash "$HERE/release-notes.sh" 0.5.0-beta.1 "$WOR
 check "описание: чат появляется, когда задан" has "Обсудить в чате беты в Telegram: https://t.me/shade_beta_test"
 
 # --- README: тот же порядок способов, запасная команда рядом с инструкцией .dmg ---
+# Главный README на английском (страница репозитория), русский в README.ru.md; проверяются оба
 OUT=$(cat "$ROOT/README.md")
+check "README (en): сначала Терминал, потом .dmg" first_then "### Option 1. One line in Terminal" "### Option 2. Download the .dmg"
+check "README (en): команда установки в способе 1" first_then "curl -fsSL https://aidbeisembin.com/shade/install.sh | bash" "### Option 2. Download the .dmg"
+check "README (en): xattr после шагов .dmg" first_then "4. In the «Open Shade?» dialog" "xattr -cr /Applications/Shade.app"
+OUT=$(cat "$ROOT/README.ru.md")
 check "README: сначала Терминал, потом .dmg" first_then "### Способ 1. Одна строка в Терминале" "### Способ 2. Скачать .dmg"
 check "README: команда установки в способе 1" first_then "curl -fsSL https://aidbeisembin.com/shade/install.sh | bash" "### Способ 2. Скачать .dmg"
 check "README: xattr после шагов .dmg" first_then "<!-- /install-steps -->" "xattr -cr /Applications/Shade.app"
